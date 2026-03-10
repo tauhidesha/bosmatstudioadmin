@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { Message } from '@/lib/hooks/useConversationMessages';
 import { formatDistanceToNow } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
@@ -24,12 +24,27 @@ function formatMessageText(text: string) {
 
 export default function MessageList({ messages, loading = false }: MessageListProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [scrollEl, setScrollEl] = useState<HTMLElement | null>(null);
   const { setIsHeaderVisible } = useLayout();
-  const { scrollDirection, isAtTop, isAtBottom } = useScrollDirection(scrollRef.current);
+  const { scrollDirection, isAtTop, isAtBottom } = useScrollDirection(scrollEl);
 
-  // Handle auto-hide header on mobile
+  // Callback ref - dipanggil tepat saat DOM element ter-attach/detach
+  const setScrollRef = useCallback((node: HTMLDivElement | null) => {
+    (scrollRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
+    if (node) {
+      console.log('[MessageList] scrollEl attached via callback ref:', node);
+      setScrollEl(node);
+      setIsHeaderVisible(true);
+    } else {
+      console.log('[MessageList] scrollEl detached');
+      setScrollEl(null);
+      setIsHeaderVisible(true);
+    }
+  }, [setIsHeaderVisible]);
+
+  // Log scroll direction changes
   useEffect(() => {
-    if (!scrollRef.current) return;
+    console.log('[ScrollDirection]', { scrollDirection, isAtTop, isAtBottom, scrollEl: !!scrollEl });
     if (isAtTop || isAtBottom) {
       setIsHeaderVisible(true);
     } else if (scrollDirection === 'down') {
@@ -41,13 +56,12 @@ export default function MessageList({ messages, loading = false }: MessageListPr
 
   // Auto-scroll to latest message
   useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
+    if (!scrollEl) return;
     const timeout = setTimeout(() => {
-      el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+      scrollEl.scrollTo({ top: scrollEl.scrollHeight, behavior: 'smooth' });
     }, 100);
     return () => clearTimeout(timeout);
-  }, [messages]);
+  }, [messages, scrollEl]);
 
   if (loading) {
     return (
@@ -78,7 +92,7 @@ export default function MessageList({ messages, loading = false }: MessageListPr
 
   return (
     <div
-      ref={scrollRef}
+      ref={setScrollRef}
       className="h-full w-full bg-[#fbfbfb]"
       style={{ overflowY: 'auto', overflowX: 'hidden' }}
     >

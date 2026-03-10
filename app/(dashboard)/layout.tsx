@@ -74,8 +74,11 @@ function DashboardLayoutContent({
           <Header onMobileMenuToggle={() => setMobileMenuOpen(!mobileMenuOpen)} />
         </div>
 
-        {/* Spacer untuk fixed header di mobile */}
-        <div className="h-16 shrink-0 md:hidden" />
+        {/* Spacer untuk fixed header di mobile - animate bersama header */}
+        <div className={cn(
+          "shrink-0 md:hidden transition-all duration-300 ease-in-out",
+          isHeaderVisible ? "h-16" : "h-0"
+        )} />
 
         {/* Page Content */}
         <section className="flex-1 overflow-hidden relative">
