@@ -83,17 +83,17 @@ export default function ConversationWindow({
       {/* Header */}
       <div className="shrink-0 border-b border-slate-50">
         <ConversationHeader
-            conversation={conversation}
-            onAiStateChange={handleAiStateChange}
-            onLabelChange={handleLabelChange}
-            onBack={onBack}
-            loading={togglingAi || updatingLabel}
+          conversation={conversation}
+          onAiStateChange={handleAiStateChange}
+          onLabelChange={handleLabelChange}
+          onBack={onBack}
+          loading={togglingAi || updatingLabel}
         />
       </div>
 
-      {/* Messages Area - Using absolute positioning trick for robust flexbox height scrolling */}
-      <div className="flex-1 min-h-0 relative">
-        <div className="absolute inset-0">
+      {/* Messages Area */}
+      <div className="flex-1 min-h-0 relative overflow-hidden">
+        <div className="absolute inset-0 overflow-hidden">
           <MessageList messages={messages} loading={messagesLoading} />
         </div>
       </div>
@@ -101,9 +101,9 @@ export default function ConversationWindow({
       {/* Composer */}
       <div className="shrink-0">
         <MessageComposer
-            conversation={conversation}
-            onSend={handleSendMessage}
-            disabled={sendingMessage}
+          conversation={conversation}
+          onSend={handleSendMessage}
+          disabled={sendingMessage}
         />
       </div>
     </div>

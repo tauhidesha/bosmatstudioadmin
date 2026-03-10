@@ -44,14 +44,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   );
 }
 
-function DashboardLayoutContent({ 
-  children, 
-  mobileMenuOpen, 
-  setMobileMenuOpen 
-}: { 
-  children: React.ReactNode, 
-  mobileMenuOpen: boolean, 
-  setMobileMenuOpen: (open: boolean) => void 
+function DashboardLayoutContent({
+  children,
+  mobileMenuOpen,
+  setMobileMenuOpen
+}: {
+  children: React.ReactNode,
+  mobileMenuOpen: boolean,
+  setMobileMenuOpen: (open: boolean) => void
 }) {
   const { isHeaderVisible } = useLayout();
 
@@ -65,14 +65,17 @@ function DashboardLayoutContent({
 
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col h-full overflow-hidden relative">
-        {/* Header - Animated for mobile auto-hide */}
+        {/* Header - Fixed on mobile with auto-hide, static on desktop */}
         <div className={cn(
-          "transition-transform duration-300 ease-in-out z-30 shrink-0",
-          "md:translate-y-0", // Always visible on desktop
-          isHeaderVisible ? "translate-y-0" : "-translate-y-full md:translate-y-0"
+          "fixed top-0 left-0 right-0 z-30 transition-transform duration-300 ease-in-out",
+          "md:static md:translate-y-0 md:z-auto",
+          isHeaderVisible ? "translate-y-0" : "-translate-y-full"
         )}>
           <Header onMobileMenuToggle={() => setMobileMenuOpen(!mobileMenuOpen)} />
         </div>
+
+        {/* Spacer untuk fixed header di mobile */}
+        <div className="h-16 shrink-0 md:hidden" />
 
         {/* Page Content */}
         <section className="flex-1 overflow-hidden relative">

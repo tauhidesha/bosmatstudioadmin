@@ -12,6 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { useLayout } from '@/context/LayoutContext';
 
 interface HeaderProps {
   onMobileMenuToggle?: () => void;
@@ -20,6 +21,7 @@ interface HeaderProps {
 export default function Header({ onMobileMenuToggle }: HeaderProps) {
   const { user, logout } = useAuth();
   const router = useRouter();
+  const { isHeaderVisible } = useLayout();
 
   const handleLogout = async () => {
     try {
@@ -31,7 +33,11 @@ export default function Header({ onMobileMenuToggle }: HeaderProps) {
   };
 
   return (
-    <header className="h-16 border-b bg-white flex items-center justify-between px-6 shrink-0">
+    <header className={cn(
+      "h-16 border-b bg-white flex items-center justify-between px-6 shrink-0 transition-transform duration-300 ease-in-out",
+      "md:translate-y-0",
+      !isHeaderVisible && "-translate-y-full"
+    )}>
       {/* Left side - Mobile menu toggle */}
       <div className="flex items-center gap-4 md:hidden">
         <button
@@ -73,8 +79,8 @@ export default function Header({ onMobileMenuToggle }: HeaderProps) {
               <span>Settings</span>
             </DropdownMenuItem>
             <DropdownMenuSeparator className="my-1" />
-            <DropdownMenuItem 
-              className="p-2 rounded-lg cursor-pointer text-destructive focus:bg-destructive/10 focus:text-destructive" 
+            <DropdownMenuItem
+              className="p-2 rounded-lg cursor-pointer text-destructive focus:bg-destructive/10 focus:text-destructive"
               onClick={handleLogout}
             >
               <span className="material-symbols-outlined text-[18px] mr-2">logout</span>
