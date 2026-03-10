@@ -33,6 +33,7 @@ function ConversationErrorBoundary({ children }: { children: React.ReactNode }) 
 export default function ConversationsPage() {
   const { user, getIdToken } = useAuth();
   const [selectedConversationId, setSelectedConversationId] = useState<string>();
+  const [showPermissionPrompt, setShowPermissionPrompt] = useState(true);
 
   // Load conversations with error handling
   const { conversations, loading, error } = useRealtimeConversations({
@@ -152,33 +153,35 @@ export default function ConversationsPage() {
       />
 
       {/* Browser notification permission prompt */}
-      {browserNotificationPermission === 'default' && (
-        <div className="fixed bottom-4 left-4 bg-white border border-slate-200 rounded-lg shadow-lg p-4 max-w-sm z-50">
-          <div className="flex items-start gap-3">
-            <span className="material-symbols-outlined text-primary">
-              notifications
-            </span>
+      {browserNotificationPermission === 'default' && showPermissionPrompt && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] md:left-6 md:translate-x-0 md:w-sm bg-white border border-slate-200 rounded-2xl shadow-2xl p-5 z-[100] animate-in fade-in slide-in-from-bottom-4 duration-300">
+          <div className="flex items-start gap-4">
+            <div className="size-10 bg-primary/10 rounded-xl flex items-center justify-center shrink-0">
+              <span className="material-symbols-outlined text-primary text-2xl">
+                notifications_active
+              </span>
+            </div>
             <div className="flex-1">
-              <h3 className="font-semibold text-sm text-slate-900 mb-1">
+              <h3 className="font-bold text-sm text-slate-900 mb-1">
                 Enable Notifications
               </h3>
-              <p className="text-xs text-slate-600 mb-3">
+              <p className="text-[11px] text-slate-500 leading-relaxed mb-4">
                 Get notified when new messages arrive, even when the tab is not active.
               </p>
               <div className="flex gap-2">
                 <button
                   onClick={() => {
-                    Notification.requestPermission();
+                    Notification.requestPermission().then(() => {
+                      setShowPermissionPrompt(false);
+                    });
                   }}
-                  className="px-3 py-1 bg-primary text-zinc-950 text-xs font-semibold rounded-lg hover:brightness-105 transition-colors"
+                  className="flex-1 px-4 py-2 bg-zinc-900 text-white text-[11px] font-black uppercase tracking-wider rounded-xl hover:scale-[1.02] active:scale-95 transition-all shadow-lg shadow-zinc-900/10"
                 >
                   Enable
                 </button>
                 <button
-                  onClick={() => {
-                    // This will be handled by the notification hook
-                  }}
-                  className="px-3 py-1 text-slate-600 text-xs font-semibold hover:text-slate-900 transition-colors"
+                  onClick={() => setShowPermissionPrompt(false)}
+                  className="px-4 py-2 text-slate-400 text-[11px] font-bold uppercase tracking-wider hover:text-slate-600 transition-colors"
                 >
                   Later
                 </button>
