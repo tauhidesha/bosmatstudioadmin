@@ -6,6 +6,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import Image from 'next/image';
 
 interface ConversationItemProps {
   conversation: Conversation;
@@ -60,11 +61,13 @@ export default function ConversationItem({
           "w-12 h-12 rounded-[16px] flex items-center justify-center font-bold text-sm bg-slate-100 text-slate-400 group-hover:bg-slate-200 transition-all overflow-hidden"
         )}>
           {conversation.profilePicUrl && !imageError ? (
-            <img 
+            <Image 
               src={conversation.profilePicUrl} 
               alt={conversation.customerName} 
+              width={48}
+              height={48}
               className="w-full h-full object-cover"
-              onError={() => setImageError(true)}
+              unoptimized
             />
           ) : (
             (conversation.customerName || 'U').charAt(0).toUpperCase()

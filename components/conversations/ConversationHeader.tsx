@@ -8,6 +8,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import Image from 'next/image';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -125,11 +126,13 @@ export default function ConversationHeader({
           <div className="relative group">
             <div className="w-12 h-12 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center font-black text-slate-400 shadow-sm transition-transform group-hover:rotate-3 overflow-hidden">
               {conversation.profilePicUrl && !imageError ? (
-                <img 
+                <Image 
                   src={conversation.profilePicUrl} 
                   alt={conversation.customerName} 
+                  width={48}
+                  height={48}
                   className="w-full h-full object-cover"
-                  onError={() => setImageError(true)}
+                  unoptimized
                 />
               ) : (
                 (conversation.customerName || 'U').charAt(0).toUpperCase()
@@ -326,7 +329,7 @@ export default function ConversationHeader({
               {aiPauseReason && (
                 <div className="bg-slate-50/50 p-4 rounded-[18px] border border-slate-100/50">
                   <p className="text-[9px] text-slate-400 font-black uppercase mb-1.5 tracking-tighter">ALASAN PENANGGUHAN</p>
-                  <p className="text-xs text-slate-600 font-bold leading-relaxed">"{aiPauseReason}"</p>
+                  <p className="text-xs text-slate-600 font-bold leading-relaxed">&quot;{aiPauseReason}&quot;</p>
                 </div>
               )}
               {!aiPausedUntil && !aiPauseReason && (
