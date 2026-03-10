@@ -68,6 +68,7 @@ export default function ConversationItem({
               height={48}
               className="w-full h-full object-cover"
               unoptimized
+              onError={() => setImageError(true)}
             />
           ) : (
             (conversation.customerName || 'U').charAt(0).toUpperCase()
