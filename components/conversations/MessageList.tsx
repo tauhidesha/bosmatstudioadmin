@@ -26,7 +26,7 @@ export default function MessageList({ messages, loading = false }: MessageListPr
   const scrollRef = useRef<HTMLDivElement>(null);
   const [scrollEl, setScrollEl] = useState<HTMLElement | null>(null);
   const { setIsHeaderVisible } = useLayout();
-  const { scrollDirection, isAtTop, isAtBottom } = useScrollDirection(scrollEl);
+  const { isAtTop } = useScrollDirection(scrollEl);
 
   // Callback ref - dipanggil tepat saat DOM element ter-attach/detach
   const setScrollRef = useCallback((node: HTMLDivElement | null) => {
@@ -40,16 +40,14 @@ export default function MessageList({ messages, loading = false }: MessageListPr
     }
   }, [setIsHeaderVisible]);
 
-  // Hanya show header saat scroll UP atau di posisi paling atas
+  // Show header hanya saat di posisi paling atas, hide saat scroll down
   useEffect(() => {
     if (isAtTop) {
       setIsHeaderVisible(true);
-    } else if (scrollDirection === 'up') {
-      setIsHeaderVisible(true);
-    } else if (scrollDirection === 'down') {
+    } else {
       setIsHeaderVisible(false);
     }
-  }, [scrollDirection, setIsHeaderVisible, isAtTop]);
+  }, [setIsHeaderVisible, isAtTop]);
 
   // Auto-scroll to latest message (tanpa trigger hide)
   useEffect(() => {
