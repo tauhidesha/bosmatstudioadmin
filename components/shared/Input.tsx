@@ -1,102 +1,70 @@
-/**
- * Reusable Input Component
- * Matches exact design specifications from HTML designs
- */
-
 'use client';
 
-import { InputHTMLAttributes, ReactNode, forwardRef } from 'react';
+import * as React from 'react';
+import { Input as ShadcnInput } from '@/components/ui/input';
+import { cn } from '@/lib/utils';
 
-interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
+interface InputProps extends React.ComponentProps<"input"> {
   label?: string;
   error?: string;
   success?: string;
-  leftIcon?: ReactNode;
-  rightIcon?: ReactNode;
+  leftIcon?: React.ReactNode;
+  rightIcon?: React.ReactNode;
   helperText?: string;
 }
 
-const Input = forwardRef<HTMLInputElement, InputProps>(
-  (
-    {
-      label,
-      error,
-      success,
-      leftIcon,
-      rightIcon,
-      helperText,
-      className = '',
-      disabled,
-      ...props
-    },
-    ref
-  ) => {
+const Input = React.forwardRef<HTMLInputElement, InputProps>(
+  ({ label, error, success, leftIcon, rightIcon, helperText, className, type, ...props }, ref) => {
     const hasError = !!error;
     const hasSuccess = !!success;
 
-    const baseStyles = 'w-full rounded-lg text-sm transition-colors focus:outline-none focus:ring-2 disabled:opacity-50 disabled:cursor-not-allowed';
-    
-    const stateStyles = hasError
-      ? 'border-danger-500 focus:border-danger-500 focus:ring-danger-500/20'
-      : hasSuccess
-      ? 'border-success-500 focus:border-success-500 focus:ring-success-500/20'
-      : 'border-slate-200 dark:border-slate-700 focus:border-primary focus:ring-primary/20';
-
-    const paddingStyles = leftIcon && rightIcon
-      ? 'pl-10 pr-10'
-      : leftIcon
-      ? 'pl-10 pr-4'
-      : rightIcon
-      ? 'pl-4 pr-10'
-      : 'px-4';
-
     return (
-      <div className="w-full">
+      <div className="w-full space-y-2">
         {label && (
-          <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
+          <label
+            htmlFor={props.id}
+            className="text-sm font-semibold text-foreground/80 leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+          >
             {label}
           </label>
         )}
-        
         <div className="relative">
           {leftIcon && (
-            <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
               {leftIcon}
             </div>
           )}
-          
-          <input
+          <ShadcnInput
+            type={type}
+            className={cn(
+              "flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition-all",
+              leftIcon && "pl-10",
+              rightIcon && "pr-10",
+              hasError && "border-destructive focus-visible:ring-destructive",
+              hasSuccess && "border-emerald-500 focus-visible:ring-emerald-500",
+              className
+            )}
             ref={ref}
-            className={`${baseStyles} ${stateStyles} ${paddingStyles} py-2 border ${className}`}
-            disabled={disabled}
-            aria-invalid={hasError}
-            aria-describedby={
-              error ? `${props.id}-error` : success ? `${props.id}-success` : helperText ? `${props.id}-helper` : undefined
-            }
             {...props}
           />
-          
           {rightIcon && (
-            <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
               {rightIcon}
             </div>
           )}
         </div>
-
         {error && (
-          <p id={`${props.id}-error`} className="mt-1 text-xs text-danger-600 dark:text-danger-400">
+          <p className="text-xs font-medium text-destructive">
             {error}
           </p>
         )}
-
         {success && !error && (
-          <p id={`${props.id}-success`} className="mt-1 text-xs text-success-600 dark:text-success-400">
+          <p className="text-xs font-medium text-emerald-600">
             {success}
           </p>
         )}
-
         {helperText && !error && !success && (
-          <p id={`${props.id}-helper`} className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+          <p className="text-xs text-muted-foreground">
             {helperText}
           </p>
         )}
@@ -104,7 +72,6 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
     );
   }
 );
-
 Input.displayName = 'Input';
 
 export default Input;

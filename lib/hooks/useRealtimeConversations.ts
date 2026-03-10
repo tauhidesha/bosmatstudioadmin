@@ -29,6 +29,7 @@ export interface Conversation {
     reason?: string;
   };
   platformId?: string;
+  profilePicUrl?: string;
 }
 
 interface UseRealtimeConversationsOptions {
@@ -90,18 +91,29 @@ export function useRealtimeConversations(
                 id: doc.id,
                 customerId: docData.fullSenderId || docData.platformId || doc.id,
                 customerName: docData.name || 'Unknown User',
-                customerPhone: docData.phone || docData.phoneNumber || 'No phone',
+                customerPhone: (docData.phone || docData.phoneNumber || docData.fullSenderId || doc.id || 'No phone').split('@')[0],
                 channel: (docData.channel || docData.platform || 'whatsapp') as 'whatsapp' | 'instagram' | 'messenger',
                 lastMessage: docData.lastMessage || docData.lastMessageText || 'No messages yet',
                 lastMessageTime: docData.lastMessageAt?.toMillis() || docData.updatedAt?.toMillis() || docData.createdAt?.toMillis() || Date.now(),
                 unreadCount: docData.unreadCount || 0,
                 label: docData.customerLabel || docData.label,
                 aiState: {
-                  enabled: docData.aiEnabled !== false && docData.aiPaused !== true,
+                  enabled: (() => {
+                    const aiEnabled = docData.aiEnabled !== false; // Default to true
+                    const aiPaused = docData.aiPaused === true;
+                    const pausedUntil = docData.aiPausedUntil?.toMillis();
+                    
+                    if (aiPaused && pausedUntil && Date.now() > pausedUntil) {
+                      return true; // Pause expired
+                    }
+                    
+                    return aiEnabled && !aiPaused;
+                  })(),
                   pausedUntil: docData.aiPausedUntil?.toMillis(),
                   reason: docData.aiPauseReason || docData.labelReason,
                 },
                 platformId: docData.platformId || docData.fullSenderId || doc.id,
+                profilePicUrl: docData.profilePicUrl?.eurl || docData.profilePicUrl,
               };
               
               return conversation;

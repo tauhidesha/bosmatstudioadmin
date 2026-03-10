@@ -6,6 +6,8 @@ import { useEffect, useState } from 'react';
 import Sidebar from '@/components/layout/Sidebar';
 import Header from '@/components/layout/Header';
 import { MobileNav } from '@/components/layout/MobileNav';
+import { LayoutProvider, useLayout } from '@/context/LayoutContext';
+import { cn } from '@/lib/utils';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -34,7 +36,27 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   return (
-    <div className="flex h-screen w-full flex-col md:flex-row bg-slate-50 overflow-hidden">
+    <LayoutProvider>
+      <DashboardLayoutContent mobileMenuOpen={mobileMenuOpen} setMobileMenuOpen={setMobileMenuOpen}>
+        {children}
+      </DashboardLayoutContent>
+    </LayoutProvider>
+  );
+}
+
+function DashboardLayoutContent({ 
+  children, 
+  mobileMenuOpen, 
+  setMobileMenuOpen 
+}: { 
+  children: React.ReactNode, 
+  mobileMenuOpen: boolean, 
+  setMobileMenuOpen: (open: boolean) => void 
+}) {
+  const { isHeaderVisible } = useLayout();
+
+  return (
+    <div className="flex h-screen w-full flex-col md:flex-row bg-slate-50 overflow-hidden relative">
       {/* Sidebar */}
       <Sidebar />
 
@@ -42,12 +64,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <MobileNav isOpen={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} />
 
       {/* Main Content Area */}
-      <main className="flex-1 flex flex-col h-full overflow-hidden">
-        {/* Header */}
-        <Header onMobileMenuToggle={() => setMobileMenuOpen(!mobileMenuOpen)} />
+      <main className="flex-1 flex flex-col h-full overflow-hidden relative">
+        {/* Header - Animated for mobile auto-hide */}
+        <div className={cn(
+          "transition-transform duration-300 ease-in-out z-30 shrink-0",
+          "md:translate-y-0", // Always visible on desktop
+          isHeaderVisible ? "translate-y-0" : "-translate-y-full md:translate-y-0"
+        )}>
+          <Header onMobileMenuToggle={() => setMobileMenuOpen(!mobileMenuOpen)} />
+        </div>
 
         {/* Page Content */}
-        <section className="flex-1 overflow-y-auto">
+        <section className="flex-1 overflow-hidden relative">
           {children}
         </section>
       </main>

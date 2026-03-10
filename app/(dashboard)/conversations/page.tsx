@@ -8,6 +8,7 @@ import { createApiClient } from '@/lib/api/client';
 import ConversationList from '@/components/conversations/ConversationList';
 import ConversationWindow from '@/components/conversations/ConversationWindow';
 import NotificationPanel from '@/components/shared/NotificationPanel';
+import { cn } from '@/lib/utils';
 
 // Error Boundary Component for graceful error handling
 function ConversationErrorBoundary({ children }: { children: React.ReactNode }) {
@@ -93,41 +94,52 @@ export default function ConversationsPage() {
 
   return (
     <>
-      <div className="flex-1 flex bg-white rounded-lg shadow-sm border overflow-hidden h-[calc(100vh-120px)]">
+      <div className="flex-1 flex bg-white border-l overflow-hidden h-full relative">
         {/* Conversation List */}
-        <ConversationList
-          conversations={conversations}
-          selectedId={selectedConversationId}
-          onSelect={handleConversationSelect}
-          loading={loading}
-        />
+        <div className={cn(
+          "h-full shrink-0 transition-all duration-300 min-w-0",
+          selectedConversationId ? "hidden md:flex" : "flex w-full md:w-80 lg:w-96"
+        )}>
+          <ConversationList
+            conversations={conversations}
+            selectedId={selectedConversationId}
+            onSelect={handleConversationSelect}
+            loading={loading}
+          />
+        </div>
 
         {/* Conversation Window */}
-        {selectedConversation ? (
-          <ConversationWindow
-            conversation={selectedConversation}
-            apiClient={apiClient}
-          />
-        ) : (
-          <div className="flex-1 flex items-center justify-center bg-slate-50">
-            <div className="text-center">
-              <span className="material-symbols-outlined text-6xl text-slate-300 mb-4 block">
-                chat_bubble_outline
-              </span>
-              <p className="text-slate-500 font-medium">
-                Pilih percakapan untuk memulai
-              </p>
-              <p className="text-slate-400 text-sm mt-2">
-                {conversations.length} percakapan tersedia
-              </p>
-              {notificationCount > 0 && (
-                <p className="text-primary text-sm mt-1 font-semibold">
-                  {notificationCount} notifikasi baru
+        <div className={cn(
+          "flex-1 h-full transition-all duration-300 min-w-0",
+          !selectedConversationId ? "hidden md:flex" : "flex w-full"
+        )}>
+          {selectedConversation ? (
+            <ConversationWindow
+              conversation={selectedConversation}
+              apiClient={apiClient}
+              onBack={() => setSelectedConversationId(undefined)}
+            />
+          ) : (
+            <div className="hidden md:flex flex-1 flex-col items-center justify-center bg-slate-50">
+              <div className="text-center">
+                <span className="material-symbols-outlined text-6xl text-slate-300 mb-4 block">
+                  chat_bubble_outline
+                </span>
+                <p className="text-slate-500 font-medium">
+                  Pilih percakapan untuk memulai
                 </p>
-              )}
+                <p className="text-slate-400 text-sm mt-2">
+                  {conversations.length} percakapan tersedia
+                </p>
+                {notificationCount > 0 && (
+                  <p className="text-primary text-sm mt-1 font-semibold">
+                    {notificationCount} notifikasi baru
+                  </p>
+                )}
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {/* Notification Panel */}

@@ -1,10 +1,3 @@
-/**
- * ConversationWindow Component
- * Main conversation view with header, messages, and composer
- * 
- * Requirements: 1.5, 2.1, 2.3, 3.1, 3.3, 18.1, 18.2, 18.3
- */
-
 'use client';
 
 import { useState } from 'react';
@@ -18,11 +11,13 @@ import MessageComposer from './MessageComposer';
 interface ConversationWindowProps {
   conversation: Conversation;
   apiClient: ApiClient;
+  onBack?: () => void;
 }
 
 export default function ConversationWindow({
   conversation,
   apiClient,
+  onBack,
 }: ConversationWindowProps) {
   const [sendingMessage, setSendingMessage] = useState(false);
   const [togglingAi, setTogglingAi] = useState(false);
@@ -37,21 +32,12 @@ export default function ConversationWindow({
   const handleSendMessage = async (messageText: string) => {
     setSendingMessage(true);
     try {
-      // Format phone number for WhatsApp API
-      // If phone already has @c.us, use as-is, otherwise format it
-      let formattedNumber = conversation.customerPhone;
-      if (!formattedNumber.includes('@c.us')) {
-        // Remove any non-digit characters and ensure it starts with country code
-        const cleanNumber = formattedNumber.replace(/\D/g, '');
-        // Add @c.us suffix for WhatsApp format
-        formattedNumber = `${cleanNumber}@c.us`;
-      }
-
+      const targetId = conversation.platformId || conversation.id;
       await apiClient.sendMessage({
-        number: formattedNumber,
+        number: targetId,
         message: messageText,
         channel: conversation.channel,
-        platformId: conversation.platformId,
+        platformId: targetId,
       });
     } catch (error) {
       console.error('Failed to send message:', error);
@@ -64,14 +50,8 @@ export default function ConversationWindow({
   const handleAiStateChange = async (enabled: boolean, reason?: string) => {
     setTogglingAi(true);
     try {
-      // Format phone number for WhatsApp API
-      let formattedNumber = conversation.customerPhone;
-      if (!formattedNumber.includes('@c.us')) {
-        const cleanNumber = formattedNumber.replace(/\D/g, '');
-        formattedNumber = `${cleanNumber}@c.us`;
-      }
-
-      await apiClient.updateAiState(formattedNumber, {
+      const targetId = conversation.platformId || conversation.id;
+      await apiClient.updateAiState(targetId, {
         enabled,
         reason,
       });
@@ -99,24 +79,33 @@ export default function ConversationWindow({
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-white">
+    <div className="flex-1 flex flex-col min-w-0 h-full bg-white overflow-hidden">
       {/* Header */}
-      <ConversationHeader
-        conversation={conversation}
-        onAiStateChange={handleAiStateChange}
-        onLabelChange={handleLabelChange}
-        loading={togglingAi || updatingLabel}
-      />
+      <div className="shrink-0 border-b border-slate-50">
+        <ConversationHeader
+            conversation={conversation}
+            onAiStateChange={handleAiStateChange}
+            onLabelChange={handleLabelChange}
+            onBack={onBack}
+            loading={togglingAi || updatingLabel}
+        />
+      </div>
 
-      {/* Messages */}
-      <MessageList messages={messages} loading={messagesLoading} />
+      {/* Messages Area - Using absolute positioning trick for robust flexbox height scrolling */}
+      <div className="flex-1 min-h-0 relative">
+        <div className="absolute inset-0">
+          <MessageList messages={messages} loading={messagesLoading} />
+        </div>
+      </div>
 
       {/* Composer */}
-      <MessageComposer
-        conversation={conversation}
-        onSend={handleSendMessage}
-        disabled={sendingMessage}
-      />
+      <div className="shrink-0">
+        <MessageComposer
+            conversation={conversation}
+            onSend={handleSendMessage}
+            disabled={sendingMessage}
+        />
+      </div>
     </div>
   );
 }

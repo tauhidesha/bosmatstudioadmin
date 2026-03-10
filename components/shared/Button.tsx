@@ -1,12 +1,13 @@
 'use client';
 
-import { Button as HeroButton, ButtonProps as HeroButtonProps } from '@heroui/react';
+import { Button as ShadcnButton } from '@/components/ui/button';
 import { ReactNode } from 'react';
+import { cn } from '@/lib/utils';
 
-interface ButtonProps extends Omit<HeroButtonProps, 'variant' | 'size'> {
-  children: ReactNode;
-  variant?: 'primary' | 'secondary' | 'danger' | 'success' | 'icon';
-  size?: 'sm' | 'md' | 'lg';
+interface ButtonProps extends Omit<React.ComponentProps<typeof ShadcnButton>, 'variant' | 'size'> {
+  children?: ReactNode;
+  variant?: 'primary' | 'secondary' | 'danger' | 'success' | 'icon' | 'outline' | 'ghost' | 'destructive' | 'default';
+  size?: 'sm' | 'md' | 'lg' | 'default' | 'icon';
   isLoading?: boolean;
 }
 
@@ -19,55 +20,58 @@ export default function Button({
   ...props
 }: ButtonProps) {
   
-  // Mapping custom variants to HeroUI variants/colors
-  const getHeroProps = () => {
+  const getShadcnProps = () => {
     switch (variant) {
       case 'primary':
         return { 
-          color: 'primary' as const, 
-          variant: 'solid' as const,
-          className: `font-bold text-white shadow-lg shadow-primary/25 ${className}` 
+          variant: 'default' as const,
+          className: cn('font-bold text-zinc-950 shadow-md transition-all active:scale-95', className)
         };
       case 'secondary':
         return { 
-          variant: 'light' as const,
-          className: `text-slate-600 font-semibold hover:text-slate-900 ${className}` 
+          variant: 'ghost' as const,
+          className: cn('text-slate-600 font-semibold hover:text-slate-900 hover:bg-slate-100', className)
         };
       case 'danger':
         return { 
-          color: 'danger' as const, 
-          variant: 'solid' as const,
-          className: `shadow-lg shadow-danger/25 text-white ${className}` 
+          variant: 'destructive' as const,
+          className: cn('shadow-md', className)
         };
       case 'success':
         return { 
-          color: 'success' as const, 
-          variant: 'solid' as const,
-          className: `shadow-lg shadow-success/25 text-white ${className}` 
+          variant: 'default' as const,
+          className: cn('bg-emerald-500 text-white hover:bg-emerald-600 shadow-md', className)
         };
       case 'icon':
         return { 
-          variant: 'flat' as const,
-          isIconOnly: true,
-          className: `bg-slate-100 text-slate-600 hover:bg-slate-200 ${className}` 
+          variant: 'ghost' as const,
+          size: 'icon' as const,
+          className: cn('bg-slate-100 text-slate-600 hover:bg-slate-200', className)
         };
       default:
-        return { className };
+        return { variant: (variant as any) || 'default', className };
     }
   };
 
-  const heroProps = getHeroProps();
+  const shadcnProps = getShadcnProps();
+  const shadcnSize = size === 'md' ? 'default' : size;
 
   return (
-    <HeroButton
-      size={size}
-      isLoading={isLoading}
-      radius="lg"
-      disableAnimation={false}
-      {...heroProps}
+    <ShadcnButton
+      {...(shadcnProps as any)}
+      size={(shadcnProps.size as any) || (shadcnSize as any)}
+      disabled={isLoading || props.disabled}
+      className={shadcnProps.className}
       {...props}
     >
-      {children}
-    </HeroButton>
+      {isLoading ? (
+        <div className="flex items-center gap-2">
+          <div className="size-4 border-2 border-zinc-950/20 border-t-zinc-950 rounded-full animate-spin" />
+          {children}
+        </div>
+      ) : (
+        children
+      )}
+    </ShadcnButton>
   );
 }

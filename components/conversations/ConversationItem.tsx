@@ -1,15 +1,11 @@
-/**
- * ConversationItem Component
- * Displays a single conversation in the conversation list
- * 
- * Requirements: 1.1, 1.3, 1.7, 1.8, 5.1, 5.2, 5.3
- */
-
 'use client';
 
+import { useState } from 'react';
 import { Conversation } from '@/lib/hooks/useRealtimeConversations';
 import { formatDistanceToNow } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 interface ConversationItemProps {
   conversation: Conversation;
@@ -18,9 +14,9 @@ interface ConversationItemProps {
 }
 
 const channelBadges = {
-  whatsapp: { label: 'WA', color: 'bg-green-100 text-green-700' },
-  instagram: { label: 'IG', color: 'bg-pink-100 text-pink-700' },
-  messenger: { label: 'FB', color: 'bg-blue-100 text-blue-700' },
+  whatsapp: { label: 'WA', className: 'bg-emerald-50 text-emerald-600 border-emerald-100' },
+  instagram: { label: 'IG', className: 'bg-pink-50 text-pink-600 border-pink-100' },
+  messenger: { label: 'FB', className: 'bg-blue-50 text-blue-600 border-blue-100' },
 };
 
 export default function ConversationItem({
@@ -28,27 +24,20 @@ export default function ConversationItem({
   isActive,
   onClick,
 }: ConversationItemProps) {
-  const badge = channelBadges[conversation.channel] || { label: 'UN', color: 'bg-slate-100 text-slate-700' };
+  const [imageError, setImageError] = useState(false);
+  const channelBadge = channelBadges[conversation.channel as keyof typeof channelBadges] || { 
+    label: 'UN', 
+    className: 'bg-slate-50 text-slate-600 border-slate-100' 
+  };
   
-  // Safe date handling with fallback
   const getTimeAgo = () => {
     try {
-      if (!conversation.lastMessageTime) {
-        return 'Baru saja';
-      }
-      
+      if (!conversation.lastMessageTime) return 'Baru';
       const date = new Date(conversation.lastMessageTime);
-      if (isNaN(date.getTime())) {
-        return 'Baru saja';
-      }
-      
-      return formatDistanceToNow(date, {
-        addSuffix: false,
-        locale: idLocale,
-      });
+      if (isNaN(date.getTime())) return 'Baru';
+      return formatDistanceToNow(date, { addSuffix: false, locale: idLocale });
     } catch (error) {
-      console.warn('Invalid date in conversation:', conversation.lastMessageTime);
-      return 'Baru saja';
+      return 'Baru';
     }
   };
 
@@ -58,62 +47,80 @@ export default function ConversationItem({
   return (
     <div
       onClick={onClick}
-      className={`flex items-start gap-3 p-4 cursor-pointer transition-all border-b border-slate-50 ${
+      className={cn(
+        "group grid grid-cols-[48px_1fr] gap-4 p-4 cursor-pointer transition-all duration-200 rounded-2xl relative mb-1 mx-1 border overflow-hidden",
         isActive
-          ? 'bg-amber-50 border-l-4 border-primary'
-          : 'hover:bg-slate-50'
-      }`}
+          ? "bg-white border-zinc-900 shadow-lg ring-1 ring-zinc-900 z-10"
+          : "bg-transparent border-transparent hover:bg-slate-50"
+      )}
     >
-      {/* Avatar */}
-      <div className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center shrink-0 font-bold text-slate-600">
-        {(conversation.customerName || 'U').charAt(0).toUpperCase()}
+      {/* Avatar Section */}
+      <div className="flex-shrink-0">
+        <div className={cn(
+          "w-12 h-12 rounded-[16px] flex items-center justify-center font-bold text-sm bg-slate-100 text-slate-400 group-hover:bg-slate-200 transition-all overflow-hidden"
+        )}>
+          {conversation.profilePicUrl && !imageError ? (
+            <img 
+              src={conversation.profilePicUrl} 
+              alt={conversation.customerName} 
+              className="w-full h-full object-cover"
+              onError={() => setImageError(true)}
+            />
+          ) : (
+            (conversation.customerName || 'U').charAt(0).toUpperCase()
+          )}
+        </div>
       </div>
 
-      {/* Content */}
-      <div className="flex-1 min-w-0">
-        <div className="flex justify-between items-baseline gap-2 mb-1">
-          <h3 className="font-semibold text-sm truncate text-slate-900">
-            {conversation.customerName || 'Unknown User'}
+      {/* Info Section - Use min-w-0 to ensure grid content respects parent width */}
+      <div className="min-w-0 py-0.5">
+        <div className="flex justify-between items-center gap-2 mb-1.5 w-full overflow-hidden">
+          <h3 className={cn(
+            "font-black text-[15.5px] truncate transition-colors leading-none tracking-tight",
+            isActive ? "text-zinc-950" : "text-zinc-800"
+          )}>
+            {conversation.customerName || 'Pelanggan'}
           </h3>
-          <span className="text-[10px] text-slate-500 uppercase shrink-0">
+          <span className="text-[10px] uppercase font-bold shrink-0 tracking-wider text-slate-400">
             {timeAgo}
           </span>
         </div>
 
-        {/* Last message preview */}
-        <p className="text-xs text-slate-600 truncate mb-2">
-          {conversation.lastMessage || 'No messages yet'}
+        {/* Last message preview - Grid handles this much better with truncate */}
+        <p className={cn(
+          "text-[13.5px] truncate mb-2.5 leading-tight text-slate-500",
+          isActive ? "text-zinc-500 font-medium" : "font-normal"
+        )}>
+          {conversation.lastMessage || 'Menunggu pesan pertama...'}
         </p>
 
-        {/* Badges */}
-        <div className="flex items-center gap-2">
-          {/* Channel badge */}
-          <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${badge.color}`}>
-            {badge.label}
-          </span>
+        {/* Badges Container */}
+        <div className="flex items-center gap-2 overflow-hidden w-full">
+          <Badge variant="outline" className={cn(
+            "px-2 py-0 h-4 text-[8px] font-black uppercase border-none flex-shrink-0", 
+            channelBadge.className
+          )}>
+            {channelBadge.label}
+          </Badge>
 
-          {/* AI paused badge */}
           {aiPaused && (
-            <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-amber-100 text-amber-700">
-              AI Dijeda
-            </span>
+            <Badge variant="outline" className="px-2 py-0 h-4 text-[8px] font-black uppercase bg-amber-50 text-amber-600 border-none flex-shrink-0">
+              AI OFF
+            </Badge>
           )}
 
-          {/* Unread badge */}
-          {conversation.unreadCount > 0 && (
-            <span className="inline-flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-bold bg-primary text-zinc-950">
-              {conversation.unreadCount > 9 ? '9+' : conversation.unreadCount}
-            </span>
-          )}
-
-          {/* Label badge */}
           {conversation.label && (
-            <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-700">
-              {conversation.label}
-            </span>
+            <div className="px-2 py-0 h-4 text-[8px] font-black uppercase text-slate-400 bg-slate-50 rounded flex items-center truncate min-w-0 flex-1">
+              {conversation.label.replace('_', ' ')}
+            </div>
           )}
         </div>
       </div>
+
+      {/* Unread indicator */}
+      {conversation.unreadCount > 0 && (
+        <div className="absolute right-4 top-1/2 -translate-y-1/2 size-2.5 bg-zinc-900 rounded-full shadow-lg" />
+      )}
     </div>
   );
 }
