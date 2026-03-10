@@ -32,36 +32,33 @@ export default function MessageList({ messages, loading = false }: MessageListPr
   const setScrollRef = useCallback((node: HTMLDivElement | null) => {
     (scrollRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
     if (node) {
-      console.log('[MessageList] scrollEl attached via callback ref:', node);
       setScrollEl(node);
-      setIsHeaderVisible(true);
+      setIsHeaderVisible(false); // default hide saat conversation dibuka
     } else {
-      console.log('[MessageList] scrollEl detached');
       setScrollEl(null);
-      setIsHeaderVisible(true);
+      setIsHeaderVisible(true); // reset saat keluar
     }
   }, [setIsHeaderVisible]);
 
-  // Log scroll direction changes
+  // Hanya show header saat scroll UP atau di posisi paling atas
   useEffect(() => {
-    console.log('[ScrollDirection]', { scrollDirection, isAtTop, isAtBottom, scrollEl: !!scrollEl });
-    if (isAtTop || isAtBottom) {
+    if (isAtTop) {
+      setIsHeaderVisible(true);
+    } else if (scrollDirection === 'up') {
       setIsHeaderVisible(true);
     } else if (scrollDirection === 'down') {
       setIsHeaderVisible(false);
-    } else if (scrollDirection === 'up') {
-      setIsHeaderVisible(true);
     }
-  }, [scrollDirection, setIsHeaderVisible, isAtTop, isAtBottom]);
+  }, [scrollDirection, setIsHeaderVisible, isAtTop]);
 
-  // Auto-scroll to latest message
+  // Auto-scroll to latest message (tanpa trigger hide)
   useEffect(() => {
     if (!scrollEl) return;
     const timeout = setTimeout(() => {
       scrollEl.scrollTo({ top: scrollEl.scrollHeight, behavior: 'smooth' });
-    }, 100);
+    }, 150);
     return () => clearTimeout(timeout);
-  }, [messages, scrollEl]);
+  }, [scrollEl]); // hanya saat pertama attach, bukan setiap messages update
 
   if (loading) {
     return (
