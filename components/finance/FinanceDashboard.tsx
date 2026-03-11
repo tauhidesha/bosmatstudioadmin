@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useFinanceData } from '@/lib/hooks/useFinanceData';
 import FinanceStats from './FinanceStats';
+import FinanceChart from './FinanceChart';
 import TransactionList from './TransactionList';
 import AddTransactionModal from './AddTransactionModal';
 import Button from '@/components/shared/Button';
@@ -28,10 +29,15 @@ export default function FinanceDashboard() {
         </Button>
       </div>
 
-      <FinanceStats summary={summary} />
+      <FinanceStats summary={summary} loading={loading} />
 
-      <div className="grid grid-cols-1 gap-8">
-        <TransactionList transactions={transactions} loading={loading} />
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-2">
+          <TransactionList transactions={transactions} loading={loading} />
+        </div>
+        <div>
+          <FinanceChart transactions={transactions} loading={loading} />
+        </div>
       </div>
 
       <AddTransactionModal 

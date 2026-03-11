@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 
 interface FinanceStatsProps {
   summary: FinanceSummary;
+  loading?: boolean;
   className?: string;
 }
 
@@ -16,7 +17,20 @@ const formatIDR = (amount: number) => {
   }).format(amount);
 };
 
-export default function FinanceStats({ summary, className }: FinanceStatsProps) {
+export default function FinanceStats({ summary, loading, className }: FinanceStatsProps) {
+  if (loading) {
+    return (
+      <div className={cn("grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4", className)}>
+        {[...Array(4)].map((_, i) => (
+          <div key={i} className="p-6 rounded-2xl border border-slate-100 bg-white animate-pulse">
+            <div className="size-10 rounded-xl bg-slate-100 mb-4" />
+            <div className="h-3 w-20 bg-slate-50 rounded mb-2" />
+            <div className="h-8 w-32 bg-slate-100 rounded" />
+          </div>
+        ))}
+      </div>
+    );
+  }
   const stats = [
     {
       label: 'Total Pemasukan',
