@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Modal from '@/components/shared/Modal';
 import Button from '@/components/shared/Button';
 import Input from '@/components/shared/Input';
-import { db } from '@/lib/firebase';
+import { db } from '@/lib/auth/firebase';
 import { collection, addDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
 
 interface AddTransactionModalProps {
@@ -107,7 +107,7 @@ export default function AddTransactionModal({ isOpen, onClose }: AddTransactionM
 
         <div className="pt-4 flex gap-3">
           <Button variant="outline" className="flex-1 rounded-xl h-12" onClick={onClose} type="button">Batal</Button>
-          <Button className="flex-1 bg-teal-500 hover:bg-teal-600 rounded-xl h-12" type="submit" loading={loading}>
+          <Button className="flex-1 bg-teal-500 hover:bg-teal-600 rounded-xl h-12" type="submit" isLoading={loading}>
             Simpan Transaksi
           </Button>
         </div>

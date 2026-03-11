@@ -10,7 +10,7 @@ import {
   where,
   limit as firestoreLimit
 } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { db } from '@/lib/auth/firebase';
 
 export interface Transaction {
   id: string;
