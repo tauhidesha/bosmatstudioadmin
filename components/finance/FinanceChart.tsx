@@ -75,8 +75,8 @@ export default function FinanceChart({ transactions, loading }: FinanceChartProp
         </div>
 
         {chartData.map((d, i) => (
-          <div key={i} className="flex-1 flex flex-col items-center gap-2 relative group">
-            <div className="flex items-end gap-1 w-full h-full justify-center">
+          <div key={i} className="flex-1 flex flex-col items-center gap-2 relative group h-full">
+            <div className="flex items-end gap-1 w-full flex-1 justify-center min-h-0">
               {/* Income bar */}
               <div 
                 className="w-1.5 sm:w-3 bg-emerald-500 rounded-t-full transition-all duration-700 hover:brightness-110 relative"
