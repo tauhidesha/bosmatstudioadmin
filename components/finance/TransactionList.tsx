@@ -6,6 +6,8 @@ import { id } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
 
+import Link from 'next/link';
+
 interface TransactionListProps {
   transactions: Transaction[];
   loading?: boolean;
@@ -90,7 +92,20 @@ export default function TransactionList({ transactions, loading, className }: Tr
                   </td>
                   <td className="px-6 py-4">
                     <p className="text-[13px] font-medium text-slate-600 truncate max-w-[150px]">{t.description}</p>
-                    {t.customerName && <p className="text-[11px] text-slate-400 font-bold">Cust: {t.customerName}</p>}
+                    {t.customerName && (
+                      <div className="flex items-center gap-2 mt-1">
+                        <p className="text-[11px] text-slate-400 font-bold leading-none">Cust: {t.customerName}</p>
+                        {t.customerId && (
+                          <Link 
+                            href={`/conversations?id=${t.customerId}`}
+                            className="text-[10px] text-indigo-600 hover:text-indigo-700 font-bold flex items-center gap-0.5 transition-colors"
+                          >
+                            <span className="material-symbols-outlined text-[14px]">chat</span>
+                            Lihat Chat
+                          </Link>
+                        )}
+                      </div>
+                    )}
                   </td>
                   <td className="px-6 py-4 text-right">
                     <p className={cn("text-[14px] font-black tracking-tight", t.type === 'income' ? "text-emerald-600" : "text-rose-600")}>

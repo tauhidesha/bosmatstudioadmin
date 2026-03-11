@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useRealtimeConversations } from '@/lib/hooks/useRealtimeConversations';
 import { useConversationNotifications } from '@/lib/hooks/useConversationNotifications';
 import { useAuth } from '@/lib/hooks/useAuth';
@@ -30,10 +31,19 @@ function ConversationErrorBoundary({ children }: { children: React.ReactNode }) 
   );
 }
 
-export default function ConversationsPage() {
+function ConversationsContent() {
   const { user, getIdToken } = useAuth();
-  const [selectedConversationId, setSelectedConversationId] = useState<string>();
+  const searchParams = useSearchParams();
+  const [selectedConversationId, setSelectedConversationId] = useState<string | undefined>();
   const [showPermissionPrompt, setShowPermissionPrompt] = useState(true);
+
+  // Handle incoming 'id' from query parameters
+  useEffect(() => {
+    const idParam = searchParams.get('id');
+    if (idParam) {
+      setSelectedConversationId(idParam);
+    }
+  }, [searchParams]);
 
   // Load conversations with error handling
   const { conversations, loading, error } = useRealtimeConversations({
@@ -191,5 +201,15 @@ export default function ConversationsPage() {
         </div>
       )}
     </>
+  );
+}
+
+export default function ConversationsPage() {
+  return (
+    <Suspense fallback={<div className="flex-1 flex items-center justify-center bg-slate-50">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900"></div>
+    </div>}>
+      <ConversationsContent />
+    </Suspense>
   );
 }

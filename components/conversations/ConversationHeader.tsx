@@ -9,6 +9,7 @@ import { id as idLocale } from 'date-fns/locale';
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import Image from 'next/image';
+import CustomerFinanceSummary from './CustomerFinanceSummary';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -163,9 +164,12 @@ export default function ConversationHeader({
                 </button>
               )}
             </div>
-            <p className="text-[10px] md:text-[11px] font-bold text-slate-400 mt-1 md:mt-2 uppercase tracking-[0.1em] truncate max-w-[90px] md:max-w-none font-mono">
-              {conversation.customerPhone || 'NO PHONE ATTACHED'}
-            </p>
+            <div className="flex items-center gap-3 mt-1 md:mt-2">
+              <p className="text-[10px] md:text-[11px] font-bold text-slate-400 uppercase tracking-[0.1em] truncate max-w-[90px] md:max-w-none font-mono">
+                {conversation.customerPhone || 'NO PHONE ATTACHED'}
+              </p>
+              <CustomerFinanceSummary customerId={conversation.id} />
+            </div>
           </div>
         </div>
 

@@ -33,7 +33,7 @@ export interface FinanceSummary {
   transactionCount: number;
 }
 
-export function useFinanceData(daysLimit = 30) {
+export function useFinanceData(daysLimit = 30, customerId?: string) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [summary, setSummary] = useState<FinanceSummary>({
     totalIncome: 0,
@@ -47,17 +47,23 @@ export function useFinanceData(daysLimit = 30) {
   useEffect(() => {
     setLoading(true);
     
-    // Calculate date threshold
-    const dateThreshold = new Date();
-    dateThreshold.setDate(dateThreshold.getDate() - daysLimit);
-    const thresholdTs = Timestamp.fromDate(dateThreshold);
-
-    const q = query(
-      collection(db, 'transactions'),
-      where('date', '>=', thresholdTs),
+    // Build query constraints dynamically
+    const constraints: any[] = [
       orderBy('date', 'desc'),
       firestoreLimit(500)
-    );
+    ];
+
+    if (daysLimit > 0) {
+      const dateThreshold = new Date();
+      dateThreshold.setDate(dateThreshold.getDate() - daysLimit);
+      constraints.push(where('date', '>=', Timestamp.fromDate(dateThreshold)));
+    }
+
+    if (customerId) {
+      constraints.push(where('customerId', '==', customerId));
+    }
+
+    const q = query(collection(db, 'transactions'), ...constraints);
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       let income = 0;
@@ -93,7 +99,7 @@ export function useFinanceData(daysLimit = 30) {
     });
 
     return () => unsubscribe();
-  }, [daysLimit]);
+  }, [daysLimit, customerId]);
 
   return { transactions, summary, loading, error };
 }
