@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { sendText } from '@/lib/server/fonnte-client';
 import {
   saveMessageToFirestore,
   saveSenderMeta,
@@ -130,6 +131,15 @@ async function flushAndProcess(
   // or use waitUntil() if experimental features are enabled.
   try {
     const result = await triggerAdkProcessing(senderNumber, messages, senderName);
+    const aiResponse = result.adk_response || result.message || '';
+    
+    if (aiResponse) {
+      // Send AI's response back to user via Fonnte
+      await sendText(senderNumber, aiResponse);
+      // Save AI's message to Firestore
+      await saveMessageToFirestore(senderNumber, aiResponse, 'ai');
+    }
+
     return NextResponse.json({ status: 'processed', ai_result: result });
   } catch (err: any) {
     console.error('[Webhook] ADK Processing failed:', err.message);
@@ -145,7 +155,7 @@ async function triggerAdkProcessing(
   messages: BufferedMessage[],
   senderName?: string
 ) {
-  const adkUrl = process.env.ADK_SERVICE_URL || 'http://localhost:8000';
+  const adkUrl = process.env.ADK_SERVICE_URL || 'http://localhost:8080';
   
   // Format messages into a single string, or handle media
   let combinedContent = '';

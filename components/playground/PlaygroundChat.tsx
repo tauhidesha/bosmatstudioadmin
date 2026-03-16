@@ -148,7 +148,7 @@ export default function PlaygroundChat() {
       const aiMsg: ChatMessage = {
         id: `ai-${Date.now()}`,
         role: 'ai',
-        content: result.ai_response || 'Tidak ada respons.',
+        content: result.response || result.ai_response || 'Tidak ada respons.',
         timestamp: new Date(),
       };
       setMessages(prev => [...prev, aiMsg]);
