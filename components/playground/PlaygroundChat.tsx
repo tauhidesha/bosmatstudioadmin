@@ -126,7 +126,7 @@ export default function PlaygroundChat() {
 
     try {
       const apiClient = createApiClient(
-        process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000',
+        process.env.NEXT_PUBLIC_API_URL || '/api',
         getIdToken
       );
 
