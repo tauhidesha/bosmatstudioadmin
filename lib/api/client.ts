@@ -212,6 +212,23 @@ export class ApiClient {
       body: JSON.stringify(params),
     });
   }
+
+  /**
+   * Test AI (Playground)
+   * Send a message to the AI for testing purposes
+   */
+  async testAI(params: {
+    message: string;
+    mode?: string;
+    media?: Array<{ type: string; mimetype: string; base64: string }>;
+    history?: Array<{ role: string; content: string }>;
+    model_override?: string;
+  }) {
+    return this.request('/test-ai', {
+      method: 'POST',
+      body: JSON.stringify(params),
+    });
+  }
 }
 
 /**

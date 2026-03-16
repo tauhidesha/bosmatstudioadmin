@@ -81,7 +81,7 @@ function DashboardLayoutContent({
         )} />
 
         {/* Page Content */}
-        <section className="flex-1 overflow-hidden relative">
+        <section className="flex-1 overflow-y-auto relative">
           {children}
         </section>
       </main>

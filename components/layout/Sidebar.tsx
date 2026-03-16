@@ -19,6 +19,7 @@ const navItems: NavItem[] = [
   { label: 'CRM', href: '/crm', icon: 'group' },
   { label: 'Follow-ups', href: '/follow-ups', icon: 'schedule' },
   { label: 'Finance', href: '/finance', icon: 'account_balance_wallet' },
+  { label: 'Playground', href: '/playground', icon: 'smart_toy' },
   { label: 'Settings', href: '/settings', icon: 'settings' },
 ];
 
