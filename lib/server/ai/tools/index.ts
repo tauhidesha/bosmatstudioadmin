@@ -13,21 +13,21 @@ import { triggerBosMatTool } from './triggerBosMatTool';
 // JS tools — require() dijalankan saat runtime (Node.js server), bukan saat bundling
 // Path di-resolve via webpack alias @monorepo/tools yang dikonfigurasi di next.config.mjs
 function loadJsTools() {
-  const { getServiceDetailsTool } = require('@monorepo/tools/getServiceDetailsTool.js');
-  const { getStudioInfoTool } = require('@monorepo/tools/getStudioInfoTool.js');
-  const { checkBookingAvailabilityTool } = require('@monorepo/tools/checkBookingAvailabilityTool.js');
-  const { createBookingTool } = require('@monorepo/tools/createBookingTool.js');
-  const { updateBookingTool } = require('@monorepo/tools/updateBookingTool.js');
-  const { getCurrentDateTimeTool } = require('@monorepo/tools/getCurrentDateTimeTool.js');
-  const { calculateHomeServiceFeeTool } = require('@monorepo/tools/calculateHomeServiceFeeTool.js');
-  const { notifyVisitIntentTool } = require('@monorepo/tools/notifyVisitIntentTool.js');
-  const { sendMessageTool } = require('@monorepo/tools/sendMessageTool.js');
-  const { crmManagementTool } = require('@monorepo/tools/crmManagementTool.js');
-  const { addTransactionTool, getTransactionHistoryTool, calculateFinancesTool } = require('@monorepo/tools/financeManagementTool.js');
-  const { updateSystemPromptTool } = require('@monorepo/tools/updateSystemPromptTool.js');
-  const { getSystemPromptTool } = require('@monorepo/tools/getSystemPromptTool.js');
-  const { updatePromoOfTheMonthTool } = require('@monorepo/tools/updatePromoOfTheMonthTool.js');
-  const { readDirectMessagesTool } = require('@monorepo/tools/readDirectMessagesTool.js');
+  const { getServiceDetailsTool } = require('../../../../legacy-backend/src/ai/tools/getServiceDetailsTool.js');
+  const { getStudioInfoTool } = require('../../../../legacy-backend/src/ai/tools/getStudioInfoTool.js');
+  const { checkBookingAvailabilityTool } = require('../../../../legacy-backend/src/ai/tools/checkBookingAvailabilityTool.js');
+  const { createBookingTool } = require('../../../../legacy-backend/src/ai/tools/createBookingTool.js');
+  const { updateBookingTool } = require('../../../../legacy-backend/src/ai/tools/updateBookingTool.js');
+  const { getCurrentDateTimeTool } = require('../../../../legacy-backend/src/ai/tools/getCurrentDateTimeTool.js');
+  const { calculateHomeServiceFeeTool } = require('../../../../legacy-backend/src/ai/tools/calculateHomeServiceFeeTool.js');
+  const { notifyVisitIntentTool } = require('../../../../legacy-backend/src/ai/tools/notifyVisitIntentTool.js');
+  const { sendMessageTool } = require('../../../../legacy-backend/src/ai/tools/sendMessageTool.js');
+  const { crmManagementTool } = require('../../../../legacy-backend/src/ai/tools/crmManagementTool.js');
+  const { addTransactionTool, getTransactionHistoryTool, calculateFinancesTool } = require('../../../../legacy-backend/src/ai/tools/financeManagementTool.js');
+  const { updateSystemPromptTool } = require('../../../../legacy-backend/src/ai/tools/updateSystemPromptTool.js');
+  const { getSystemPromptTool } = require('../../../../legacy-backend/src/ai/tools/getSystemPromptTool.js');
+  const { updatePromoOfTheMonthTool } = require('../../../../legacy-backend/src/ai/tools/updatePromoOfTheMonthTool.js');
+  const { readDirectMessagesTool } = require('../../../../legacy-backend/src/ai/tools/readDirectMessagesTool.js');
 
   return {
     getServiceDetailsTool,
