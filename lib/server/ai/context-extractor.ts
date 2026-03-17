@@ -164,8 +164,8 @@ export async function extractAndSaveContext(
   senderNumber: string
 ): Promise<void> {
   if (!userMessage || !senderNumber) return;
-  // Skip untuk playground atau nomor testing
-  if (senderNumber === 'playground' || senderNumber === 'unknown') return;
+  // Skip untuk nomor testing yang tidak valid
+  if (senderNumber === 'unknown') return;
 
   try {
     const apiKey = process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY;

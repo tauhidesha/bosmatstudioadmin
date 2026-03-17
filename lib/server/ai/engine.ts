@@ -284,6 +284,11 @@ export async function getAIResponse(input: AIEngineInput): Promise<AIEngineResul
     historyMessages = providedHistory.map((h) =>
       h.role === 'human' ? new HumanMessage(h.content) : new AIMessage(h.content)
     );
+  } else if (isAdmin && senderNumber !== 'unknown') {
+    // Admin mode: selalu load 3 history untuk konteks
+    console.log('[Engine] Admin mode — loading 3 history slices');
+    const history = await getConversationHistory(senderNumber, 3);
+    historyMessages = buildLangChainHistory(history);
   } else if (senderNumber !== 'unknown' && isShortOrAmbiguous(message)) {
     console.log('[Engine] Short message detected — loading history');
     const history = await getConversationHistory(senderNumber, 4);

@@ -235,7 +235,7 @@ function scoreCustomer(
  */
 export async function classifyAndSaveCustomer(senderNumber: string): Promise<void> {
   if (!senderNumber) return;
-  if (senderNumber === 'playground' || senderNumber === 'unknown') return;
+  if (senderNumber === 'unknown') return;
 
   const docId = senderNumber.replace(/\D/g, '');
   if (!docId) return;
