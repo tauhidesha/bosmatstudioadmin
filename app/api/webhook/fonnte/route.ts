@@ -46,9 +46,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ status: 'invalid_sender' });
     }
 
-    const isAdmin =
-      senderNumber === process.env.BOSMAT_ADMIN_NUMBER ||
-      senderNumber === process.env.ADMIN_WHATSAPP_NUMBER;
+    // Normalize to digits-only for comparison (senderNumber has @c.us suffix)
+    const senderDigits = senderNumber.replace(/\D/g, '');
+    const adminNumbers = [
+      process.env.BOSMAT_ADMIN_NUMBER,
+      process.env.ADMIN_WHATSAPP_NUMBER,
+    ].filter(Boolean).map(n => n!.replace(/\D/g, ''));
+
+    const isAdmin = adminNumbers.some(n => n === senderDigits);
 
     // 1. Save metadata
     if (senderName) {
