@@ -12,6 +12,9 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@langchain/core": "^1.1.32",
+    "@langchain/google-genai": "^2.1.25",
+    "@types/luxon": "^3.7.1",
     "autoprefixer": "^10.4.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -19,6 +22,7 @@
     "firebase": "^10.12.0",
     "firebase-admin": "^13.7.0",
     "lucide-react": "^0.577.0",
+    "luxon": "^3.7.2",
     "next": "^14.2.0",
     "postcss": "^8.4.0",
     "radix-ui": "^1.4.3",

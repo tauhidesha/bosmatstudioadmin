@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getAIResponse } from '@/lib/server/ai/engine';
+
+export const runtime = 'nodejs';
 
 /**
  * Test AI endpoint for the admin playground
- * Forwards requests to the Google ADK Python service
+ * Langsung panggil LangChain engine — tanpa proxy ke ADK
  */
 export async function POST(req: NextRequest) {
   try {
@@ -16,42 +19,40 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const adkUrl = process.env.ADK_SERVICE_URL || 'http://localhost:8000';
-    
-    const payload = {
-      message,
-      history: history || [],
-      mode: mode || 'customer',
-      mediaItems: media || [],
-      model_override: model_override || null
-    };
+    // Build providedHistory dari format playground [{role, content}]
+    const providedHistory = (history || []).map((h: { role: string; content: string }) => ({
+      role: h.role === 'assistant' || h.role === 'ai' ? 'ai' : 'human',
+      content: h.content,
+    }));
 
-    console.log(`[Test-AI] Forwarding playground request to ADK`);
+    // Extract media info jika ada (playground kirim base64 atau URL)
+    const firstMedia = media?.[0] ?? null;
+    const mediaUrl = firstMedia?.url ?? null;
+    const mediaExtension = firstMedia?.extension ?? firstMedia?.mimeType?.split('/')?.[1] ?? null;
 
-    const res = await fetch(`${adkUrl}/test-ai`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+    const isAdminOverride = mode === 'admin' ? true : mode === 'customer' ? false : undefined;
+
+    console.log(`[Test-AI] mode=${mode}, message="${message?.substring(0, 50)}", mediaUrl=${mediaUrl ?? 'none'}`);
+
+    const result = await getAIResponse({
+      message: message || '',
+      senderNumber: 'playground',
+      senderName: 'Admin Playground',
+      isAdminOverride,
+      mediaUrl: mediaUrl ?? undefined,
+      mediaExtension: mediaExtension ?? undefined,
+      providedHistory,
     });
 
-    if (!res.ok) {
-      const errorText = await res.text();
-      console.error('[Test-AI] ADK Service Error:', res.status, errorText);
-      return NextResponse.json(
-        { success: false, error: `Gagal memanggil AI service: ${res.statusText}`, details: errorText },
-        { status: res.status }
-      );
-    }
-
-    const data = await res.json();
     return NextResponse.json({
       success: true,
-      response: data.response || data.text || data.message,
-      data
+      response: result.response,
+      isAdmin: result.isAdmin,
+      toolsCalled: result.toolsCalled,
     });
 
   } catch (error: any) {
-    console.error('Error in test-ai:', error);
+    console.error('[Test-AI] Error:', error);
     return NextResponse.json(
       { success: false, error: 'Internal server error', details: error.message },
       { status: 500 }

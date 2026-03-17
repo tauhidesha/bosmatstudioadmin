@@ -15,16 +15,21 @@ import {
   waitAndFlush,
   BufferedMessage,
 } from '@/lib/server/debounce-firestore';
+import { getAIResponse } from '@/lib/server/ai/engine';
+import { extractAndSaveContext } from '@/lib/server/ai/context-extractor';
+import { classifyAndSaveCustomer } from '@/lib/server/ai/customer-classifier';
+import { updateSignalsOnIncomingMessage } from '@/lib/server/ai/signal-tracker';
 
-// Limit maximum messages per sender to prevent spam/abuse
+export const runtime = 'nodejs';
+
 const MAX_MESSAGES_BUFFER = 20;
 
 export async function POST(req: NextRequest) {
   try {
     const payload = await req.json();
 
-    // Fonnte webhook payload structure:
-    // device, sender, message, text, member, name, location, pollname, choices, url, filename, extension
+    // Fonnte webhook payload:
+    // device, sender, message, text, member, name, location, url, filename, extension
     const sourceNumber = payload.sender;
     const senderName = payload.name;
     const body = payload.message || payload.text || '';
@@ -41,9 +46,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ status: 'invalid_sender' });
     }
 
-    // Determine if it's admin (BosMat account)
-    const isAdmin = senderNumber === process.env.BOSMAT_ADMIN_NUMBER 
-      || senderNumber === process.env.ADMIN_WHATSAPP_NUMBER;
+    const isAdmin =
+      senderNumber === process.env.BOSMAT_ADMIN_NUMBER ||
+      senderNumber === process.env.ADMIN_WHATSAPP_NUMBER;
 
     // 1. Save metadata
     if (senderName) {
@@ -59,12 +64,11 @@ export async function POST(req: NextRequest) {
       timestamp: new Date().toISOString(),
     };
 
-    // 3. Admin commands (instant processing)
+    // 3. Admin — bypass debounce & snooze, process immediately
     if (isAdmin) {
-      // Admin processing bypasses debounce and snooze
       await saveMessageToFirestore(senderNumber, body, 'admin');
-      
-      // If admin types a command like "/resume 628123...", clear snooze
+
+      // Admin command: /resume atau /snoozeoff <nomor>
       if (body.startsWith('/resume ') || body.startsWith('/snoozeoff ')) {
         const targetNumber = body.split(' ')[1];
         if (targetNumber) {
@@ -73,12 +77,10 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      // Forward admin message directly to ADK
-      await triggerAdkProcessing(senderNumber, [msgObj], senderName);
-      return NextResponse.json({ status: 'admin_processed' });
+      return await processAndRespond(senderNumber, [msgObj], senderName, true);
     }
 
-    // 4. Save to Firestore (Customer)
+    // 4. Save customer message to Firestore
     await saveMessageToFirestore(senderNumber, body, 'user');
 
     // 5. Check Snooze / Human Handover
@@ -88,27 +90,24 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ status: 'snoozed' });
     }
 
-    // Wake-up logic: clear expired snooze (though getSnoozeInfo cleanExpired=true does this)
+    // Clean expired snooze
     await getSnoozeInfo(senderNumber, { cleanExpired: true });
 
-    // 6. Add to Debounce Queue
+    // 6. Debounce queue
     const { shouldProcess, messages } = await appendMessage(senderNumber, msgObj);
 
-    // If buffer is too full, force process to avoid massive payloads
+    // Force process jika buffer penuh
     if (messages.length > MAX_MESSAGES_BUFFER || shouldProcess) {
-      return await flushAndProcess(senderNumber, messages, senderName);
+      return await processAndRespond(senderNumber, messages, senderName, false);
     }
 
-    // Wait for the debounce window to close
-    // Since Vercel has a 10s-60s timeout limit, we can't wait indefinitely
-    // waitAndFlush waits DEBOUNCE_MS (default 10s) and then checks
+    // Wait for debounce window
     const finalMessages = await waitAndFlush(senderNumber);
     if (finalMessages && finalMessages.length > 0) {
-      return await flushAndProcess(senderNumber, finalMessages, senderName);
+      return await processAndRespond(senderNumber, finalMessages, senderName, false);
     }
 
-    // If waitAndFlush returns null, it means another message came in and reset the timer.
-    // That subsequent request will handle the flushing.
+    // Lain sender akan handle flush
     return NextResponse.json({ status: 'debouncing' });
 
   } catch (error: any) {
@@ -118,79 +117,79 @@ export async function POST(req: NextRequest) {
 }
 
 /**
- * Trigger ADK microservice with buffered messages
+ * Process buffered messages via LangChain engine dan kirim response via Fonnte
+ * Menggantikan triggerAdkProcessing()
  */
-async function flushAndProcess(
+async function processAndRespond(
   senderNumber: string,
   messages: BufferedMessage[],
-  senderName?: string
-) {
-  // We use triggerAdkProcessing locally, and respond to Fonnte immediately
-  // Note: On Vercel, background tasks might be killed if the response completes.
-  // Best practice in Next.js on Vercel is to await critical tasks, 
-  // or use waitUntil() if experimental features are enabled.
+  senderName?: string,
+  isAdminOverride?: boolean
+): Promise<NextResponse> {
   try {
-    const result = await triggerAdkProcessing(senderNumber, messages, senderName);
-    const aiResponse = result.adk_response || result.message || '';
-    
+    // Gabungkan semua teks pesan
+    let combinedContent = '';
+    let mediaUrl: string | undefined;
+    let mediaExtension: string | undefined;
+
+    for (const msg of messages) {
+      if (msg.content) {
+        combinedContent += msg.content + '\n';
+      }
+      // Ambil media pertama yang ditemukan
+      if (msg.isMedia && msg.mediaUrl && !mediaUrl) {
+        mediaUrl = msg.mediaUrl;
+        mediaExtension = msg.mediaExtension;
+      }
+    }
+
+    const messageText = combinedContent.trim();
+
+    console.log(`[Webhook] Processing ${messages.length} msg(s) from ${senderNumber}`, {
+      hasMedia: !!mediaUrl,
+      messagePreview: messageText.substring(0, 50),
+    });
+
+    const result = await getAIResponse({
+      message: messageText,
+      senderNumber,
+      senderName,
+      isAdminOverride,
+      mediaUrl,
+      mediaExtension,
+    });
+
+    const aiResponse = result.response;
+
     if (aiResponse) {
-      // Send AI's response back to user via Fonnte
+      // Kirim response ke user via Fonnte
       await sendText(senderNumber, aiResponse);
-      // Save AI's message to Firestore
+      // Simpan ke Firestore
       await saveMessageToFirestore(senderNumber, aiResponse, 'ai');
+
+      // Background: context extraction → classification → signal tracking (fire & forget)
+      if (!result.isAdmin) {
+        const msgForExtraction = combinedContent.trim();
+        extractAndSaveContext(msgForExtraction, aiResponse, senderNumber)
+          .then(() => classifyAndSaveCustomer(senderNumber))
+          .catch((err) => console.warn('[Webhook] Background extraction error:', err.message));
+
+        // Track follow-up signals (reply setelah follow-up, stop request, etc)
+        updateSignalsOnIncomingMessage(senderNumber, combinedContent)
+          .catch((err) => console.warn('[Webhook] Signal tracker error:', err.message));
+      }
     }
 
-    return NextResponse.json({ status: 'processed', ai_result: result });
+    return NextResponse.json({
+      status: 'processed',
+      toolsCalled: result.toolsCalled,
+    });
+
   } catch (err: any) {
-    console.error('[Webhook] ADK Processing failed:', err.message);
-    return NextResponse.json({ status: 'error', reason: 'adk_failed' }, { status: 500 });
+    console.error('[Webhook] LangChain Processing failed:', err.message);
+    return NextResponse.json(
+      { status: 'error', reason: 'ai_failed', details: err.message },
+      { status: 500 }
+    );
   }
-}
-
-/**
- * Call the Python ADK Service
- */
-async function triggerAdkProcessing(
-  senderNumber: string,
-  messages: BufferedMessage[],
-  senderName?: string
-) {
-  const adkUrl = process.env.ADK_SERVICE_URL || 'http://localhost:8080';
-  
-  // Format messages into a single string, or handle media
-  let combinedContent = '';
-  const mediaItems: Array<{ url: string; extension?: string }> = [];
-
-  for (const msg of messages) {
-    if (msg.content) {
-      combinedContent += msg.content + '\n';
-    }
-    if (msg.isMedia && msg.mediaUrl) {
-      mediaItems.push({
-        url: msg.mediaUrl,
-        extension: msg.mediaExtension
-      });
-    }
-  }
-
-  const payload = {
-    senderNumber,
-    senderName,
-    message: combinedContent.trim(),
-    mediaItems,
-  };
-
-  console.log(`[Webhook] Forwarding to ADK: ${senderNumber} (${messages.length} msgs)`);
-
-  const res = await fetch(`${adkUrl}/chat`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
-  });
-
-  if (!res.ok) {
-    throw new Error(`ADK Error: ${res.statusText}`);
-  }
-
-  return await res.json();
 }
