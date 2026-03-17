@@ -237,7 +237,7 @@ export async function classifyAndSaveCustomer(senderNumber: string): Promise<voi
   if (!senderNumber) return;
   if (senderNumber === 'unknown') return;
 
-  const docId = senderNumber.replace(/\D/g, '');
+  const docId = senderNumber.replace(/\D/g, '') || senderNumber;
   if (!docId) return;
 
   const db = getDb();

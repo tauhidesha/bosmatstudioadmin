@@ -175,7 +175,7 @@ export async function extractAndSaveContext(
     }
 
     const db = getDb();
-    const docId = senderNumber.replace(/\D/g, '');
+    const docId = senderNumber.replace(/\D/g, '') || senderNumber;
     if (!docId) return;
 
     // Ambil existing context untuk current summary
