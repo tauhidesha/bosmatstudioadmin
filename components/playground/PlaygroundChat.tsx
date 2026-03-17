@@ -52,6 +52,40 @@ export default function PlaygroundChat() {
     }
   }, [messages, isLoading]);
 
+  // Compress image using canvas to stay under Vercel's 4.5MB payload limit
+  const compressImage = useCallback(async (file: File, maxSize = 1024, quality = 0.7): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let { width, height } = img;
+
+        // Resize if larger than maxSize
+        if (width > maxSize || height > maxSize) {
+          if (width > height) {
+            height = Math.round((height * maxSize) / width);
+            width = maxSize;
+          } else {
+            width = Math.round((width * maxSize) / height);
+            height = maxSize;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) { reject(new Error('Canvas not supported')); return; }
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // Convert to JPEG base64
+        const dataUrl = canvas.toDataURL('image/jpeg', quality);
+        resolve(dataUrl.split(',')[1]);
+      };
+      img.onerror = () => reject(new Error('Failed to load image'));
+      img.src = URL.createObjectURL(file);
+    });
+  }, []);
+
   const handleFileSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
@@ -64,20 +98,30 @@ export default function PlaygroundChat() {
       const isVideo = file.type.startsWith('video/');
       if (!isImage && !isVideo) continue;
 
-      const base64 = await new Promise<string>((resolve) => {
-        const reader = new FileReader();
-        reader.onload = () => {
-          const result = reader.result as string;
-          resolve(result.split(',')[1]); // Remove data:xxx;base64, prefix
-        };
-        reader.readAsDataURL(file);
-      });
+      let base64: string;
+      let mimetype = file.type;
+
+      if (isImage) {
+        // Compress images to avoid Vercel payload limit
+        base64 = await compressImage(file);
+        mimetype = 'image/jpeg';
+      } else {
+        // Videos: read as-is (user should keep them small)
+        base64 = await new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            const result = reader.result as string;
+            resolve(result.split(',')[1]);
+          };
+          reader.readAsDataURL(file);
+        });
+      }
 
       const previewUrl = URL.createObjectURL(file);
 
       newAttachments.push({
         type: isImage ? 'image' : 'video',
-        mimetype: file.type,
+        mimetype,
         base64,
         previewUrl,
         fileName: file.name,
@@ -87,7 +131,7 @@ export default function PlaygroundChat() {
     setAttachments(prev => [...prev, ...newAttachments]);
     // Reset file input
     if (fileInputRef.current) fileInputRef.current.value = '';
-  }, []);
+  }, [compressImage]);
 
   const removeAttachment = useCallback((index: number) => {
     setAttachments(prev => {
