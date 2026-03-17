@@ -36,9 +36,20 @@ export async function POST(req: NextRequest) {
     const mediaUrl = payload.url;
     const mediaExtension = payload.extension;
 
-    // Reject status updates or empty messages
+    // Reject status updates
     if (!sourceNumber || sourceNumber === 'status@broadcast') {
       return NextResponse.json({ status: 'ignored' });
+    }
+
+    // Reject empty messages UNLESS they have media
+    if (!body && !mediaUrl) {
+      return NextResponse.json({ status: 'ignored', reason: 'empty text and no media' });
+    }
+
+    // If Fonnte sends "non-text message" as body but has media, clear the body text
+    let finalBody = body;
+    if (body === 'non-text message' && mediaUrl) {
+      finalBody = '';
     }
 
     const senderNumber = normalizeWhatsappNumber(sourceNumber);
@@ -62,7 +73,7 @@ export async function POST(req: NextRequest) {
 
     // 2. Format as BufferedMessage
     const msgObj: BufferedMessage = {
-      content: body,
+      content: finalBody,
       isMedia: !!mediaUrl,
       mediaUrl: mediaUrl,
       mediaExtension: mediaExtension,
@@ -71,11 +82,11 @@ export async function POST(req: NextRequest) {
 
     // 3. Admin — bypass debounce & snooze, process immediately
     if (isAdmin) {
-      await saveMessageToFirestore(senderNumber, body, 'admin');
+      await saveMessageToFirestore(senderNumber, finalBody, 'admin');
 
       // Admin command: /resume atau /snoozeoff <nomor>
-      if (body.startsWith('/resume ') || body.startsWith('/snoozeoff ')) {
-        const targetNumber = body.split(' ')[1];
+      if (finalBody.startsWith('/resume ') || finalBody.startsWith('/snoozeoff ')) {
+        const targetNumber = finalBody.split(' ')[1];
         if (targetNumber) {
           await clearSnoozeMode(targetNumber);
           return NextResponse.json({ status: 'admin_command_processed' });
@@ -86,7 +97,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 4. Save customer message to Firestore
-    await saveMessageToFirestore(senderNumber, body, 'user');
+    await saveMessageToFirestore(senderNumber, finalBody, 'user');
 
     // 5. Check Snooze / Human Handover
     const isPaused = await isSnoozeActive(senderNumber);
