@@ -46,11 +46,14 @@ export async function POST(req: NextRequest) {
       providedHistory,
     });
 
-    // Fire context extraction for playground testing (use 'playground_test' as docId)
+    // Await context extraction for playground testing (use 'playground_test' as docId)
     const playgroundDocId = 'playground_test';
-    extractAndSaveContext(message || '', result.response, playgroundDocId)
-      .then(() => classifyAndSaveCustomer(playgroundDocId))
-      .catch((err) => console.warn('[Test-AI] Background extraction error:', err.message));
+    try {
+      await extractAndSaveContext(message || '', result.response, playgroundDocId);
+      await classifyAndSaveCustomer(playgroundDocId);
+    } catch (err: any) {
+      console.warn('[Test-AI] Background extraction error:', err.message);
+    }
 
     return NextResponse.json({
       success: true,

@@ -172,16 +172,22 @@ async function processAndRespond(
       // Simpan ke Firestore
       await saveMessageToFirestore(senderNumber, aiResponse, 'ai');
 
-      // Background: context extraction → classification → signal tracking (fire & forget)
+      // Background: context extraction → classification → signal tracking
+      // MUST await — Vercel kills fire-and-forget promises after response is sent
       if (!result.isAdmin) {
         const msgForExtraction = combinedContent.trim();
-        extractAndSaveContext(msgForExtraction, aiResponse, senderNumber)
-          .then(() => classifyAndSaveCustomer(senderNumber))
-          .catch((err) => console.warn('[Webhook] Background extraction error:', err.message));
+        try {
+          await extractAndSaveContext(msgForExtraction, aiResponse, senderNumber);
+          await classifyAndSaveCustomer(senderNumber);
+        } catch (err: any) {
+          console.warn('[Webhook] Background extraction error:', err.message);
+        }
 
-        // Track follow-up signals (reply setelah follow-up, stop request, etc)
-        updateSignalsOnIncomingMessage(senderNumber, combinedContent)
-          .catch((err) => console.warn('[Webhook] Signal tracker error:', err.message));
+        try {
+          await updateSignalsOnIncomingMessage(senderNumber, combinedContent);
+        } catch (err: any) {
+          console.warn('[Webhook] Signal tracker error:', err.message);
+        }
       }
     }
 
