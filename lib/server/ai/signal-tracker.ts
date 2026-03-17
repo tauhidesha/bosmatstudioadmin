@@ -60,7 +60,7 @@ export async function updateSignalsOnIncomingMessage(
     updates.last_customer_reply_at = FieldValue.serverTimestamp();
 
     if (Object.keys(updates).length > 0) {
-      await ref.update(updates);
+      await ref.set(updates, { merge: true });
     }
   } catch (error: any) {
     console.warn('[SignalTracker] Error:', error.message);
@@ -76,7 +76,7 @@ export async function markAsConverted(senderNumber: string): Promise<void> {
   if (!docId) return;
 
   const db = getDb();
-  await db.collection('customerContext').doc(docId).update({
+  await db.collection('customerContext').doc(docId).set({
     followup_converted: true,
     converted_at: FieldValue.serverTimestamp(),
     customer_label: 'existing',
@@ -84,7 +84,7 @@ export async function markAsConverted(senderNumber: string): Promise<void> {
     label_reason: 'converted after follow up',
     labeled_by: 'signal_tracker',
     label_updated_at: FieldValue.serverTimestamp(),
-  });
+  }, { merge: true });
 
   console.log(`[SignalTracker] ${docId} marked as converted`);
 }

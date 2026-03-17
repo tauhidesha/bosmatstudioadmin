@@ -10,7 +10,7 @@ import { getDb } from '@/lib/server/firebase-admin';
 import { FieldValue } from 'firebase-admin/firestore';
 
 // Model ringan — cepat dan murah
-const EXTRACTOR_MODEL = 'gemini-2.0-flash-lite';
+const EXTRACTOR_MODEL = 'gemini-3.1-flash-lite-preview';
 
 const EXTRACTOR_PROMPT = `Kamu adalah data extractor untuk sistem CRM bengkel motor.
 Tugasmu ada dua:

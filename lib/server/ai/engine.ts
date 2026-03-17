@@ -42,7 +42,7 @@ if (API_KEYS.length === 0 && process.env.NODE_ENV !== 'test') {
   console.warn('[Engine] ⚠️ GOOGLE_API_KEY is not set');
 }
 
-const ACTIVE_AI_MODEL = process.env.AI_MODEL || 'gemini-2.5-flash';
+const ACTIVE_AI_MODEL = process.env.AI_MODEL || 'gemini-3.1-flash-lite-preview';
 const ACTIVE_AI_TEMPERATURE = (() => {
   const raw = process.env.AI_TEMPERATURE;
   if (!raw) return 0.7;

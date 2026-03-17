@@ -56,7 +56,7 @@ async function updateSignalsOnIncomingMessage(senderNumber, messageText) {
         updates.last_customer_reply_at = admin.firestore.FieldValue.serverTimestamp();
 
         if (Object.keys(updates).length > 0) {
-            await ref.update(updates);
+            await ref.set(updates, { merge: true });
         }
     } catch (error) {
         console.warn('[SignalTracker] Error:', error.message);
@@ -71,7 +71,7 @@ async function markAsConverted(senderNumber) {
     if (!docId) return;
 
     const db = admin.firestore();
-    await db.collection('customerContext').doc(docId).update({
+    await db.collection('customerContext').doc(docId).set({
         followup_converted: true,
         converted_at: admin.firestore.FieldValue.serverTimestamp(),
         customer_label: 'existing',
@@ -79,7 +79,7 @@ async function markAsConverted(senderNumber) {
         label_reason: 'converted after follow up',
         labeled_by: 'signal_tracker',
         label_updated_at: admin.firestore.FieldValue.serverTimestamp(),
-    });
+    }, { merge: true });
 
     console.log(`[SignalTracker] ${docId} marked as converted`);
 }

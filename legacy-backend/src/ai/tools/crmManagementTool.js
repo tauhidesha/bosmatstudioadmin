@@ -39,7 +39,7 @@ async function generatePersonalizedDraft(name, label, chatHistory) {
     if (!apiKey) return `Halo ${name}, ada yang bisa Zoya bantu lagi?`;
 
     const model = new ChatGoogleGenerativeAI({
-        model: 'gemini-2.0-flash',
+        model: 'gemini-3.1-flash-lite-preview',
         temperature: 0.7,
         apiKey,
     });
