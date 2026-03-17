@@ -36,9 +36,11 @@ export async function POST(req: NextRequest) {
 
     console.log(`[Test-AI] mode=${mode}, message="${message?.substring(0, 50)}", mediaUrl=${mediaUrl ?? 'none'}`);
 
+    const playgroundDocId = 'playground_test';
+
     const result = await getAIResponse({
       message: message || '',
-      senderNumber: 'playground',
+      senderNumber: playgroundDocId,
       senderName: 'Admin Playground',
       isAdminOverride,
       mediaUrl: mediaUrl ?? undefined,
@@ -46,8 +48,7 @@ export async function POST(req: NextRequest) {
       providedHistory,
     });
 
-    // Await context extraction for playground testing (use 'playground_test' as docId)
-    const playgroundDocId = 'playground_test';
+    // Await context extraction for playground testing
     try {
       await extractAndSaveContext(message || '', result.response, playgroundDocId);
       await classifyAndSaveCustomer(playgroundDocId);

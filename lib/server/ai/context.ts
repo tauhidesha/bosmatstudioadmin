@@ -44,7 +44,7 @@ export async function getCustomerContext(
   const db = getDb();
   if (!db) return null;
 
-  const docId = senderNumber.replace(/\D/g, '');
+  const docId = senderNumber.replace(/\D/g, '') || senderNumber;
   if (!docId) return null;
 
   try {
@@ -66,7 +66,7 @@ export async function getConversationState(
   const db = getDb();
   if (!db) return null;
 
-  const docId = senderNumber.replace(/\D/g, '');
+  const docId = senderNumber.replace(/\D/g, '') || senderNumber;
   if (!docId) return null;
 
   try {
