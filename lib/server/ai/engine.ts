@@ -427,6 +427,10 @@ export async function getAIResponse(input: AIEngineInput): Promise<AIEngineResul
     // If no tool calls → final answer
     if (!toolCalls || toolCalls.length === 0) {
       finalResponse = extractText(aiResponse.content);
+      if (!finalResponse) {
+        console.warn('\n⚠️ [ENGINE] Empty response detected. Inspecting aiResponse:');
+        console.dir(aiResponse, { depth: null });
+      }
       break;
     }
 
