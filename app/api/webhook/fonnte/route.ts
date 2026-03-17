@@ -27,6 +27,7 @@ const MAX_MESSAGES_BUFFER = 20;
 export async function POST(req: NextRequest) {
   try {
     const payload = await req.json();
+    console.log('[Webhook] RAW FONNTE PAYLOAD:', JSON.stringify(payload, null, 2));
 
     // Fonnte webhook payload:
     // device, sender, message, text, member, name, location, url, filename, extension
