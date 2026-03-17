@@ -198,7 +198,14 @@ export async function extractAndSaveContext(
       apiKey,
     });
 
-    const response = await model.invoke([new HumanMessage(prompt)]);
+    const response = await model.invoke(
+      [new HumanMessage(prompt)],
+      {
+        runName: 'ContextExtractor',
+        tags: ['background-task', 'extractor'],
+        metadata: { senderNumber }
+      }
+    );
 
     const responseText =
       typeof response.content === 'string'
