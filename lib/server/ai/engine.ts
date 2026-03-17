@@ -219,6 +219,8 @@ export interface AIEngineInput {
   /** Fonnte media URL — will be downloaded + analyzed inline by same model */
   mediaUrl?: string;
   mediaExtension?: string;
+  /** Raw base64 media data — directly injected, skips download step */
+  mediaBase64?: string;
   /** Provide conversation history externally (e.g. playground) */
   providedHistory?: Array<{ role: 'human' | 'ai'; content: string }>;
 }
@@ -237,6 +239,7 @@ export async function getAIResponse(input: AIEngineInput): Promise<AIEngineResul
     isAdminOverride,
     mediaUrl,
     mediaExtension,
+    mediaBase64,
     providedHistory,
   } = input;
 
@@ -298,12 +301,16 @@ export async function getAIResponse(input: AIEngineInput): Promise<AIEngineResul
   // 7. Build user message content (text + optional media)
   let humanMessageContent: string | Array<Record<string, unknown>>;
 
-  if (mediaUrl) {
+  if (mediaBase64 || mediaUrl) {
     try {
-      console.log('[Engine] Downloading media:', mediaUrl);
-      const { downloadAttachment } = await import('@/lib/server/fonnte-client');
-      const { buffer } = await downloadAttachment(mediaUrl);
-      const base64Data = buffer.toString('base64');
+      let base64Data = mediaBase64 || '';
+      
+      if (!base64Data && mediaUrl) {
+        console.log('[Engine] Downloading media:', mediaUrl);
+        const { downloadAttachment } = await import('@/lib/server/fonnte-client');
+        const { buffer } = await downloadAttachment(mediaUrl);
+        base64Data = buffer.toString('base64');
+      }
 
       // Determine MIME type
       const ext = (mediaExtension || '').toLowerCase();
@@ -334,7 +341,7 @@ export async function getAIResponse(input: AIEngineInput): Promise<AIEngineResul
         ];
       }
     } catch (mediaError: any) {
-      console.warn('[Engine] Media download failed:', mediaError.message);
+      console.warn('[Engine] Media download/processing failed:', mediaError.message);
       humanMessageContent = message || '(Media diterima tapi gagal dianalisis)';
     }
   } else {

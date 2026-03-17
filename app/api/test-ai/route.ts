@@ -45,6 +45,7 @@ export async function POST(req: NextRequest) {
       isAdminOverride,
       mediaUrl: mediaUrl ?? undefined,
       mediaExtension: mediaExtension ?? undefined,
+      mediaBase64: firstMedia?.base64 ?? undefined,
       providedHistory,
     });
 

@@ -561,7 +561,7 @@ const getServiceDetailsTool = {
     type: 'function',
     function: {
       name: "getServiceDetails",
-      description: "Cek harga/layanan.",
+      description: "Cek harga/layanan untuk mengecek tarif layanan repainting, detailing, dan **Juga Harga Spot Repair (Berdasarkan analisis foto baret/penyok yang dikirim user)**.",
       parameters: {
         type: "object",
         properties: {
