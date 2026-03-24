@@ -32,6 +32,25 @@ export default function FollowUpsPage() {
   const overdueFollowUps = followUps.filter(f => f.status === 'overdue');
   const sentFollowUps = followUps.filter(f => f.status === 'sent');
 
+  const handleSendFollowUp = async (followUp: FollowUp, message: string) => {
+    console.log(`[Follow-up] Sending to ${followUp.phone}: ${message}`);
+    // Optional: Call API to send via AI
+    try {
+      await fetch('/api/test-ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          message: `Kirim pesan ini ke pelanggan: ${message}`,
+          senderNumber: followUp.phone,
+          mode: 'admin'
+        })
+      });
+      alert(`Pesan follow-up untuk ${followUp.customerName} sedang diproses.`);
+    } catch (err) {
+      console.error('Failed to send follow-up:', err);
+    }
+  };
+
   return (
     <div className="flex flex-col h-full w-full bg-slate-50 p-6">
       <div className="mb-6">
@@ -69,6 +88,7 @@ export default function FollowUpsPage() {
         followUp={selectedFollowUp} 
         open={!!selectedFollowUp} 
         onOpenChange={(open) => !open && setSelectedFollowUp(null)} 
+        onSend={handleSendFollowUp}
       />
     </div>
   );
