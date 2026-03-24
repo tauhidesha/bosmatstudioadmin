@@ -24,13 +24,24 @@ interface CalendarViewProps {
 }
 
 export function CalendarView({ bookings }: CalendarViewProps) {
+  // Pre-calculate daily detailing capacity for block coloring
+  const dailyDetailing = useMemo(() => {
+    const counts: Record<string, number> = {};
+    bookings.forEach(b => {
+      if (b.status === 'cancelled') return;
+      const servicesStr = (b.services || []).join(' ').toLowerCase() + ' ' + (b.category || '').toLowerCase();
+      if (servicesStr.includes('detailing') || servicesStr.includes('coating') || servicesStr.includes('cuci') || servicesStr.includes('wash')) {
+        counts[b.bookingDate] = (counts[b.bookingDate] || 0) + 1;
+      }
+    });
+    return counts;
+  }, [bookings]);
+
   const events: Event[] = useMemo(() => {
     return bookings.map(booking => {
-      // Parse bookingDate (YYYY-MM-DD) and bookingTime (HH:mm)
       let startDateStr = `${booking.bookingDate}T${booking.bookingTime || '09:00'}:00`;
       let startDate = new Date(startDateStr);
       
-      // If parsing fails fallback
       if (isNaN(startDate.getTime())) {
           startDate = new Date();
       }
@@ -38,11 +49,16 @@ export function CalendarView({ bookings }: CalendarViewProps) {
       // Estimate 2 hours for a typical service
       const endDate = new Date(startDate.getTime() + 2 * 60 * 60 * 1000);
 
-      // Determine color based on status
-      let bgColor = '#3b82f6'; // blue (pending)
-      if (booking.status === 'in_progress') bgColor = '#f59e0b'; // amber
-      else if (booking.status === 'done') bgColor = '#14b8a6'; // teal
-      else if (booking.status === 'cancelled') bgColor = '#ef4444'; // red
+      const servicesStr = (booking.services || []).join(' ').toLowerCase() + ' ' + (booking.category || '').toLowerCase();
+      const isRepaint = servicesStr.includes('repaint') || servicesStr.includes('repair');
+      const isDetailing = servicesStr.includes('detailing') || servicesStr.includes('coating') || servicesStr.includes('cuci') || servicesStr.includes('wash');
+
+      // Determine color based on service type (matching Capacity Widget colors)
+      let bgColor = '#94a3b8'; // slate (General)
+      if (isRepaint) bgColor = '#3b82f6'; // blue (Repaint)
+      else if (isDetailing) bgColor = '#14b8a6'; // teal (Detailing)
+      
+      if (booking.status === 'cancelled') bgColor = '#f87171'; // red
 
       return {
         id: booking.id,
@@ -54,7 +70,8 @@ export function CalendarView({ bookings }: CalendarViewProps) {
            status: booking.status,
            services: booking.services,
            phone: booking.customerPhone,
-           color: bgColor
+           color: bgColor,
+           isCancelled: booking.status === 'cancelled'
         }
       };
     });
@@ -66,12 +83,28 @@ export function CalendarView({ bookings }: CalendarViewProps) {
       style: {
         backgroundColor: r?.color || '#3b82f6',
         borderRadius: '6px',
-        opacity: 0.9,
+        opacity: r?.isCancelled ? 0.6 : 0.9,
         color: 'white',
         border: '0px',
-        display: 'block'
+        display: 'block',
+        textDecoration: r?.isCancelled ? 'line-through' : 'none'
       }
     };
+  };
+
+  const dayPropGetter = (date: Date) => {
+    // Format local date
+    const dateStr = format(date, 'yyyy-MM-dd');
+    const isFull = (dailyDetailing[dateStr] || 0) >= 2;
+    
+    if (isFull) {
+      return {
+        style: {
+          backgroundColor: '#fef2f2', // light red background for full day
+        }
+      };
+    }
+    return {};
   };
 
   return (
@@ -83,6 +116,7 @@ export function CalendarView({ bookings }: CalendarViewProps) {
         endAccessor="end"
         style={{ height: '100%' }}
         eventPropGetter={eventStyleGetter}
+        dayPropGetter={dayPropGetter}
         culture="id-ID"
         messages={{
             next: "Maju",
