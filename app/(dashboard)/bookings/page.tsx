@@ -17,6 +17,9 @@ import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { useBookings, BookingStatus } from '@/lib/hooks/useBookings';
 import { BoardColumn } from '@/components/bookings/BoardColumn';
 import { BookingCard } from '@/components/bookings/BookingCard';
+import { CalendarView } from '@/components/bookings/CalendarView';
+import { Button } from '@/components/ui/button';
+import { LayoutGrid, Calendar as CalendarIcon } from 'lucide-react';
 
 const COLUMNS: { id: BookingStatus; title: string, color: string }[] = [
   { id: 'pending', title: 'New Booking', color: 'border-blue-500' },
@@ -28,6 +31,7 @@ const COLUMNS: { id: BookingStatus; title: string, color: string }[] = [
 export default function BookingsPage() {
   const { bookings, loading, updateBookingStatus } = useBookings();
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'kanban' | 'calendar'>('kanban');
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -76,28 +80,55 @@ export default function BookingsPage() {
 
   return (
     <div className="flex flex-col h-full w-full bg-slate-50">
-      <div className="p-6 pb-2 border-b border-slate-200 bg-white shadow-sm z-10 flex-shrink-0">
-        <h1 className="text-2xl font-black text-slate-800 tracking-tight">Manajemen Kanban Booking</h1>
-        <p className="text-sm font-medium text-slate-500 mt-1">Geser kartu antrean sesuai progres motor di studio.</p>
+      <div className="p-6 pb-2 border-b border-slate-200 bg-white shadow-sm z-10 flex-shrink-0 flex justify-between items-end">
+        <div>
+          <h1 className="text-2xl font-black text-slate-800 tracking-tight">Manajemen Kanban Booking</h1>
+          <p className="text-sm font-medium text-slate-500 mt-1">Kelola jadwal servis dan antrean bengkel.</p>
+        </div>
+        
+        <div className="flex bg-slate-100 p-1 rounded-lg mb-2">
+          <Button
+            variant={viewMode === 'kanban' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setViewMode('kanban')}
+            className={`text-xs h-8 px-3 ${viewMode === 'kanban' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
+          >
+            <LayoutGrid className="w-4 h-4 mr-2" />
+            Board
+          </Button>
+          <Button
+            variant={viewMode === 'calendar' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setViewMode('calendar')}
+            className={`text-xs h-8 px-3 ${viewMode === 'calendar' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
+          >
+            <CalendarIcon className="w-4 h-4 mr-2" />
+            Kalender
+          </Button>
+        </div>
       </div>
       
-      <div className="flex-1 overflow-x-auto overflow-y-hidden p-6">
-        <DndContext 
-          sensors={sensors}
-          collisionDetection={closestCorners}
-          onDragStart={handleDragStart}
-          onDragEnd={handleDragEnd}
-        >
-          <div className="flex h-full gap-6 items-start pb-4">
-            {columns.map(col => (
-              <BoardColumn key={col.id} id={col.id} title={col.title} items={col.items} headerColor={col.color} />
-            ))}
-          </div>
+      <div className="flex-1 overflow-x-auto overflow-y-auto p-6">
+        {viewMode === 'kanban' ? (
+          <DndContext 
+            sensors={sensors}
+            collisionDetection={closestCorners}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+          >
+            <div className="flex h-full gap-6 items-start pb-4">
+              {columns.map(col => (
+                <BoardColumn key={col.id} id={col.id} title={col.title} items={col.items} headerColor={col.color} />
+              ))}
+            </div>
 
-          <DragOverlay>
-            {activeBooking ? <BookingCard booking={activeBooking} isOverlay /> : null}
-          </DragOverlay>
-        </DndContext>
+            <DragOverlay>
+              {activeBooking ? <BookingCard booking={activeBooking} isOverlay /> : null}
+            </DragOverlay>
+          </DndContext>
+        ) : (
+          <CalendarView bookings={bookings} />
+        )}
       </div>
     </div>
   );
