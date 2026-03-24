@@ -1,11 +1,31 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { CustomerTable, Customer } from '@/components/crm/CustomerTable';
 import { CustomerDetailSheet } from '@/components/crm/CustomerDetailSheet';
+import { Loader2 } from 'lucide-react';
 
 export default function CRMPage() {
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [loading, setLoading] = useState(true);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+
+  useEffect(() => {
+    async function fetchCustomers() {
+      try {
+        const res = await fetch('/api/crm/customers');
+        const data = await res.json();
+        if (data.success) {
+          setCustomers(data.customers);
+        }
+      } catch (err) {
+        console.error('Failed to fetch customers:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchCustomers();
+  }, []);
 
   return (
     <div className="flex flex-col h-full w-full bg-slate-50 p-6">
@@ -17,7 +37,13 @@ export default function CRMPage() {
       </div>
 
       <div className="flex-1 overflow-auto pb-8">
-        <CustomerTable onRowClick={(customer) => setSelectedCustomer(customer)} />
+        {loading ? (
+          <div className="flex items-center justify-center h-64">
+            <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
+          </div>
+        ) : (
+          <CustomerTable customers={customers} onRowClick={(customer) => setSelectedCustomer(customer)} />
+        )}
       </div>
 
       <CustomerDetailSheet 

@@ -240,4 +240,68 @@ export async function listConversations(limit = 100) {
   }
 }
 
+export async function listCustomers(limit = 100) {
+  const firestore = getDb();
+  try {
+    const snapshot = await firestore.collection('directMessages').get();
+    const customers = snapshot.docs.map((doc) => {
+      const data = doc.data() || {};
+      
+      const totalSpending = Number(data.totalSpending) || 0;
+      const bikes = Array.isArray(data.bikes) ? data.bikes : 
+                    data.context?.motor_model ? [data.context.motor_model] : [];
+
+      let status: 'active' | 'churned' | 'new' = 'new';
+      if (data.lastMessageAt) {
+        const lastDate = data.lastMessageAt.toDate();
+        const monthsAgo = (Date.now() - lastDate.getTime()) / (1000 * 60 * 60 * 24 * 30);
+        if (monthsAgo < 3) status = 'active';
+        else if (monthsAgo > 6) status = 'churned';
+      }
+
+      return {
+        id: doc.id,
+        name: data.name || data.fullSenderId || doc.id,
+        phone: data.fullSenderId || doc.id,
+        lastService: serializeTimestamp(data.lastMessageAt) || '-',
+        totalSpending,
+        bikes,
+        status,
+        context: data.context || {},
+        notes: data.notes || '',
+      };
+    });
+
+    return limit ? customers.slice(0, limit) : customers;
+  } catch (error) {
+    console.error('[Firebase] Error listing customers:', error);
+    return [];
+  }
+}
+
+export async function listFollowUpQueue() {
+  const firestore = getDb();
+  try {
+    const doc = await firestore.collection('settings').doc('followup_queue').get();
+    if (!doc.exists) return [];
+    
+    const data = doc.data();
+    if (!data || !data.items) return [];
+
+    return data.items.map((item: any, index: number) => ({
+      id: `queue-${index}`,
+      customerName: item.name || 'Mas',
+      phone: item.targetPhone,
+      lastServiceDate: '-', // Not available in queue
+      serviceType: item.category || 'Maintenance',
+      dueDate: 'Today',
+      status: 'upcoming' as const,
+      message: item.message,
+    }));
+  } catch (error) {
+    console.error('[Firebase] Error listing follow-up queue:', error);
+    return [];
+  }
+}
+
 export { FieldValue, Timestamp };

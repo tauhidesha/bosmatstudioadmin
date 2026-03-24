@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAIResponse } from '@/lib/server/ai/engine';
-import { extractAndSaveContext } from '@/lib/server/ai/context-extractor';
-import { classifyAndSaveCustomer } from '@/lib/server/ai/customer-classifier';
 
 export const runtime = 'nodejs';
+
+const playgroundDocId = 'playground_test';
 
 /**
  * Test AI endpoint for the admin playground
@@ -34,34 +33,39 @@ export async function POST(req: NextRequest) {
 
     const isAdminOverride = mode === 'admin' ? true : mode === 'customer' ? false : undefined;
 
-    console.log(`[Test-AI] mode=${mode}, message="${message?.substring(0, 50)}", mediaUrl=${mediaUrl ?? 'none'}`);
+    // Proxy to GCP backend
+    const gcpBackendUrl = 'https://ebd7-104-197-168-252.ngrok-free.app/test-ai';
+    
+    console.log(`[Test-AI] Proxying to GCP: ${gcpBackendUrl}`);
 
-    const playgroundDocId = 'playground_test';
-
-    const result = await getAIResponse({
-      message: message || '',
-      senderNumber: playgroundDocId,
-      senderName: 'Admin Playground',
-      isAdminOverride,
-      mediaUrl: mediaUrl ?? undefined,
-      mediaExtension: mediaExtension ?? undefined,
-      mediaBase64: firstMedia?.base64 ?? undefined,
-      providedHistory,
+    const response = await fetch(gcpBackendUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        message: message || '',
+        senderNumber: playgroundDocId,
+        mode: mode || 'customer',
+        model_override,
+        history: providedHistory,
+        media: media, // Forward media as-is
+      }),
     });
 
-    // Await context extraction for playground testing
-    try {
-      await extractAndSaveContext(message || '', result.response, playgroundDocId);
-      await classifyAndSaveCustomer(playgroundDocId);
-    } catch (err: any) {
-      console.warn('[Test-AI] Background extraction error:', err.message);
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`GCP Backend Error: ${response.status} - ${errorText}`);
     }
+
+    const result = await response.json();
 
     return NextResponse.json({
       success: true,
-      response: result.response,
-      isAdmin: result.isAdmin,
-      toolsCalled: result.toolsCalled,
+      response: result.ai_response,
+      isAdmin: result.mode === 'admin',
+      toolsCalled: result.toolsCalled || [], // app.js doesn't return toolsCalled in the snippet I saw, but it's okay
+      runId: result.run_id,
     });
 
   } catch (error: any) {
