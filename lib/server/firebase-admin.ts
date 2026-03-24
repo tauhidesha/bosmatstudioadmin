@@ -280,26 +280,81 @@ export async function listCustomers(limit = 100) {
 }
 
 export async function listFollowUpQueue() {
-  const firestore = getDb();
+  const db = getDb();
   try {
-    const doc = await firestore.collection('settings').doc('followup_queue').get();
-    if (!doc.exists) return [];
-    
-    const data = doc.data();
-    if (!data || !data.items) return [];
+    const [dmSnapshot, ctxSnapshot] = await Promise.all([
+      db.collection('directMessages').get(),
+      db.collection('customerContext').get()
+    ]);
 
-    return data.items.map((item: any, index: number) => ({
-      id: `queue-${index}`,
-      customerName: item.name || 'Mas',
-      phone: item.targetPhone,
-      lastServiceDate: '-', // Not available in queue
-      serviceType: item.category || 'Maintenance',
-      dueDate: 'Today',
-      status: 'upcoming' as const,
-      message: item.message,
-    }));
+    const ctxMap = new Map();
+    ctxSnapshot.forEach(doc => ctxMap.set(doc.id, doc.data()));
+
+    const followUps: any[] = [];
+    const now = new Date();
+
+    dmSnapshot.forEach(doc => {
+      const data = doc.data();
+      const label = data.customerLabel;
+      
+      // Skip if no label or user explicitly rejected / completely dormant
+      if (!label || label === 'dormant_lead') return; 
+
+      const phone = doc.id;
+      const ctx = ctxMap.get(phone) || {};
+      
+      if (ctx.blocked || ctx.followup_converted) return;
+
+      const lastMessageAt = data.lastMessageAt?.toDate();
+      const lastFollowUpAt = ctx.last_followup_at?.toDate();
+      
+      let status = 'upcoming';
+      let dueDateStr = 'Hari Ini';
+      
+      if (lastFollowUpAt) {
+          const daysSinceFollowUp = (now.getTime() - lastFollowUpAt.getTime()) / (1000 * 3600 * 24);
+          if (daysSinceFollowUp < 1) { 
+             status = 'sent';
+             dueDateStr = 'Selesai';
+          } else if (daysSinceFollowUp > 7 && ['hot_lead', 'cold_lead'].includes(label)) {
+             status = 'overdue';
+             dueDateStr = 'Terlewat';
+          } else if (daysSinceFollowUp <= 7 && status !== 'sent') {
+             // Still in holding period, skip from upcoming queue unless they are overdue
+             // or we can just categorize them as upcoming but due later
+             return; 
+          }
+      }
+
+      let lastServiceDate = '-';
+      if (lastMessageAt) {
+          lastServiceDate = lastMessageAt.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+      }
+
+      // Generate a dynamic template 
+      let greetPrefix = status === 'sent' ? 'Pesan terkirim:' : 'Template AI:';
+      let message = `${greetPrefix} Halo kak ${data.name || ''}, apa kabar? Kami perhatikan motor kakak sudah waktunya di-cek lagi nih. Mampir yuk ke BosMat!`;
+
+      followUps.push({
+        id: phone,
+        customerName: data.name || 'Pelanggan',
+        phone: phone.replace('@c.us', ''),
+        lastServiceDate: lastServiceDate,
+        serviceType: label.replace('_', ' ').toUpperCase(),
+        dueDate: dueDateStr,
+        status: status as 'upcoming' | 'sent' | 'overdue',
+        message: message,
+      });
+    });
+
+    // Sort: upcoming first, then overdue, then sent
+    return followUps.sort((a, b) => {
+        const order: Record<string, number> = { 'upcoming': 1, 'overdue': 2, 'sent': 3 };
+        return order[a.status] - order[b.status];
+    });
+
   } catch (error) {
-    console.error('[Firebase] Error listing follow-up queue:', error);
+    console.error('[Firebase] Error computing follow-ups:', error);
     return [];
   }
 }
