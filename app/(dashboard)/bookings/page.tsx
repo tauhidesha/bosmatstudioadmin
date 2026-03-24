@@ -18,6 +18,7 @@ import { useBookings, BookingStatus } from '@/lib/hooks/useBookings';
 import { BoardColumn } from '@/components/bookings/BoardColumn';
 import { BookingCard } from '@/components/bookings/BookingCard';
 import { CalendarView } from '@/components/bookings/CalendarView';
+import { CapacityWidget } from '@/components/bookings/CapacityWidget';
 import { Button } from '@/components/ui/button';
 import { LayoutGrid, Calendar as CalendarIcon } from 'lucide-react';
 
@@ -109,6 +110,8 @@ export default function BookingsPage() {
       </div>
       
       <div className="flex-1 overflow-x-auto overflow-y-auto p-6">
+        <CapacityWidget bookings={bookings} />
+
         {viewMode === 'kanban' ? (
           <DndContext 
             sensors={sensors}
