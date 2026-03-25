@@ -84,6 +84,7 @@ export default function ConversationWindow({
       <div className="shrink-0 border-b border-slate-50">
         <ConversationHeader
           conversation={conversation}
+          apiClient={apiClient}
           onAiStateChange={handleAiStateChange}
           onLabelChange={handleLabelChange}
           onBack={onBack}

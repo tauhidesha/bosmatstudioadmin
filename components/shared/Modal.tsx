@@ -40,7 +40,7 @@ export default function Modal({
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent 
-        className={cn(sizeClasses[size], "p-0 overflow-hidden border-none shadow-2xl")}
+        className={cn(sizeClasses[size], "p-0 overflow-hidden border-none shadow-2xl max-h-[90vh] flex flex-col")}
         onPointerDownOutside={(e) => {
           if (!closeOnOverlayClick) {
             e.preventDefault();
@@ -51,11 +51,9 @@ export default function Modal({
             e.preventDefault();
           }
         }}
-        // shadcn Dialog handles close button internally, but we can respect showCloseButton if needed
-        // however DialogContent usually has it built-in.
       >
         {(title || showCloseButton) && (
-          <DialogHeader className="p-6 border-b bg-background">
+          <DialogHeader className="p-6 pb-4 border-b bg-background shrink-0">
             {title && (
               <DialogTitle className="text-lg font-bold leading-none tracking-tight">
                 {title}
@@ -63,7 +61,7 @@ export default function Modal({
             )}
           </DialogHeader>
         )}
-        <div className="p-6">
+        <div className="p-6 overflow-y-auto flex-1">
           {children}
         </div>
       </DialogContent>

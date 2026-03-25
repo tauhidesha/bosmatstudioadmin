@@ -10,6 +10,8 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import Image from 'next/image';
 import CustomerFinanceSummary from './CustomerFinanceSummary';
+import ManualBookingForm from '@/components/bookings/ManualBookingForm';
+import { ApiClient } from '@/lib/api/client';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,6 +21,7 @@ import {
 
 interface ConversationHeaderProps {
   conversation: Conversation;
+  apiClient: ApiClient;
   onAiStateChange: (enabled: boolean, reason?: string) => Promise<void>;
   onLabelChange: (label: string, reason?: string) => Promise<void>;
   onBack?: () => void;
@@ -44,6 +47,7 @@ const CONVERSATION_LABELS = [
 
 export default function ConversationHeader({
   conversation,
+  apiClient,
   onAiStateChange,
   onLabelChange,
   onBack,
@@ -55,6 +59,7 @@ export default function ConversationHeader({
   const [selectedLabel, setSelectedLabel] = useState(conversation.label || '');
   const [labelReason, setLabelReason] = useState('');
   const [isUpdatingLabel, setIsUpdatingLabel] = useState(false);
+  const [showBookingModal, setShowBookingModal] = useState(false);
   const [imageError, setImageError] = useState(false);
 
   const channelBadge = channelBadges[conversation.channel as keyof typeof channelBadges] || { 
@@ -184,6 +189,15 @@ export default function ConversationHeader({
             <span className="hidden md:inline">LABEL DATA</span>
           </button>
 
+          {/* Booking Button */}
+          <button
+            onClick={() => setShowBookingModal(true)}
+            className="flex items-center gap-1.5 px-2.5 md:px-4 py-2.5 rounded-xl text-[12px] font-black bg-primary text-zinc-900 hover:scale-[1.02] transition-all active:scale-95 shadow-lg shadow-primary/20 shrink-0"
+          >
+            <span className="material-symbols-outlined text-[18px]">calendar_add_on</span>
+            <span className="hidden md:inline">BUAT BOOKING</span>
+          </button>
+
           {/* AI Control Center */}
           <div className="flex items-center bg-slate-50/80 p-1.5 rounded-2xl gap-2 shadow-sm border border-slate-100">
             <button
@@ -305,6 +319,27 @@ export default function ConversationHeader({
             </Button>
           </div>
         </div>
+      </Modal>
+
+      {/* Manual Booking Modal */}
+      <Modal
+        isOpen={showBookingModal}
+        onClose={() => setShowBookingModal(false)}
+        title="Buat Booking Manual"
+        size="lg"
+      >
+        <ManualBookingForm
+          initialData={{
+            customerName: conversation.customerName,
+            customerPhone: conversation.customerPhone,
+          }}
+          apiClient={apiClient}
+          onSuccess={() => {
+            setShowBookingModal(false);
+            alert('Booking berhasil dibuat!');
+          }}
+          onCancel={() => setShowBookingModal(false)}
+        />
       </Modal>
 
       {/* AI Pause Info Overlay */}

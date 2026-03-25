@@ -20,7 +20,12 @@ import { BookingCard } from '@/components/bookings/BookingCard';
 import { CalendarView } from '@/components/bookings/CalendarView';
 import { CapacityWidget } from '@/components/bookings/CapacityWidget';
 import { Button } from '@/components/ui/button';
-import { LayoutGrid, Calendar as CalendarIcon } from 'lucide-react';
+import { LayoutGrid, Calendar as CalendarIcon, Plus } from 'lucide-react';
+import Modal from '@/components/shared/Modal';
+import ManualBookingForm from '@/components/bookings/ManualBookingForm';
+import { createApiClient } from '@/lib/api/client';
+import { useAuth } from '@/lib/hooks/useAuth';
+import { useRealtimeConversations } from '@/lib/hooks/useRealtimeConversations';
 
 const COLUMNS: { id: BookingStatus; title: string, color: string }[] = [
   { id: 'pending', title: 'New Booking', color: 'border-blue-500' },
@@ -31,8 +36,16 @@ const COLUMNS: { id: BookingStatus; title: string, color: string }[] = [
 
 export default function BookingsPage() {
   const { bookings, loading, updateBookingStatus } = useBookings();
+  const { conversations } = useRealtimeConversations();
   const [activeId, setActiveId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'kanban' | 'calendar'>('kanban');
+  const [showBookingModal, setShowBookingModal] = useState(false);
+  
+  const { getIdToken } = useAuth();
+  const apiClient = createApiClient(
+    process.env.NEXT_PUBLIC_API_URL || '/api',
+    getIdToken
+  );
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -106,8 +119,33 @@ export default function BookingsPage() {
             <CalendarIcon className="w-4 h-4 mr-2" />
             Kalender
           </Button>
+
+          <Button
+            onClick={() => setShowBookingModal(true)}
+            className="ml-4 bg-teal-600 text-white hover:bg-teal-700 hover:scale-[1.02] transition-all font-black text-xs px-4 h-8 rounded-lg shadow-lg shadow-teal-500/20"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Booking Baru
+          </Button>
         </div>
       </div>
+
+      {/* Manual Booking Modal */}
+      <Modal
+        isOpen={showBookingModal}
+        onClose={() => setShowBookingModal(false)}
+        title="Buat Booking Manual"
+        size="lg"
+      >
+        <ManualBookingForm
+          apiClient={apiClient}
+          allConversations={conversations}
+          onSuccess={() => {
+            setShowBookingModal(false);
+          }}
+          onCancel={() => setShowBookingModal(false)}
+        />
+      </Modal>
       
       <div className="flex-1 overflow-x-auto overflow-y-auto p-6">
         <CapacityWidget bookings={bookings} />

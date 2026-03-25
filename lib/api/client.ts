@@ -229,6 +229,27 @@ export class ApiClient {
       body: JSON.stringify(params),
     });
   }
+
+  /**
+   * Create a manual booking
+   * POST to /bookings
+   */
+  async createBooking(params: {
+    customerName: string;
+    customerPhone: string;
+    serviceName: string;
+    bookingDate: string;
+    bookingTime: string;
+    vehicleInfo: string;
+    notes?: string;
+    subtotal?: number;
+    homeService?: boolean;
+  }) {
+    return this.request('/bookings', {
+      method: 'POST',
+      body: JSON.stringify(params),
+    });
+  }
 }
 
 /**
