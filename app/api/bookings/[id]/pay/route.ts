@@ -22,7 +22,8 @@ export async function POST(
     const finalAmount = amountPaid || bookingData.subtotal || 0;
 
     // 1. Send receipt via Express Backend
-    const backendUrl = process.env.BACKEND_API_URL || 'http://localhost:4000';
+    // Use environment variable if set, otherwise use the ngrok URL for GCP backend
+    const backendUrl = process.env.BACKEND_API_URL || 'https://unblissful-unverdantly-stan.ngrok-free.dev';
     try {
       await fetch(`${backendUrl}/generate-invoice`, {
         method: 'POST',

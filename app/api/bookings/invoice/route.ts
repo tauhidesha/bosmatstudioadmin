@@ -15,8 +15,8 @@ export async function POST(req: NextRequest) {
       notes,
     } = body;
 
-    // Default to localhost:4000 for local dev, or look for an env var
-    const backendUrl = process.env.BACKEND_API_URL || 'http://localhost:4000';
+    // Use environment variable if set, otherwise use the ngrok URL for GCP backend
+    const backendUrl = process.env.BACKEND_API_URL || 'https://unblissful-unverdantly-stan.ngrok-free.dev';
 
     console.log(`[Invoice] Forwarding generate-invoice request to Backend: ${backendUrl}/generate-invoice`);
 
