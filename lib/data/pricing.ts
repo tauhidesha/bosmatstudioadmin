@@ -28,6 +28,7 @@ export const MOTOR_DATABASE: MotorModel[] = [
   { model: "Blade", service_size: "S", repaint_size: "S" },
   { model: "Genio", service_size: "S", repaint_size: "M" },
   // Honda - Medium
+  { model: "Vario 110", service_size: "S", repaint_size: "M" },
   { model: "Vario 125/150/160", service_size: "M", repaint_size: "M" },
   { model: "PCX 150/160", service_size: "M", repaint_size: "L" },
   { model: "ADV 150/160", service_size: "M", repaint_size: "L" },
@@ -140,11 +141,11 @@ export const MOTOR_DATABASE: MotorModel[] = [
 
 // ─── REPAINT BODI HALUS PRICES (by model name keyword) ───
 export const REPAINT_BODI_HALUS: Record<string, number> = {
-  "beat": 700000, "scoopy": 1500000, "genio": 1500000, "spacy": 700000,
-  "mio": 600000, "fino": 1500000, "fazzio": 1500000, "filano": 1500000, "grand filano": 1500000,
-  "xeon": 600000, "nouvo": 1200000, "gear": 700000, "soul gt": 700000,
-  "vario": 1000000, "nex": 700000, "address": 700000, "smash": 800000,
-  "spin": 700000, "vega": 800000, "x-ride": 800000, "freego": 800000,
+  "beat": 800000, "scoopy": 1500000, "genio": 1500000, "spacy": 800000,
+  "mio": 800000, "fino": 1500000, "fazzio": 1500000, "filano": 1500000, "grand filano": 1500000,
+  "xeon": 800000, "nouvo": 1200000, "gear": 800000, "soul gt": 800000,
+  "vario 110": 900000, "vario 125": 1200000, "vario 150": 1200000, "vario 160": 1200000, "nex": 800000, "address": 800000, "smash": 800000,
+  "spin": 800000, "vega": 800000, "x-ride": 800000, "freego": 800000,
   "skydrive": 800000, "hayate": 800000, "skywave": 800000, "shogun": 800000,
   "supra": 800000, "revo": 800000, "blade": 800000, "jupiter z": 800000, "jupiter mx": 800000,
   "nmax": 1200000, "pcx": 1500000, "adv": 1500000, "aerox": 1000000,
