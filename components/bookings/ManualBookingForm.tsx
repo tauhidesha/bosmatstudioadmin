@@ -82,10 +82,16 @@ export default function ManualBookingForm({
     }
     setIsSubmitting(true);
     try {
-      await apiClient.createBooking({
-        ...formData,
-        serviceName: selectedServices.join(', '),
+      const res = await fetch('/api/bookings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...formData,
+          serviceName: selectedServices.join(', '),
+        }),
       });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Gagal membuat booking');
       onSuccess();
     } catch (error: any) {
       alert(error.message || 'Gagal membuat booking');

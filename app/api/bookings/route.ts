@@ -35,3 +35,52 @@ export async function GET(req: NextRequest) {
     );
   }
 }
+
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const { customerName, customerPhone, serviceName, bookingDate, bookingTime, vehicleInfo, notes, subtotal, homeService } = body;
+
+    if (!customerName || !customerPhone || !serviceName || !bookingDate || !bookingTime) {
+      return NextResponse.json(
+        { success: false, error: 'Missing required fields: customerName, customerPhone, serviceName, bookingDate, bookingTime' },
+        { status: 400 }
+      );
+    }
+
+    const firestore = getDb();
+    const now = new Date();
+    const bookingDateTime = new Date(`${bookingDate}T${bookingTime}:00`);
+
+    const bookingData = {
+      customerName,
+      customerPhone: customerPhone.replace(/\D/g, ''),
+      services: serviceName.split(',').map((s: string) => s.trim()).filter(Boolean),
+      bookingDate,
+      bookingTime,
+      bookingDateTime,
+      vehicleInfo: vehicleInfo || '',
+      notes: notes || '',
+      subtotal: subtotal || 0,
+      homeService: homeService || false,
+      status: 'pending',
+      source: 'manual_admin',
+      createdAt: now,
+      timestamp: now,
+    };
+
+    const docRef = await firestore.collection('bookings').add(bookingData);
+
+    return NextResponse.json({
+      success: true,
+      data: { id: docRef.id, ...bookingData },
+      message: `Booking untuk ${customerName} berhasil dibuat`,
+    });
+  } catch (error: any) {
+    console.error('Error creating booking:', error);
+    return NextResponse.json(
+      { success: false, error: 'Gagal membuat booking', details: error.message },
+      { status: 500 }
+    );
+  }
+}
