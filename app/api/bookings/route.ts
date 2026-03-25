@@ -39,7 +39,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { customerName, customerPhone, serviceName, bookingDate, bookingTime, vehicleInfo, notes, subtotal, homeService, invoiceName } = body;
+    const { customerName, customerPhone, serviceName, bookingDate, bookingTime, vehicleInfo, notes, subtotal, homeService, invoiceName, dpAmount } = body;
 
     if (!customerName || !customerPhone || !serviceName || !bookingDate || !bookingTime) {
       return NextResponse.json(
@@ -51,6 +51,7 @@ export async function POST(req: NextRequest) {
     const firestore = getDb();
     const now = new Date();
     const bookingDateTime = new Date(`${bookingDate}T${bookingTime}:00`);
+    const downPayment = dpAmount || 0;
 
     const bookingData = {
       customerName,
@@ -63,6 +64,7 @@ export async function POST(req: NextRequest) {
       vehicleInfo: vehicleInfo || '',
       notes: notes || '',
       subtotal: subtotal || 0,
+      downPayment,
       homeService: homeService || false,
       status: 'pending',
       source: 'manual_admin',
@@ -71,6 +73,28 @@ export async function POST(req: NextRequest) {
     };
 
     const docRef = await firestore.collection('bookings').add(bookingData);
+
+    // Auto-create Finance income for Down Payment
+    if (downPayment > 0) {
+      let customerId = bookingData.customerPhone;
+      if (customerId && !customerId.endsWith('@c.us') && !customerId.endsWith('@lid')) {
+        customerId = customerId.startsWith('0') ? `62${customerId.slice(1)}@c.us` : `${customerId}@c.us`;
+      }
+
+      await firestore.collection('transactions').add({
+        type: 'income',
+        amount: downPayment,
+        category: 'Down Payment',
+        description: `DP Booking: ${serviceName}`,
+        paymentMethod: 'Transfer BCA',
+        date: now,
+        createdAt: now,
+        customerName,
+        customerNumber: bookingData.customerPhone,
+        customerId,
+        sourceBookingId: docRef.id,
+      });
+    }
 
     return NextResponse.json({
       success: true,

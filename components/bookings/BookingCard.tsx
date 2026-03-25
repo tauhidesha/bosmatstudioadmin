@@ -143,9 +143,21 @@ export function BookingCard({ booking, isOverlay }: BookingCardProps) {
       <Modal isOpen={showPayment} onClose={() => setShowPayment(false)} title="Pembayaran & Invoice" size="sm">
         <form onSubmit={handlePay} className="space-y-4">
           <div className="rounded-xl border border-slate-200 p-4 bg-slate-50">
-            <p className="text-xs font-bold text-slate-500 mb-1">Total Tagihan:</p>
+            {(booking as any).downPayment > 0 && (
+              <div className="flex justify-between text-xs text-slate-500 mb-2">
+                <span>Subtotal</span>
+                <span>Rp {((booking as any).subtotal || 0).toLocaleString()}</span>
+              </div>
+            )}
+            {(booking as any).downPayment > 0 && (
+              <div className="flex justify-between text-xs text-amber-600 mb-2">
+                <span>DP (sudah dibayar)</span>
+                <span>- Rp {((booking as any).downPayment || 0).toLocaleString()}</span>
+              </div>
+            )}
+            <p className="text-xs font-bold text-slate-500 mb-1">{(booking as any).downPayment > 0 ? 'Sisa Tagihan:' : 'Total Tagihan:'}</p>
             <p className="text-xl font-black text-slate-800">
-              Rp { (booking as any).subtotal ? (booking as any).subtotal.toLocaleString() : '0' }
+              Rp { (booking as any).subtotal ? Math.max(0, (booking as any).subtotal - ((booking as any).downPayment || 0)).toLocaleString() : '0' }
             </p>
           </div>
 

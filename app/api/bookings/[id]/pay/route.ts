@@ -19,7 +19,9 @@ export async function POST(
     }
 
     const bookingData = bookingDoc.data()!;
-    const finalAmount = amountPaid || bookingData.subtotal || 0;
+    const dp = bookingData.downPayment || 0;
+    const remainingBalance = Math.max(0, (bookingData.subtotal || 0) - dp);
+    const finalAmount = amountPaid || remainingBalance;
 
     // 1. Send receipt via Express Backend
     // Use environment variable if set, otherwise use the ngrok URL for GCP backend
@@ -125,7 +127,7 @@ export async function POST(
         type: 'income',
         amount: finalAmount,
         category: 'Service',
-        description: `Pembayaran Service: ${(bookingData.services || []).join(', ')}`,
+        description: `Pelunasan Service: ${(bookingData.services || []).join(', ')}${dp > 0 ? ` (DP Rp ${dp.toLocaleString()} sudah dibayar)` : ''}`,
         paymentMethod,
         date: now,
         createdAt: now,
