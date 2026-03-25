@@ -159,6 +159,7 @@ export default function ManualBookingForm({
             totalAmount: finalTotal,
             amountPaid: dpAmount,
             notes,
+            bookingDate,
           }),
         });
       } catch { console.warn('Invoice sending failed, booking was still created'); }

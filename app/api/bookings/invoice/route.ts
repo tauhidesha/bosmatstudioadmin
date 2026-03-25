@@ -13,6 +13,7 @@ export async function POST(req: NextRequest) {
       amountPaid,
       paymentMethod,
       notes,
+      bookingDate,
     } = body;
 
     // Use environment variable if set, otherwise use the ngrok URL for GCP backend
@@ -35,6 +36,7 @@ export async function POST(req: NextRequest) {
         amountPaid,
         paymentMethod,
         notes,
+        bookingDate,
       }),
     });
 

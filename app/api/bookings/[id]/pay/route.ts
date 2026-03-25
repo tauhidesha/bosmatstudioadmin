@@ -38,11 +38,70 @@ export async function POST(
           amountPaid: bookingData.subtotal || 0, // fully paid
           paymentMethod,
           notes: bookingData.notes || '',
+          bookingDate: bookingData.bookingDate,
         }),
       });
       console.log(`[Payment] Receipt sent for booking ${id}`);
+
+      const servicesString = (bookingData.services || []).join(', ').toLowerCase();
+      const includesRepaint = servicesString.includes('repaint');
+      const includesCoating = servicesString.includes('coating');
+
+      if (includesRepaint) {
+        await fetch(`${backendUrl}/generate-invoice`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            documentType: 'garansi_repaint',
+            customerName: bookingData.invoiceName || bookingData.customerName,
+            customerPhone: bookingData.customerPhone,
+            motorDetails: bookingData.vehicleInfo || '-',
+            items: (bookingData.services || []).join(', ') || '-',
+            totalAmount: bookingData.subtotal || 0,
+            amountPaid: bookingData.subtotal || 0,
+            paymentMethod,
+            notes: bookingData.notes || '',
+            bookingDate: bookingData.bookingDate,
+          }),
+        });
+        console.log(`[Payment] Warranty Repaint sent for booking ${id}`);
+      }
+
+      if (includesCoating) {
+        await fetch(`${backendUrl}/generate-invoice`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            documentType: 'garansi_coating',
+            customerName: bookingData.invoiceName || bookingData.customerName,
+            customerPhone: bookingData.customerPhone,
+            motorDetails: bookingData.vehicleInfo || '-',
+            items: (bookingData.services || []).join(', ') || '-',
+            totalAmount: bookingData.subtotal || 0,
+            amountPaid: bookingData.subtotal || 0,
+            paymentMethod,
+            notes: bookingData.notes || '',
+            bookingDate: bookingData.bookingDate,
+          }),
+        });
+        console.log(`[Payment] Warranty Coating sent for booking ${id}`);
+
+        // Set coating maintenance record (Default to 6 months later)
+        const maintenanceDate = new Date();
+        maintenanceDate.setMonth(maintenanceDate.getMonth() + 6);
+
+        await firestore.collection('coatingMaintenance').doc(id).set({
+          bookingId: id,
+          customerName: bookingData.customerName,
+          customerPhone: bookingData.customerPhone,
+          vehicleInfo: bookingData.vehicleInfo || '-',
+          maintenanceDate,
+          status: 'pending', // pending, reminded_h7, reminded_h3, reminded_h1, scheduled, ignored
+          createdAt: new Date()
+        });
+      }
     } catch (e) {
-      console.warn(`[Payment] Failed to send receipt for booking ${id}:`, e);
+      console.warn(`[Payment] Failed to send document for booking ${id}:`, e);
     }
 
     // 2. Update Booking Status
