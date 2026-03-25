@@ -54,6 +54,7 @@ export default function ManualBookingForm({
     vehicleInfo: '',
     notes: '',
     subtotal: 0,
+    dpAmount: 0,
     homeService: false,
   });
 
@@ -82,16 +83,39 @@ export default function ManualBookingForm({
     }
     setIsSubmitting(true);
     try {
+      // 1. Create booking in Firestore
+      const serviceName = selectedServices.join(', ');
       const res = await fetch('/api/bookings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...formData,
-          serviceName: selectedServices.join(', '),
+          serviceName,
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Gagal membuat booking');
+
+      // 2. Auto-send DP invoice to customer WA
+      try {
+        await fetch('/api/bookings/invoice', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            documentType: 'invoice',
+            customerName: formData.customerName,
+            customerPhone: formData.customerPhone,
+            motorDetails: formData.vehicleInfo,
+            items: serviceName,
+            totalAmount: formData.subtotal,
+            amountPaid: formData.dpAmount,
+            notes: formData.notes,
+          }),
+        });
+      } catch {
+        console.warn('Invoice sending failed, booking was still created');
+      }
+
       onSuccess();
     } catch (error: any) {
       alert(error.message || 'Gagal membuat booking');
@@ -149,7 +173,7 @@ export default function ManualBookingForm({
         <input required value={formData.vehicleInfo} onChange={(e) => setFormData({ ...formData, vehicleInfo: e.target.value })} className={inputClass} placeholder="Honda Vario 150 (B 1234 XYZ)" />
       </div>
 
-      {/* Service Selector - Chips grouped by category */}
+      {/* Service Selector */}
       <div className="space-y-2">
         <label className={labelClass}>Pilih Layanan</label>
         {Object.entries(groupedServices).map(([cat, services]) => (
@@ -183,8 +207,8 @@ export default function ManualBookingForm({
         )}
       </div>
 
-      {/* Date, Time, Subtotal, HomeService */}
-      <div className="grid grid-cols-4 gap-3">
+      {/* Date, Time, Subtotal, DP */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="space-y-1">
           <label className={labelClass}>Tanggal</label>
           <input required type="date" value={formData.bookingDate} onChange={(e) => setFormData({ ...formData, bookingDate: e.target.value })} className={inputClass} />
@@ -195,20 +219,23 @@ export default function ManualBookingForm({
         </div>
         <div className="space-y-1">
           <label className={labelClass}>Subtotal</label>
-          <input type="number" value={formData.subtotal} onChange={(e) => setFormData({ ...formData, subtotal: parseInt(e.target.value) || 0 })} className={inputClass} />
+          <input type="number" value={formData.subtotal} onChange={(e) => setFormData({ ...formData, subtotal: parseInt(e.target.value) || 0 })} className={inputClass} placeholder="0" />
         </div>
-        <div className="flex items-end pb-0.5">
-          <label htmlFor="hs-check" className="flex items-center gap-2 cursor-pointer px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 w-full">
-            <input type="checkbox" id="hs-check" checked={formData.homeService} onChange={(e) => setFormData({ ...formData, homeService: e.target.checked })} className="size-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500/20" />
-            <span className="text-[11px] font-bold text-slate-600 whitespace-nowrap">Home Svc</span>
-          </label>
+        <div className="space-y-1">
+          <label className={`${labelClass} !text-amber-600`}>DP (Uang Muka)</label>
+          <input type="number" value={formData.dpAmount} onChange={(e) => setFormData({ ...formData, dpAmount: parseInt(e.target.value) || 0 })} className={`${inputClass} !border-amber-200 !bg-amber-50/50`} placeholder="0" />
         </div>
       </div>
 
-      {/* Notes */}
-      <div className="space-y-1">
-        <label className={labelClass}>Catatan</label>
-        <input value={formData.notes} onChange={(e) => setFormData({ ...formData, notes: e.target.value })} className={inputClass} placeholder="Titip helm, parkir di depan..." />
+      {/* Home Service + Notes */}
+      <div className="grid grid-cols-[auto_1fr] gap-3">
+        <label htmlFor="hs-check" className="flex items-center gap-2 cursor-pointer px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200">
+          <input type="checkbox" id="hs-check" checked={formData.homeService} onChange={(e) => setFormData({ ...formData, homeService: e.target.checked })} className="size-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500/20" />
+          <span className="text-[11px] font-bold text-slate-600 whitespace-nowrap">Home Service</span>
+        </label>
+        <div className="space-y-1">
+          <input value={formData.notes} onChange={(e) => setFormData({ ...formData, notes: e.target.value })} className={inputClass} placeholder="Catatan: titip helm, parkir depan..." />
+        </div>
       </div>
 
       {/* Action Buttons */}
@@ -229,10 +256,10 @@ export default function ManualBookingForm({
           {isSubmitting ? (
             <span className="flex items-center justify-center gap-2">
               <span className="size-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              Memproses...
+              Membuat & Mengirim Invoice...
             </span>
           ) : (
-            '🗓️ Buat Booking'
+            '🗓️ Buat Booking + Kirim Invoice'
           )}
         </button>
       </div>

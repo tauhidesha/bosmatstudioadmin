@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { collection, query, onSnapshot, orderBy, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../auth/firebase';
 
-export type BookingStatus = 'pending' | 'in_progress' | 'done' | 'cancelled';
+export type BookingStatus = 'pending' | 'in_progress' | 'done' | 'paid' | 'cancelled';
 
 export interface Booking {
   id: string;
