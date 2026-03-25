@@ -49,6 +49,7 @@ export default function ManualBookingForm({
   const [formData, setFormData] = useState({
     customerName: initialData?.customerName || '',
     customerPhone: initialData?.customerPhone || '',
+    invoiceName: '',
     bookingDate: new Date().toISOString().split('T')[0],
     bookingTime: '10:00',
     vehicleInfo: '',
@@ -103,7 +104,7 @@ export default function ManualBookingForm({
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             documentType: 'invoice',
-            customerName: formData.customerName,
+            customerName: formData.invoiceName || formData.customerName,
             customerPhone: formData.customerPhone,
             motorDetails: formData.vehicleInfo,
             items: serviceName,
@@ -165,6 +166,12 @@ export default function ManualBookingForm({
           <label className={labelClass}>No. WhatsApp</label>
           <input required value={formData.customerPhone} onChange={(e) => setFormData({ ...formData, customerPhone: e.target.value })} className={`${inputClass} font-mono`} placeholder="62812345678" />
         </div>
+      </div>
+
+      {/* Invoice Name (optional) */}
+      <div className="space-y-1">
+        <label className={`${labelClass} !text-blue-500`}>Nama di Invoice <span className="text-slate-300 normal-case tracking-normal font-medium">(opsional, kalau beda dari nama WA)</span></label>
+        <input value={formData.invoiceName} onChange={(e) => setFormData({ ...formData, invoiceName: e.target.value })} className={`${inputClass} !border-blue-200 !bg-blue-50/30`} placeholder="Kosongkan jika sama dengan nama pelanggan" />
       </div>
 
       {/* Vehicle */}

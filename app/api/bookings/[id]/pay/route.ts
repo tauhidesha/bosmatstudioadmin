@@ -30,7 +30,7 @@ export async function POST(
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           documentType: 'bukti_bayar',
-          customerName: bookingData.customerName,
+          customerName: bookingData.invoiceName || bookingData.customerName,
           customerPhone: bookingData.customerPhone,
           motorDetails: bookingData.vehicleInfo || '-',
           items: (bookingData.services || []).join(', ') || '-',

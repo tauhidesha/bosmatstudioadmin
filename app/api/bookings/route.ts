@@ -39,7 +39,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { customerName, customerPhone, serviceName, bookingDate, bookingTime, vehicleInfo, notes, subtotal, homeService } = body;
+    const { customerName, customerPhone, serviceName, bookingDate, bookingTime, vehicleInfo, notes, subtotal, homeService, invoiceName } = body;
 
     if (!customerName || !customerPhone || !serviceName || !bookingDate || !bookingTime) {
       return NextResponse.json(
@@ -55,6 +55,7 @@ export async function POST(req: NextRequest) {
     const bookingData = {
       customerName,
       customerPhone: customerPhone.replace(/\D/g, ''),
+      invoiceName: invoiceName || '',
       services: serviceName.split(',').map((s: string) => s.trim()).filter(Boolean),
       bookingDate,
       bookingTime,
