@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb, FieldValue } from '@/lib/server/firebase-admin';
+import prisma from '@/lib/prisma';
+
+export const runtime = 'nodejs';
 
 export async function PATCH(
   req: NextRequest,
@@ -24,29 +26,51 @@ export async function PATCH(
       );
     }
 
-    const firestore = getDb();
-    const docId = conversationId.replace(/@c\.us$|@lid$/, '');
-    const docRef = firestore.collection('directMessages').doc(docId);
-    
-    // Check if exists
-    const doc = await docRef.get();
-    if (!doc.exists) {
+    // Normalize phone from conversationId (remove @c.us or @lid)
+    const phone = conversationId.replace(/@c\.us$|@lid$/, '');
+
+    // Find customer by phone
+    const customer = await prisma.customer.findUnique({
+      where: { phone }
+    });
+
+    if (!customer) {
       return NextResponse.json(
         { success: false, error: 'Conversation tidak ditemukan' },
         { status: 404 }
       );
     }
 
-    const updateData: Record<string, any> = {
-      customerLabel: label,
-      updatedAt: FieldValue.serverTimestamp()
-    };
+    // Update customer label via CustomerContext
+    const docId = phone.replace(/\D/g, '');
     
-    if (reason !== undefined) {
-      updateData.labelReason = reason;
+    // Upsert CustomerContext with label
+    await prisma.customerContext.upsert({
+      where: { id: docId },
+      create: {
+        id: docId,
+        phone,
+        customerLabel: label,
+        labelReason: reason,
+      },
+      update: {
+        customerLabel: label,
+        labelReason: reason,
+      }
+    });
+
+    // Also update customer status based on label
+    let newStatus = customer.status;
+    if (label === 'hot' || label === 'warm') {
+      newStatus = 'active';
+    } else if (label === 'cold') {
+      newStatus = 'churned';
     }
 
-    await docRef.update(updateData);
+    await prisma.customer.update({
+      where: { id: customer.id },
+      data: { status: newStatus }
+    });
 
     return NextResponse.json({
       success: true,

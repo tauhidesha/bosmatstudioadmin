@@ -99,12 +99,19 @@ export function BookingCard({ booking, isOverlay }: BookingCardProps) {
         </div>
 
         <div className="flex flex-wrap gap-1 mt-2">
-          {booking.services.slice(0, 2).map((svc, i) => (
-            <span key={i} className="bg-blue-50 text-blue-700 border border-blue-100 text-[10px] font-bold px-2 py-1 rounded-full whitespace-nowrap">
-              {svc}
-            </span>
-          ))}
-          {booking.services.length > 2 && (
+          {Array.isArray(booking.services) 
+            ? booking.services.slice(0, 2).map((svc, i) => (
+                <span key={i} className="bg-blue-50 text-blue-700 border border-blue-100 text-[10px] font-bold px-2 py-1 rounded-full whitespace-nowrap">
+                  {svc}
+                </span>
+              ))
+            : (
+                <span className="bg-blue-50 text-blue-700 border border-blue-100 text-[10px] font-bold px-2 py-1 rounded-full whitespace-nowrap">
+                  {booking.services}
+                </span>
+              )
+          }
+          {Array.isArray(booking.services) && booking.services.length > 2 && (
             <span className="bg-slate-100 text-slate-600 text-[10px] font-bold px-1.5 py-1 rounded-full">
               +{booking.services.length - 2}
             </span>

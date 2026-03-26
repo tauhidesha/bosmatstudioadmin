@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb, FieldValue } from '@/lib/server/firebase-admin';
+import prisma from '@/lib/prisma';
+
+export const runtime = 'nodejs';
 
 export async function PATCH(
   req: NextRequest,
@@ -24,34 +26,41 @@ export async function PATCH(
       );
     }
 
-    const firestore = getDb();
-    const bookingRef = firestore.collection('bookings').doc(bookingId);
-    
-    // Check if exists
-    const doc = await bookingRef.get();
-    if (!doc.exists) {
+    // Check if booking exists
+    const existingBooking = await prisma.booking.findUnique({
+      where: { id: bookingId },
+      include: { customer: true }
+    });
+
+    if (!existingBooking) {
       return NextResponse.json(
         { success: false, error: 'Booking tidak ditemukan' },
         { status: 404 }
       );
     }
 
-    const updateData: Record<string, any> = {
-      status,
-      updatedAt: FieldValue.serverTimestamp()
-    };
-    
-    if (remarks !== undefined) {
-      updateData.adminRemarks = remarks;
-    }
+    // Update booking
+    const updatedBooking = await prisma.booking.update({
+      where: { id: bookingId },
+      data: {
+        status: status.toUpperCase(),
+        adminNotes: remarks || existingBooking.adminNotes,
+      }
+    });
 
-    await bookingRef.update(updateData);
+    // Handle status completion - update customer lastService
+    if (status === 'COMPLETED' && existingBooking.status !== 'COMPLETED') {
+      await prisma.customer.update({
+        where: { id: existingBooking.customerId },
+        data: { lastService: existingBooking.bookingDate }
+      });
+    }
 
     return NextResponse.json({
       success: true,
       message: 'Status booking berhasil diupdate',
       bookingId,
-      status
+      status: updatedBooking.status.toLowerCase()
     });
   } catch (error: any) {
     console.error(`Error updating booking status for ${params.id}:`, error);

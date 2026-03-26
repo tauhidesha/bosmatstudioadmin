@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
+import prisma from '@/lib/prisma';
 import { sendText } from '@/lib/server/fonnte-client';
-import { saveMessageToFirestore } from '@/lib/server/firebase-admin';
+
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
   try {
@@ -18,8 +21,44 @@ export async function POST(req: NextRequest) {
     const response = await sendText(number, message);
 
     if (response.status) {
-      // Save outbound message to Firestore
-      await saveMessageToFirestore(number, message, 'admin');
+      // Save to Prisma
+      const normalizedPhone = number.replace(/[^0-9]/g, '');
+      
+      const customer = await prisma.customer.findUnique({
+        where: { phone: normalizedPhone }
+      });
+
+      let customerId: string;
+      
+      if (!customer) {
+        const newCustomer = await prisma.customer.create({
+          data: {
+            phone: normalizedPhone,
+            name: 'New Customer',
+            lastMessage: message,
+            lastMessageAt: new Date()
+          }
+        });
+        customerId = newCustomer.id;
+      } else {
+        customerId = customer.id;
+        await prisma.customer.update({
+          where: { id: customer.id },
+          data: {
+            lastMessage: message,
+            lastMessageAt: new Date()
+          }
+        });
+      }
+
+      await prisma.directMessage.create({
+        data: {
+          customerId: customerId,
+          senderId: number,
+          role: 'admin',
+          content: message
+        }
+      });
 
       return NextResponse.json({
         success: true,

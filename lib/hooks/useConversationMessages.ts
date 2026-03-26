@@ -1,24 +1,13 @@
 /**
- * useConversationMessages Hook
- * Manages real-time message history for a specific conversation
+ * useConversationMessages Hook (Migrated to SQL/Prisma)
+ * Manages message history for a specific conversation from PostgreSQL
  * 
  * Requirement 1.5: Display complete message history with sender labels
- * Requirement 5.1: Real-time updates with onSnapshot
  */
 
 'use client';
 
-import { useState, useEffect } from 'react';
-import {
-  collection,
-  onSnapshot,
-  query,
-  orderBy,
-  Query,
-  Unsubscribe,
-  where,
-} from 'firebase/firestore';
-import { db } from '@/lib/auth/firebase';
+import { useState, useEffect, useRef } from 'react';
 
 export interface Message {
   id: string;
@@ -42,11 +31,6 @@ interface UseConversationMessagesReturn {
   error: Error | null;
 }
 
-/**
- * Hook to listen to real-time message updates for a specific conversation
- * Requirement 1.5: Display complete message history
- * Requirement 5.1: Use onSnapshot for real-time updates
- */
 export function useConversationMessages(
   options: UseConversationMessagesOptions = {}
 ): UseConversationMessagesReturn {
@@ -55,6 +39,40 @@ export function useConversationMessages(
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  const fetchMessages = async () => {
+    if (!conversationId) return;
+    
+    try {
+      // Normalize number (remove @c.us etc)
+      const phone = conversationId.replace(/@c\.us$|@lid$/, '').replace(/\D/g, '');
+      const res = await fetch(`/api/conversation-history/${phone}?limit=200`);
+      const json = await res.json();
+
+      if (!json.success) {
+        throw new Error(json.error || 'Failed to fetch messages');
+      }
+
+      // Map API data (SQL format) to Hook data
+      const mappedData: Message[] = json.data.map((item: any, idx: number) => ({
+        id: `msg-${idx}-${item.timestamp}`,
+        conversationId: conversationId,
+        sender: item.sender === 'user' ? 'customer' : (item.sender === 'ai' ? 'ai' : 'admin'),
+        senderName: item.sender === 'user' ? 'Pelanggan' : (item.sender === 'ai' ? 'Zoya Bot' : 'Admin'),
+        content: item.text,
+        timestamp: new Date(item.timestamp).getTime(),
+      }));
+
+      setMessages(mappedData);
+      setError(null);
+    } catch (err: any) {
+      console.error('[Hook useConversationMessages] Error:', err);
+      setError(err instanceof Error ? err : new Error(err.message || 'Unknown error'));
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (!enabled || !conversationId) {
@@ -63,79 +81,15 @@ export function useConversationMessages(
       return;
     }
 
-    let unsubscribe: Unsubscribe | null = null;
+    // Initial fetch
+    fetchMessages();
 
-    try {
-      console.log('useConversationMessages: Setting up listener for conversation:', conversationId);
-      
-      // Messages are stored as a subcollection under each conversation
-      const messagesQuery: Query = query(
-        collection(db, 'directMessages', conversationId, 'messages'),
-        orderBy('timestamp', 'asc')
-      );
+    // Constant polling (10s)
+    intervalRef.current = setInterval(fetchMessages, 10000);
 
-      // Set up real-time listener
-      unsubscribe = onSnapshot(
-        messagesQuery,
-        (snapshot) => {
-          try {
-            console.log('useConversationMessages: Received', snapshot.docs.length, 'messages');
-            
-            const data = snapshot.docs.map((doc) => {
-              const docData = doc.data();
-              console.log('Message doc:', doc.id, docData);
-              
-              return {
-                id: doc.id,
-                conversationId: conversationId,
-                sender: docData.sender || docData.role || 'customer',
-                senderName: docData.senderName || docData.name,
-                content: docData.content || docData.text || docData.message || '',
-                timestamp: docData.timestamp?.toMillis() || docData.createdAt?.toMillis() || Date.now(),
-                channel: docData.channel,
-                platformId: docData.platformId,
-              } as Message;
-            });
-
-            setMessages(data);
-            setError(null);
-            setLoading(false);
-            
-            console.log('useConversationMessages: Set messages:', data);
-          } catch (err) {
-            console.error('useConversationMessages: Error processing messages:', err);
-            const error = new Error('Failed to process messages');
-            setError(error);
-            setLoading(false);
-          }
-        },
-        (err) => {
-          // Requirement 5.1: Error handling in hooks
-          console.error('useConversationMessages: Firestore listener error:', err);
-          const error = new Error('Failed to listen to messages');
-          setError(error);
-          setLoading(false);
-        }
-      );
-    } catch (err) {
-      console.error('useConversationMessages: Setup error:', err);
-      const error = new Error('Failed to set up message listener');
-      setError(error);
-      setLoading(false);
-    }
-
-    // Cleanup on unmount to prevent memory leaks
-    // Requirement 5.1: Implement cleanup on unmount
     return () => {
-      if (unsubscribe) {
-        try {
-          unsubscribe();
-        } catch (err) {
-          // Silently handle unsubscribe errors
-          console.warn('Error unsubscribing from messages:', err);
-        }
-      }
-    };
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    }
   }, [conversationId, enabled]);
 
   return {

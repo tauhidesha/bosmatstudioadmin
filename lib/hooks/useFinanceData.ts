@@ -1,16 +1,11 @@
+/**
+ * useFinanceData Hook (Migrated to SQL/Prisma)
+ * Manages financial transaction data from PostgreSQL
+ */
+
 'use client';
 
-import { useState, useEffect } from 'react';
-import { 
-  collection, 
-  query, 
-  orderBy, 
-  onSnapshot, 
-  Timestamp,
-  where,
-  limit as firestoreLimit
-} from 'firebase/firestore';
-import { db } from '@/lib/auth/firebase';
+import { useState, useEffect, useRef } from 'react';
 
 export interface Transaction {
   id: string;
@@ -18,12 +13,11 @@ export interface Transaction {
   amount: number;
   category: string;
   description: string;
-  paymentMethod: string;
-  date: Date;
+  paymentMode: string;
+  createdAt: string | Date;
+  customer?: { name: string; phone: string };
   customerName?: string;
-  customerNumber?: string;
   customerId?: string;
-  createdAt: Date;
 }
 
 export interface FinanceSummary {
@@ -43,45 +37,25 @@ export function useFinanceData(daysLimit = 30, customerId?: string) {
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  useEffect(() => {
-    setLoading(true);
-    
-    // Build query constraints dynamically
-    const constraints: any[] = [
-      orderBy('date', 'desc'),
-      firestoreLimit(500)
-    ];
+  const fetchFinanceData = async () => {
+    try {
+      const res = await fetch(`/api/finance?limit=500&days=${daysLimit}${customerId ? '&customerId='+customerId : ''}`);
+      const json = await res.json();
 
-    if (daysLimit > 0) {
-      const dateThreshold = new Date();
-      dateThreshold.setDate(dateThreshold.getDate() - daysLimit);
-      constraints.push(where('date', '>=', Timestamp.fromDate(dateThreshold)));
-    }
+      if (!json.success) {
+        throw new Error(json.error || 'Failed to fetch finance data');
+      }
 
-    if (customerId) {
-      constraints.push(where('customerId', '==', customerId));
-    }
-
-    const q = query(collection(db, 'transactions'), ...constraints);
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const items: Transaction[] = json.data;
+      
       let income = 0;
       let expense = 0;
       
-      const items: Transaction[] = snapshot.docs.map(doc => {
-        const data = doc.data();
-        const amount = data.amount || 0;
-        
-        if (data.type === 'income') income += amount;
-        else if (data.type === 'expense') expense += amount;
-
-        return {
-          id: doc.id,
-          ...data,
-          date: data.date instanceof Timestamp ? data.date.toDate() : new Date(),
-          createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : new Date(),
-        } as Transaction;
+      items.forEach(item => {
+        if (item.type === 'income') income += item.amount;
+        else if (item.type === 'expense') expense += item.amount;
       });
 
       setTransactions(items);
@@ -91,14 +65,22 @@ export function useFinanceData(daysLimit = 30, customerId?: string) {
         netProfit: income - expense,
         transactionCount: items.length,
       });
-      setLoading(false);
-    }, (err) => {
-      console.error("Error fetching finance data:", err);
+      setError(null);
+    } catch (err: any) {
+      console.error('[Hook useFinanceData] Error:', err);
       setError(err.message);
+    } finally {
       setLoading(false);
-    });
+    }
+  };
 
-    return () => unsubscribe();
+  useEffect(() => {
+    fetchFinanceData();
+    intervalRef.current = setInterval(fetchFinanceData, 30000); // Poll every 30s
+
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    }
   }, [daysLimit, customerId]);
 
   return { transactions, summary, loading, error };

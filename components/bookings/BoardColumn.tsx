@@ -24,7 +24,7 @@ export function BoardColumn({ id, title, headerColor, items }: BoardColumnProps)
   });
 
   return (
-    <div className="flex flex-col flex-shrink-0 w-80 h-full max-h-full rounded-2xl bg-slate-100 overflow-hidden shadow-sm border border-slate-200/50">
+    <div className="flex flex-col flex-shrink-0 w-72 sm:w-80 h-full max-h-full rounded-2xl bg-slate-100 overflow-hidden shadow-sm border border-slate-200/50">
       <div className={cn("px-4 py-3 bg-white border-b border-slate-200 flex justify-between items-center shadow-sm", headerColor && `border-t-4 ${headerColor}`)}>
         <h3 className="font-bold text-slate-700">{title}</h3>
         <div className="text-xs font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded-md">{items.length}</div>

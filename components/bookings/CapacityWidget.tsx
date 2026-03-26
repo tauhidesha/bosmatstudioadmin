@@ -19,7 +19,8 @@ export function CapacityWidget({ bookings }: CapacityWidgetProps) {
       // Exclude cancelled bookings from capacity calculating
       if (booking.status === 'cancelled') return;
 
-      const servicesStr = (booking.services || []).join(' ').toLowerCase() + ' ' + (booking.category || '').toLowerCase();
+      const servicesList = Array.isArray(booking.services) ? booking.services : [booking.services].filter(Boolean);
+      const servicesStr = servicesList.join(' ').toLowerCase();
       
       const isRepaint = servicesStr.includes('repaint') || servicesStr.includes('repair');
       const isDetailing = servicesStr.includes('detailing') || servicesStr.includes('coating') || servicesStr.includes('cuci') || servicesStr.includes('wash');

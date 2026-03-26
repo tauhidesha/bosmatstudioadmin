@@ -243,36 +243,27 @@ export async function listConversations(limit = 100) {
 export async function listCustomers(limit = 100) {
   const firestore = getDb();
   try {
-    const snapshot = await firestore.collection('directMessages').get();
+    const snapshot = await firestore.collection('customers')
+      .orderBy('updatedAt', 'desc')
+      .limit(limit || 100)
+      .get();
+      
     const customers = snapshot.docs.map((doc) => {
       const data = doc.data() || {};
       
-      const totalSpending = Number(data.totalSpending) || 0;
-      const bikes = Array.isArray(data.bikes) ? data.bikes : 
-                    data.context?.motor_model ? [data.context.motor_model] : [];
-
-      let status: 'active' | 'churned' | 'new' = 'new';
-      if (data.lastMessageAt) {
-        const lastDate = data.lastMessageAt.toDate();
-        const monthsAgo = (Date.now() - lastDate.getTime()) / (1000 * 60 * 60 * 24 * 30);
-        if (monthsAgo < 3) status = 'active';
-        else if (monthsAgo > 6) status = 'churned';
-      }
-
       return {
         id: doc.id,
-        name: data.name || data.fullSenderId || doc.id,
-        phone: data.fullSenderId || doc.id,
-        lastService: serializeTimestamp(data.lastMessageAt) || '-',
-        totalSpending,
-        bikes,
-        status,
-        context: data.context || {},
+        name: data.name || doc.id,
+        phone: data.phone || data.realPhone || doc.id,
+        lastService: serializeTimestamp(data.lastService) || '-',
+        totalSpending: Number(data.totalSpending) || 0,
+        bikes: Array.isArray(data.bikes) ? data.bikes : [],
+        status: data.status || 'new',
         notes: data.notes || '',
       };
     });
 
-    return limit ? customers.slice(0, limit) : customers;
+    return customers;
   } catch (error) {
     console.error('[Firebase] Error listing customers:', error);
     return [];

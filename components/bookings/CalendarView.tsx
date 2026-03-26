@@ -29,7 +29,8 @@ export function CalendarView({ bookings }: CalendarViewProps) {
     const counts: Record<string, number> = {};
     bookings.forEach(b => {
       if (b.status === 'cancelled') return;
-      const servicesStr = (b.services || []).join(' ').toLowerCase() + ' ' + (b.category || '').toLowerCase();
+      const servicesList = Array.isArray(b.services) ? b.services : [b.services].filter(Boolean);
+      const servicesStr = servicesList.join(' ').toLowerCase();
       if (servicesStr.includes('detailing') || servicesStr.includes('coating') || servicesStr.includes('cuci') || servicesStr.includes('wash')) {
         counts[b.bookingDate] = (counts[b.bookingDate] || 0) + 1;
       }
@@ -49,7 +50,8 @@ export function CalendarView({ bookings }: CalendarViewProps) {
       // Estimate 2 hours for a typical service
       const endDate = new Date(startDate.getTime() + 2 * 60 * 60 * 1000);
 
-      const servicesStr = (booking.services || []).join(' ').toLowerCase() + ' ' + (booking.category || '').toLowerCase();
+      const servicesList = Array.isArray(booking.services) ? booking.services : [booking.services].filter(Boolean);
+      const servicesStr = servicesList.join(' ').toLowerCase();
       const isRepaint = servicesStr.includes('repaint') || servicesStr.includes('repair');
       const isDetailing = servicesStr.includes('detailing') || servicesStr.includes('coating') || servicesStr.includes('cuci') || servicesStr.includes('wash');
 
@@ -108,7 +110,8 @@ export function CalendarView({ bookings }: CalendarViewProps) {
   };
 
   return (
-    <div className="h-[600px] w-full bg-white p-4 rounded-xl shadow-sm border border-slate-100">
+    <div className="h-[500px] sm:h-[600px] w-full bg-white p-2 sm:p-4 rounded-xl shadow-sm border border-slate-100 overflow-x-auto">
+      <div className="min-w-[600px] sm:min-w-0">
       <Calendar
         localizer={localizer}
         events={events}
@@ -131,6 +134,7 @@ export function CalendarView({ bookings }: CalendarViewProps) {
         min={new Date(0, 0, 0, 8, 0, 0)} // Start at 8 AM
         max={new Date(0, 0, 0, 20, 0, 0)} // End at 8 PM
       />
+      </div>
     </div>
   );
 }

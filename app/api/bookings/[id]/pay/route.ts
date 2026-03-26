@@ -1,30 +1,36 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb } from '@/lib/server/firebase-admin';
+import prisma from '@/lib/prisma';
+
+export const runtime = 'nodejs';
 
 export async function POST(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const { id } = params;
+    const { id: bookingId } = params;
     const body = await req.json();
     const { paymentMethod = 'Transfer BCA', amountPaid } = body;
 
-    const firestore = getDb();
-    const bookingRef = firestore.collection('bookings').doc(id);
-    const bookingDoc = await bookingRef.get();
+    // Check if booking exists
+    const booking = await prisma.booking.findUnique({
+      where: { id: bookingId },
+      include: { 
+        customer: true,
+        transaction: true
+      }
+    });
 
-    if (!bookingDoc.exists) {
+    if (!booking) {
       return NextResponse.json({ success: false, error: 'Booking not found' }, { status: 404 });
     }
 
-    const bookingData = bookingDoc.data()!;
-    const dp = bookingData.downPayment || 0;
-    const remainingBalance = Math.max(0, (bookingData.subtotal || 0) - dp);
+    const dp = booking.downPayment || 0;
+    const subtotal = booking.subtotal || 0;
+    const remainingBalance = Math.max(0, subtotal - dp);
     const finalAmount = amountPaid || remainingBalance;
 
     // 1. Send receipt via Express Backend
-    // Use environment variable if set, otherwise use the ngrok URL for GCP backend
     const backendUrl = process.env.BACKEND_API_URL || 'https://unblissful-unverdantly-stan.ngrok-free.dev';
     try {
       await fetch(`${backendUrl}/generate-invoice`, {
@@ -32,20 +38,20 @@ export async function POST(
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           documentType: 'bukti_bayar',
-          customerName: bookingData.invoiceName || bookingData.customerName,
-          customerPhone: bookingData.customerPhone,
-          motorDetails: bookingData.vehicleInfo || '-',
-          items: (bookingData.services || []).join(', ') || '-',
-          totalAmount: bookingData.subtotal || 0,
-          amountPaid: bookingData.subtotal || 0, // fully paid
+          customerName: booking.customerName || booking.customer?.name,
+          customerPhone: booking.customerPhone,
+          motorDetails: booking.vehicleModel ? `${booking.vehicleModel}${booking.plateNumber ? ' - ' + booking.plateNumber : ''}` : '-',
+          items: booking.serviceType,
+          totalAmount: subtotal,
+          amountPaid: subtotal,
           paymentMethod,
-          notes: bookingData.notes || '',
-          bookingDate: bookingData.bookingDate,
+          notes: booking.notes || '',
+          bookingDate: booking.bookingDate.toISOString().split('T')[0],
         }),
       });
-      console.log(`[Payment] Receipt sent for booking ${id}`);
+      console.log(`[Payment] Receipt sent for booking ${bookingId}`);
 
-      const servicesString = (bookingData.services || []).join(', ').toLowerCase();
+      const servicesString = booking.serviceType?.toLowerCase() || '';
       const includesRepaint = servicesString.includes('repaint');
       const includesCoating = servicesString.includes('coating');
 
@@ -55,18 +61,18 @@ export async function POST(
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             documentType: 'garansi_repaint',
-            customerName: bookingData.invoiceName || bookingData.customerName,
-            customerPhone: bookingData.customerPhone,
-            motorDetails: bookingData.vehicleInfo || '-',
-            items: (bookingData.services || []).join(', ') || '-',
-            totalAmount: bookingData.subtotal || 0,
-            amountPaid: bookingData.subtotal || 0,
+            customerName: booking.customerName || booking.customer?.name,
+            customerPhone: booking.customerPhone,
+            motorDetails: booking.vehicleModel ? `${booking.vehicleModel}${booking.plateNumber ? ' - ' + booking.plateNumber : ''}` : '-',
+            items: booking.serviceType,
+            totalAmount: subtotal,
+            amountPaid: subtotal,
             paymentMethod,
-            notes: bookingData.notes || '',
-            bookingDate: bookingData.bookingDate,
+            notes: booking.notes || '',
+            bookingDate: booking.bookingDate.toISOString().split('T')[0],
           }),
         });
-        console.log(`[Payment] Warranty Repaint sent for booking ${id}`);
+        console.log(`[Payment] Warranty Repaint sent for booking ${bookingId}`);
       }
 
       if (includesCoating) {
@@ -75,85 +81,90 @@ export async function POST(
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             documentType: 'garansi_coating',
-            customerName: bookingData.invoiceName || bookingData.customerName,
-            customerPhone: bookingData.customerPhone,
-            motorDetails: bookingData.vehicleInfo || '-',
-            items: (bookingData.services || []).join(', ') || '-',
-            totalAmount: bookingData.subtotal || 0,
-            amountPaid: bookingData.subtotal || 0,
+            customerName: booking.customerName || booking.customer?.name,
+            customerPhone: booking.customerPhone,
+            motorDetails: booking.vehicleModel ? `${booking.vehicleModel}${booking.plateNumber ? ' - ' + booking.plateNumber : ''}` : '-',
+            items: booking.serviceType,
+            totalAmount: subtotal,
+            amountPaid: subtotal,
             paymentMethod,
-            notes: bookingData.notes || '',
-            bookingDate: bookingData.bookingDate,
+            notes: booking.notes || '',
+            bookingDate: booking.bookingDate.toISOString().split('T')[0],
           }),
         });
-        console.log(`[Payment] Warranty Coating sent for booking ${id}`);
+        console.log(`[Payment] Warranty Coating sent for booking ${bookingId}`);
 
-        // Set coating maintenance record (Default to 6 months later)
+        // Create coating maintenance record (6 months later)
         const maintenanceDate = new Date();
         maintenanceDate.setMonth(maintenanceDate.getMonth() + 6);
 
-        await firestore.collection('coatingMaintenance').doc(id).set({
-          bookingId: id,
-          customerName: bookingData.customerName,
-          customerPhone: bookingData.customerPhone,
-          vehicleInfo: bookingData.vehicleInfo || '-',
-          maintenanceDate,
-          status: 'pending', // pending, reminded_h7, reminded_h3, reminded_h1, scheduled, ignored
-          createdAt: new Date()
+        await prisma.coatingMaintenance.create({
+          data: {
+            bookingId: bookingId,
+            customerName: booking.customerName || booking.customer?.name || 'Unknown',
+            customerPhone: booking.customerPhone || '',
+            vehicleInfo: booking.vehicleModel ? `${booking.vehicleModel}${booking.plateNumber ? ' - ' + booking.plateNumber : ''}` : '-',
+            maintenanceDate,
+            status: 'pending',
+          }
         });
       }
     } catch (e) {
-      console.warn(`[Payment] Failed to send document for booking ${id}:`, e);
+      console.warn(`[Payment] Failed to send document for booking ${bookingId}:`, e);
     }
 
-    // 2. Update Booking Status
-    await bookingRef.update({
-      status: 'paid',
-      paymentMethod,
-      amountPaid: finalAmount,
-      paidAt: new Date(),
+    // 2. Update Booking Status to PAID
+    const updatedBooking = await prisma.booking.update({
+      where: { id: bookingId },
+      data: {
+        status: 'PAID',
+        paymentMethod,
+      }
     });
 
-    // Normalize phone for CRM & Finance ID
-    let customerId = bookingData.customerPhone?.replace(/\D/g, '') || '';
-    if (customerId && !customerId.endsWith('@c.us') && !customerId.endsWith('@lid')) {
-      customerId = customerId.startsWith('0') ? `62${customerId.slice(1)}@c.us` : `${customerId}@c.us`;
+    // 3. Create or Update Transaction for the payment
+    const existingTransaction = await prisma.transaction.findUnique({
+      where: { bookingId }
+    });
+
+    if (existingTransaction) {
+      await prisma.transaction.update({
+        where: { id: existingTransaction.id },
+        data: {
+          amount: finalAmount,
+          status: 'PAID',
+          paymentMode: paymentMethod.toLowerCase(),
+          description: `Pelunasan Service: ${booking.serviceType}${dp > 0 ? ` (DP Rp ${dp.toLocaleString()} sudah dibayar)` : ''}`,
+        }
+      });
+    } else {
+      await prisma.transaction.create({
+        data: {
+          customerId: booking.customerId,
+          bookingId,
+          amount: finalAmount,
+          type: 'income',
+          status: 'PAID',
+          description: `Pelunasan Service: ${booking.serviceType}${dp > 0 ? ` (DP Rp ${dp.toLocaleString()} sudah dibayar)` : ''}`,
+          paymentMode: paymentMethod.toLowerCase(),
+        }
+      });
     }
 
-    // 3. Auto-create Finance Transaction
-    if (finalAmount > 0) {
-      const now = new Date();
-      await firestore.collection('transactions').add({
-        type: 'income',
-        amount: finalAmount,
-        category: 'Service',
-        description: `Pelunasan Service: ${(bookingData.services || []).join(', ')}${dp > 0 ? ` (DP Rp ${dp.toLocaleString()} sudah dibayar)` : ''}`,
-        paymentMethod,
-        date: now,
-        createdAt: now,
-        customerName: bookingData.customerName,
-        customerNumber: bookingData.customerPhone,
-        customerId: customerId,
-        sourceBookingId: id,
-      });
-
-      // 4. Update totalSpending in CRM
-      if (customerId) {
-        const crmRef = firestore.collection('directMessages').doc(customerId);
-        const crmDoc = await crmRef.get();
-        if (crmDoc.exists) {
-          const currentSpending = Number(crmDoc.data()?.totalSpending) || 0;
-          await crmRef.update({
-            totalSpending: currentSpending + finalAmount
-          });
-          console.log(`[Payment] Updated CRM totalSpending for ${customerId}`);
+    // 4. Update customer totalSpending
+    if (booking.customerId && finalAmount > 0) {
+      await prisma.customer.update({
+        where: { id: booking.customerId },
+        data: { 
+          totalSpending: { increment: finalAmount },
+          lastService: booking.bookingDate
         }
-      }
+      });
     }
 
     return NextResponse.json({
       success: true,
-      message: `Pembayaran lunas untuk ${bookingData.customerName} berhasil disimpan.`
+      message: `Pembayaran lunas untuk ${booking.customerName || booking.customer?.name} berhasil disimpan.`
     });
   } catch (error: any) {
     console.error('[Payment] Error processing payment:', error);

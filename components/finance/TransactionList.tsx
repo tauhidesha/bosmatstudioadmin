@@ -81,8 +81,8 @@ export default function TransactionList({ transactions, loading, className }: Tr
               filtered.map((t) => (
                 <tr key={t.id} className="hover:bg-slate-50/50 transition-colors group">
                   <td className="px-6 py-4">
-                    <p className="text-[13px] font-bold text-slate-900">{format(t.date, 'dd MMM yy')}</p>
-                    <p className="text-[11px] text-slate-400 font-medium">{format(t.date, 'HH:mm')}</p>
+                    <p className="text-[13px] font-bold text-slate-900">{format(new Date(t.createdAt), 'dd MMM yy')}</p>
+                    <p className="text-[11px] text-slate-400 font-medium">{format(new Date(t.createdAt), 'HH:mm')}</p>
                   </td>
                   <td className="px-6 py-4">
                     <span className={cn(
@@ -92,18 +92,16 @@ export default function TransactionList({ transactions, loading, className }: Tr
                   </td>
                   <td className="px-6 py-4">
                     <p className="text-[13px] font-medium text-slate-600 truncate max-w-[150px]">{t.description}</p>
-                    {t.customerName && (
+                    {t.customer && (
                       <div className="flex items-center gap-2 mt-1">
-                        <p className="text-[11px] text-slate-400 font-bold leading-none">Cust: {t.customerName}</p>
-                        {t.customerId && (
-                          <Link 
-                            href={`/conversations?id=${t.customerId}`}
-                            className="text-[10px] text-indigo-600 hover:text-indigo-700 font-bold flex items-center gap-0.5 transition-colors"
-                          >
-                            <span className="material-symbols-outlined text-[14px]">chat</span>
-                            Lihat Chat
-                          </Link>
-                        )}
+                        <p className="text-[11px] text-slate-400 font-bold leading-none">Cust: {t.customer.name}</p>
+                        <Link 
+                          href={`/conversations?id=${t.customer.phone}`}
+                          className="text-[10px] text-indigo-600 hover:text-indigo-700 font-bold flex items-center gap-0.5 transition-colors"
+                        >
+                          <span className="material-symbols-outlined text-[14px]">chat</span>
+                          Lihat Chat
+                        </Link>
                       </div>
                     )}
                   </td>

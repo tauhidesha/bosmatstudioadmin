@@ -147,7 +147,7 @@ export default function BookingsPage() {
         />
       </Modal>
       
-      <div className="flex-1 overflow-x-auto overflow-y-auto p-6">
+      <div className="flex-1 overflow-x-auto overflow-y-auto p-3 sm:p-6">
         <CapacityWidget bookings={bookings} />
 
         {viewMode === 'kanban' ? (
@@ -157,7 +157,7 @@ export default function BookingsPage() {
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
           >
-            <div className="flex h-full gap-6 items-start pb-4">
+            <div className="flex h-full gap-3 sm:gap-6 items-start pb-4">
               {columns.map(col => (
                 <BoardColumn key={col.id} id={col.id} title={col.title} items={col.items} headerColor={col.color} />
               ))}

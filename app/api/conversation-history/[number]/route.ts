@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getConversationHistory } from '@/lib/server/firebase-admin';
+import prisma from '@/lib/prisma';
+
+export const runtime = 'nodejs';
 
 export async function GET(
   req: NextRequest,
@@ -16,14 +18,45 @@ export async function GET(
     }
 
     const { searchParams } = new URL(req.url);
-    const limitParam = searchParams.get('limit');
-    let limit = 50;
+    const limit = parseInt(searchParams.get('limit') || '50', 10);
 
-    if (limitParam && !isNaN(parseInt(limitParam, 10))) {
-      limit = parseInt(limitParam, 10);
+    // Normalize phone number
+    const normalizedPhone = number.replace(/@c\.us$|@lid$/, '').replace(/\D/g, '');
+    
+    // Find customer
+    const customer = await prisma.customer.findUnique({
+      where: { phone: normalizedPhone }
+    });
+
+    if (!customer) {
+      return NextResponse.json({
+        success: true,
+        data: []
+      });
     }
 
-    const history = await getConversationHistory(number, limit);
+    // Get messages for this customer
+    const messages = await prisma.directMessage.findMany({
+      where: { customerId: customer.id },
+      orderBy: { createdAt: 'asc' },
+      take: limit,
+      select: {
+        id: true,
+        content: true,
+        senderId: true,
+        role: true,
+        mediaUrl: true,
+        createdAt: true
+      }
+    });
+
+    // Transform to the expected format
+    const history = messages.map(msg => ({
+      text: msg.content,
+      sender: msg.role === 'user' ? 'user' : (msg.role === 'assistant' ? 'ai' : 'admin'),
+      timestamp: msg.createdAt.toISOString(),
+      mediaUrl: msg.mediaUrl
+    }));
 
     return NextResponse.json({
       success: true,

@@ -23,16 +23,17 @@ export default function ConversationWindow({
   const [togglingAi, setTogglingAi] = useState(false);
   const [updatingLabel, setUpdatingLabel] = useState(false);
 
-  // Load messages for this conversation
+  // Load messages for this conversation - use customerPhone or platformId
+  const conversationPhone = conversation.customerPhone || conversation.platformId;
   const { messages, loading: messagesLoading } = useConversationMessages({
-    conversationId: conversation.id,
-    enabled: !!conversation.id,
+    conversationId: conversationPhone,
+    enabled: !!conversationPhone,
   });
 
   const handleSendMessage = async (messageText: string) => {
     setSendingMessage(true);
     try {
-      const targetId = conversation.platformId || conversation.id;
+      const targetId = conversation.customerPhone || conversation.platformId || conversation.id;
       await apiClient.sendMessage({
         number: targetId,
         message: messageText,
@@ -50,7 +51,7 @@ export default function ConversationWindow({
   const handleAiStateChange = async (enabled: boolean, reason?: string) => {
     setTogglingAi(true);
     try {
-      const targetId = conversation.platformId || conversation.id;
+      const targetId = conversation.customerPhone || conversation.platformId || conversation.id;
       await apiClient.updateAiState(targetId, {
         enabled,
         reason,

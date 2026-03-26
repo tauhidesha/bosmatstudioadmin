@@ -4,8 +4,6 @@ import { useState } from 'react';
 import Modal from '@/components/shared/Modal';
 import Button from '@/components/shared/Button';
 import Input from '@/components/shared/Input';
-import { db } from '@/lib/auth/firebase';
-import { collection, addDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
 
 interface AddTransactionModalProps {
   isOpen: boolean;
@@ -26,14 +24,20 @@ export default function AddTransactionModal({ isOpen, onClose }: AddTransactionM
     e.preventDefault();
     setLoading(true);
     try {
-      await addDoc(collection(db, 'transactions'), {
-        ...formData,
-        amount: Number(formData.amount),
-        date: serverTimestamp(),
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-        createdBy: 'admin_panel',
+      const res = await fetch('/api/finance', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...formData,
+          amount: Number(formData.amount),
+        }),
       });
+
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error);
+
       onClose();
       setFormData({
         type: 'income',
@@ -44,6 +48,7 @@ export default function AddTransactionModal({ isOpen, onClose }: AddTransactionM
       });
     } catch (error) {
       console.error("Error adding transaction:", error);
+      alert('Gagal menambah transaksi');
     } finally {
       setLoading(false);
     }

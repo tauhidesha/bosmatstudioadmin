@@ -27,7 +27,7 @@ export default function FinanceChart({ transactions, loading }: FinanceChartProp
   // Generate last 7 days data
   const chartData = [...Array(7)].map((_, i) => {
     const date = subDays(new Date(), 6 - i);
-    const dayTransactions = transactions.filter(t => isSameDay(t.date, date));
+    const dayTransactions = transactions.filter(t => isSameDay(new Date(t.createdAt), date));
     
     const income = dayTransactions
       .filter(t => t.type === 'income')

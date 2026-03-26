@@ -64,6 +64,62 @@ export default function ManualBookingForm({
     return MOTOR_DATABASE.filter(m => m.model.toLowerCase().includes(q)).slice(0, 20);
   }, [motorSearch]);
 
+  // Plate auto-suggest
+  const [showPlateDropdown, setShowPlateDropdown] = useState(false);
+  const [plateSuggestions, setPlateSuggestions] = useState<Array<{id: string, modelName: string, plateNumber: string}>>([]);
+  const [selectedVehicle, setSelectedVehicle] = useState<{id: string, modelName: string, plateNumber: string} | null>(null);
+
+  // Search for existing vehicle by plate number
+  const searchVehicleByPlate = async (plate: string) => {
+    if (plate.length < 3) {
+      setPlateSuggestions([]);
+      setShowPlateDropdown(false);
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/vehicles?q=${encodeURIComponent(plate)}`);
+      const data = await res.json();
+      if (data.success && data.vehicles) {
+        setPlateSuggestions(data.vehicles.slice(0, 5));
+        setShowPlateDropdown(data.vehicles.length > 0);
+      }
+    } catch (error) {
+      console.error('Error searching vehicles:', error);
+    }
+  };
+
+  // Handle plate number change
+  const handlePlateChange = (value: string) => {
+    setPlatNomor(value.toUpperCase());
+    searchVehicleByPlate(value);
+    
+    // Clear selected vehicle if plate doesn't match
+    if (selectedVehicle && !value.includes(selectedVehicle.plateNumber)) {
+      setSelectedVehicle(null);
+    }
+  };
+
+  // Select vehicle from suggestions
+  const handleSelectVehicle = (vehicle: {id: string, modelName: string, plateNumber: string}) => {
+    setSelectedVehicle(vehicle);
+    setPlatNomor(vehicle.plateNumber);
+    
+    // Auto-fill motor model
+    const motorMatch = MOTOR_DATABASE.find(m => 
+      m.model.toLowerCase().includes(vehicle.modelName.toLowerCase()) ||
+      vehicle.modelName.toLowerCase().includes(m.model.toLowerCase())
+    );
+    if (motorMatch) {
+      setSelectedMotor(motorMatch);
+      setMotorSearch(motorMatch.model);
+    } else {
+      setMotorSearch(vehicle.modelName);
+    }
+    
+    setShowPlateDropdown(false);
+  };
+
   // Calculations
   const subtotal = useMemo(() =>
     cart.reduce((sum, item) => {
@@ -241,10 +297,39 @@ export default function ManualBookingForm({
             </p>
           )}
         </div>
-        <div className="space-y-1">
+        <div className="space-y-1 relative">
           <label className={labelClass}>Plat Nomor</label>
-          <input value={platNomor} onChange={e => setPlatNomor(e.target.value.toUpperCase())}
-            className={`${inputClass} w-32 font-mono uppercase`} placeholder="B 1234 XY" />
+          <input 
+            value={platNomor} 
+            onChange={e => handlePlateChange(e.target.value)}
+            className={`${inputClass} w-32 font-mono uppercase`} 
+            placeholder="B 1234 XY"
+          />
+          {showPlateDropdown && plateSuggestions.length > 0 && (
+            <div className="absolute z-50 mt-1 w-64 bg-white rounded-xl shadow-xl border border-slate-200 max-h-48 overflow-y-auto">
+              <div className="px-3 py-2 text-[10px] text-slate-400 border-b bg-slate-50">
+                Kendaraan ditemukan:
+              </div>
+              {plateSuggestions.map(v => (
+                <button 
+                  key={v.id} 
+                  type="button" 
+                  onClick={() => handleSelectVehicle(v)}
+                  className="w-full px-3 py-2 text-left text-[12px] hover:bg-teal-50 transition-colors flex justify-between items-center border-b border-slate-50 last:border-0"
+                >
+                  <div>
+                    <span className="font-mono font-bold text-slate-700">{v.plateNumber}</span>
+                    <span className="text-slate-400 ml-2">{v.modelName}</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+          {selectedVehicle && (
+            <p className="text-[10px] mt-1 font-bold text-teal-600">
+              ✓ {selectedVehicle.modelName}
+            </p>
+          )}
         </div>
       </div>
 
