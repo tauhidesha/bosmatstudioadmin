@@ -43,8 +43,8 @@ export async function GET(req: NextRequest) {
       id: b.id,
       customerName: b.customerName || b.customer?.name,
       customerPhone: b.customerPhone || b.customer?.phone,
-      vehicleInfo: b.vehicleModel ? `${b.vehicleModel}${b.plateNumber ? ' - ' + b.plateNumber : ''}` : b.vehicle?.modelName,
-      services: [b.serviceType], // Convert to array
+      vehicleInfo: b.vehicleModel ? `${b.vehicleModel}${b.plateNumber ? ' (' + b.plateNumber + ')' : ''}` : b.vehicle?.modelName,
+      services: b.serviceType ? b.serviceType.split(/, | \/ /) : [],
       bookingDate: b.bookingDate.toISOString().split('T')[0],
       bookingTime: b.bookingDate.toISOString().slice(11, 16),
       status: b.status.toLowerCase(),

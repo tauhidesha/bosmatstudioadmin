@@ -131,40 +131,68 @@ export default function ManualBookingForm({
     if (initialData) {
       setInvoiceName(initialData.customerName || '');
       setContactPhone(initialData.customerPhone || '');
-      setPlatNomor(initialData.vehicleInfo?.split('(')[1]?.replace(')', '') || '');
+      
+      // Handle vehicle info properly
+      if (initialData.vehicleInfo) {
+        setPlatNomor(initialData.vehicleInfo?.split('(')[1]?.replace(')', '') || '');
+        const modelName = initialData.vehicleInfo?.split(' (')[0];
+        const model = MOTOR_DATABASE.find(m => m.model === modelName);
+        if (model) setMotorcycleModel(model);
+      }
 
-      const modelName = initialData.vehicleInfo?.split(' (')[0];
-      const model = MOTOR_DATABASE.find(m => m.model === modelName);
-      if (model) setMotorcycleModel(model);
-
-      if (initialData.bookingDate) setEntryDate(initialData.bookingDate);
+      // Handle dates (ISO string to YYYY-MM-DD)
+      if (initialData.bookingDate) {
+        const dateStr = typeof initialData.bookingDate === 'string' 
+          ? initialData.bookingDate.split('T')[0] 
+          : new Date(initialData.bookingDate).toISOString().split('T')[0];
+        setEntryDate(dateStr);
+      }
+      
       if (initialData.bookingTime) setTimeSlot(initialData.bookingTime);
 
-      if (initialData.status) {
-        const services = Array.isArray(initialData.services)
+      // Handle services population
+      if (initialData.services) {
+        const rawServices = Array.isArray(initialData.services)
           ? initialData.services
-          : (initialData.services?.split(' / ') || []);
+          : (initialData.services?.split(/, | \/ /) || []);
 
         const newCart: CartItem[] = [];
-        services.forEach((s: string) => {
-          const found = SERVICES.find(srv => srv.name === s);
+        const currentModel = initialData.vehicleInfo 
+          ? MOTOR_DATABASE.find(m => m.model === initialData.vehicleInfo.split(' (')[0])
+          : null;
+
+        rawServices.forEach((s: string) => {
+          const serviceName = s.trim();
+          const found = SERVICES.find(srv => srv.name === serviceName);
           if (found) {
-            newCart.push({ name: found.name, price: getServicePrice(found, model || null) });
-          } else if (!s.includes('Spot Repair')) {
-            newCart.push({ name: s, price: 0 });
+            newCart.push({ 
+              name: found.name, 
+              price: getServicePrice(found, currentModel || null) 
+            });
+          } else if (serviceName.includes('Spot Repair')) {
+            // Found a Spot Repair string in array or summary
+            const match = serviceName.match(/Spot Repair \((\d+) spots\)/);
+            if (match) setSpotCount(parseInt(match[1]));
+            
+            // Add to cart as a base service if "Spot Repair" exists in master
+            const spotServiceMaster = SERVICES.find(srv => srv.name === 'Spot Repair');
+            if (spotServiceMaster) {
+              newCart.push({ name: spotServiceMaster.name, price: 0 });
+            }
+          } else if (serviceName.length > 0) {
+            // Likely a custom service saved as string
+            newCart.push({ name: serviceName, price: 0 });
           }
         });
         setCart(newCart);
-
-        if (initialData.services?.includes('Spot Repair')) {
-          const match = initialData.services.match(/Spot Repair \((\d+) spots\)/);
-          if (match) setSpotCount(parseInt(match[1]));
-        }
       }
 
-      setNominalDP(initialData.dpAmount || initialData.downPayment || 0);
-      setDpRequired((initialData.dpAmount || initialData.downPayment) > 0);
+      // Handle DP and Logistics
+      const dpValue = initialData.downPayment || initialData.dpAmount || 0;
+      setNominalDP(dpValue);
+      setDpRequired(dpValue > 0);
       setHomeService(!!initialData.homeService);
+      if (initialData.paymentMethod) setPaymentMethod(initialData.paymentMethod);
     }
   }, [initialData]);
 
@@ -279,6 +307,12 @@ export default function ManualBookingForm({
       }
 
       if (sendInvoiceWA) {
+        // Prepare items with prices for the template
+        const detailedItems = [
+          ...cart.map((i: CartItem) => `${i.name}: ${i.price}`),
+          spotCount > 0 ? `Spot Repair (${spotCount} spots): ${spotCount * spotPrice}` : null
+        ].filter(Boolean).join('\n');
+
         await fetch('/api/bookings/invoice', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -286,8 +320,13 @@ export default function ManualBookingForm({
             documentType: 'invoice',
             customerName: invoiceName,
             customerPhone: contactPhone,
+            motorDetails: `${motorcycleModel.model} (${platNomor || '-'})`,
+            items: detailedItems,
             totalAmount: finalTotal,
             amountPaid: nominalDP,
+            paymentMethod: paymentMethod,
+            notes: `Layanan: ${serviceSummary}`,
+            bookingDate: entryDate,
           }),
         });
       }
