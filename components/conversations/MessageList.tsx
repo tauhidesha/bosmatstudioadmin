@@ -88,9 +88,22 @@ export default function MessageList({
           { locale: idLocale }
         ).toUpperCase();
 
-        const isImage =
-          message.content.includes('http') &&
-          (message.content.includes('.jpg') || message.content.includes('.png'));
+        const isBase64Image = 
+          message.content.startsWith('/9j/') || // JPEG
+          message.content.startsWith('iVBORw0KGgo') || // PNG
+          message.content.startsWith('data:image/');
+
+        const isUrlImage =
+          message.content.startsWith('http') &&
+          /\.(jpg|jpeg|png|gif|webp)(\?|$)/i.test(message.content);
+
+        const isImage = isBase64Image || isUrlImage;
+
+        const imageSrc = message.content.startsWith('data:image/')
+          ? message.content
+          : isBase64Image
+          ? `data:image/jpeg;base64,${message.content}`
+          : message.content;
 
         return (
           <div
@@ -141,7 +154,7 @@ export default function MessageList({
               <div className="bg-[#1c1b1b] p-1 rounded-xl border border-white/5 overflow-hidden">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={message.content}
+                  src={imageSrc}
                   alt="Attachment"
                   className="w-full aspect-square object-cover rounded-lg grayscale hover:grayscale-0 transition-all duration-500"
                 />

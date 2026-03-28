@@ -149,7 +149,7 @@ export default function ManualBookingForm({
         services.forEach((s: string) => {
           const found = SERVICES.find(srv => srv.name === s);
           if (found) {
-            newCart.push({ name: found.name, price: getServicePrice(found, model) });
+            newCart.push({ name: found.name, price: getServicePrice(found, model || null) });
           } else if (!s.includes('Spot Repair')) {
             newCart.push({ name: s, price: 0 });
           }
@@ -170,7 +170,7 @@ export default function ManualBookingForm({
 
   // --- COMPUTED TOTALS ---
   const servicesTotal = useMemo(() => {
-    const baseTotal = cart.reduce((sum, item) => sum + item.price, 0);
+    const baseTotal = cart.reduce((sum: number, item: CartItem) => sum + item.price, 0);
     const spotTotal = spotCount * spotPrice;
     return baseTotal + spotTotal;
   }, [cart, spotCount, spotPrice]);
@@ -226,9 +226,9 @@ export default function ManualBookingForm({
 
   const addServiceToCart = (service: ServiceItem) => {
     const price = getServicePrice(service, motorcycleModel);
-    setCart(prev => {
-      if (prev.find(i => i.name === service.name)) {
-        return prev.filter(i => i.name !== service.name);
+    setCart((prev: CartItem[]) => {
+      if (prev.find((i: CartItem) => i.name === service.name)) {
+        return prev.filter((i: CartItem) => i.name !== service.name);
       }
       return [...prev, { name: service.name, price }];
     });
@@ -236,7 +236,7 @@ export default function ManualBookingForm({
 
   const addCustomService = () => {
     if (!customServiceName || customServicePrice <= 0) return;
-    setCart(prev => [...prev, { name: customServiceName.toUpperCase(), price: customServicePrice }]);
+    setCart((prev: CartItem[]) => [...prev, { name: customServiceName.toUpperCase(), price: customServicePrice }]);
     setCustomServiceName('');
     setCustomServicePrice(0);
   };
@@ -250,7 +250,7 @@ export default function ManualBookingForm({
     setIsSubmitting(true);
     try {
       const serviceSummary = [
-        ...cart.map(i => i.name),
+        ...cart.map((i: CartItem) => i.name),
         spotCount > 0 ? `Spot Repair (${spotCount} spots)` : null
       ].filter(Boolean).join(', ');
 
@@ -364,7 +364,7 @@ function MobileLayout(props: any) {
     skipNextSearch, setSkipNextSearch
   } = props;
 
-  const isSpotRepairSelected = cart.some(item => item.name === 'Spot Repair');
+  const isSpotRepairSelected = cart.some((item: CartItem) => item.name === 'Spot Repair');
 
   return (
     <div className="fixed inset-0 z-[60] bg-[#131313] flex flex-col font-body h-screen overflow-hidden">
@@ -396,7 +396,7 @@ function MobileLayout(props: any) {
             <div className="relative">
               <label className="block text-[10px] font-headline text-slate-500 uppercase mb-1 ml-1">WhatsApp Quick Select</label>
               <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
-                {allConversations.slice(0, 5).map(conv => (
+                {allConversations.slice(0, 5).map((conv: Conversation) => (
                   <button
                     key={conv.id}
                     onClick={() => handleSelectConversation(conv)}
@@ -527,8 +527,8 @@ function MobileLayout(props: any) {
           </div>
 
           <div className="space-y-2">
-            {SERVICES.filter(s => s.category === activeTab).map(service => {
-              const selected = cart.some(i => i.name === service.name);
+            {SERVICES.filter(s => s.category === activeTab).map((service: ServiceItem) => {
+              const selected = cart.some((i: CartItem) => i.name === service.name);
               const price = getServicePrice(service, motorcycleModel);
               return (
                 <div 
@@ -589,9 +589,9 @@ function MobileLayout(props: any) {
                     <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-tighter italic">SPOT REPAIR / MANUAL ADJUST</p>
                   </div>
                   <div className="flex items-center gap-3 bg-neutral-900 px-2 py-1 rounded-sm border border-white/10">
-                    <button onClick={() => setSpotCount(prev => Math.max(0, prev - 1))} className="text-neutral-500"><Minus size={14}/></button>
+                    <button onClick={() => setSpotCount((prev: number) => Math.max(0, prev - 1))} className="text-neutral-500"><Minus size={14}/></button>
                     <span className="text-xs font-bold text-white font-mono">{spotCount.toString().padStart(2, '0')}</span>
-                    <button onClick={() => setSpotCount(prev => prev + 1)} className="text-[#FFFF00]"><Plus size={14}/></button>
+                    <button onClick={() => setSpotCount((prev: number) => prev + 1)} className="text-[#FFFF00]"><Plus size={14}/></button>
                   </div>
                 </div>
                 <div className="relative">
@@ -756,7 +756,7 @@ function DesktopLayout(props: any) {
     skipNextSearch, setSkipNextSearch
   } = props;
 
-  const isSpotRepairSelected = cart.some(item => item.name === 'Spot Repair');
+  const isSpotRepairSelected = cart.some((item: CartItem) => item.name === 'Spot Repair');
 
   return (
     <div className="w-full max-w-6xl mx-auto h-full max-h-[95vh] bg-[#0E0E0E] border border-white/5 shadow-[0px_24px_48px_rgba(0,0,0,0.4)] flex flex-col md:flex-row overflow-hidden font-body">
@@ -775,7 +775,7 @@ function DesktopLayout(props: any) {
         <section>
           <label className="block text-[10px] font-headline text-slate-500 uppercase tracking-widest mb-3">WhatsApp Connection</label>
           <div className="space-y-2">
-            {allConversations.slice(0, 3).map(conv => (
+            {allConversations.slice(0, 3).map((conv: Conversation) => (
               <button
                 key={conv.id}
                 onClick={() => handleSelectConversation(conv)}
@@ -1022,8 +1022,8 @@ function DesktopLayout(props: any) {
 
             {/* Service Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {SERVICES.filter(s => s.category === activeTab).map(service => {
-                const selected = cart.some(i => i.name === service.name);
+              {SERVICES.filter(s => s.category === activeTab).map((service: ServiceItem) => {
+                const selected = cart.some((i: CartItem) => i.name === service.name);
                 const price = getServicePrice(service, motorcycleModel);
 
                 return (
