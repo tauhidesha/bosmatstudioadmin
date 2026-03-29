@@ -6,7 +6,6 @@ import FinanceStats from './FinanceStats';
 import FinanceChart from './FinanceChart';
 import TransactionList from './TransactionList';
 import AddTransactionModal from './AddTransactionModal';
-import Button from '@/components/shared/Button';
 import { Transaction } from '@/lib/hooks/useFinanceData';
 
 export default function FinanceDashboard() {
@@ -21,56 +20,55 @@ export default function FinanceDashboard() {
   };
 
   return (
-    <div className="flex flex-col gap-8 p-4 md:p-8 animate-in fade-in duration-500">
+    <div className="flex flex-col gap-6 p-6 md:p-8 bg-[#131313] animate-in fade-in duration-500">
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-black text-slate-900 tracking-tight">Finance Management</h1>
-          <p className="text-slate-500 font-medium text-[14px]">Lacak pemasukan, pengeluaran, dan profit Bosmat Studio.</p>
+          <h1 className="font-headline font-black text-[#FFFF00] uppercase tracking-tight text-2xl italic">
+            FINANCE_MANAGEMENT
+          </h1>
+          <p className="text-white/40 font-headline text-[10px] uppercase tracking-widest mt-1">
+            Lacak pemasukan, pengeluaran, dan profit Bosmat Studio
+          </p>
         </div>
         
         <div className="flex items-center gap-3">
-          <div className="relative">
-            <select 
-              value={timeframe}
-              onChange={(e) => setTimeframe(Number(e.target.value))}
-              className="appearance-none bg-white border border-slate-200 text-slate-700 font-bold h-12 pl-4 pr-10 rounded-2xl shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-900/5 transition-all text-sm cursor-pointer"
-            >
-              <option value={7}>7 Hari Terakhir</option>
-              <option value={30}>30 Hari Terakhir</option>
-              <option value={90}>3 Bulan Terakhir</option>
-              <option value={0}>Semua Waktu</option>
-            </select>
-            <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-[20px]">
-              expand_more
-            </span>
-          </div>
-
-          <Button 
-            onClick={() => setIsModalOpen(true)}
-            className="bg-slate-900 text-white hover:bg-slate-800 rounded-2xl px-6 h-12 shadow-lg shadow-slate-900/10 flex items-center gap-2 transition-all active:scale-95"
+          <select 
+            value={timeframe}
+            onChange={(e) => setTimeframe(Number(e.target.value))}
+            className="bg-[#1c1b1b] border border-white/10 text-white font-headline text-xs h-10 px-4 focus:outline-none focus:ring-1 focus:ring-[#FFFF00]/30 cursor-pointer"
           >
-            <span className="material-symbols-outlined text-[20px]">add</span>
-            Tambah
-          </Button>
+            <option value={7}>7 Hari</option>
+            <option value={30}>30 Hari</option>
+            <option value={90}>3 Bulan</option>
+            <option value={0}>Semua</option>
+          </select>
+
+          <button 
+            onClick={() => setIsModalOpen(true)}
+            className="bg-[#FFFF00] text-[#131313] font-headline font-black text-xs uppercase tracking-widest px-5 h-10 flex items-center gap-2 active:scale-95 transition-transform"
+          >
+            <span className="material-symbols-outlined text-[18px]">add</span>
+            TAMBAH
+          </button>
         </div>
       </div>
 
+      {/* Stats */}
       <FinanceStats summary={summary} loading={loading} />
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2">
-          <TransactionList 
-            transactions={transactions} 
-            loading={loading} 
-            onEdit={handleEdit}
-            onRefresh={refresh}
-          />
-        </div>
-        <div>
-          <FinanceChart transactions={transactions} loading={loading} />
-        </div>
+      {/* Content — stacked layout */}
+      <div className="flex flex-col gap-6">
+        <TransactionList 
+          transactions={transactions} 
+          loading={loading} 
+          onEdit={handleEdit}
+          onRefresh={refresh}
+        />
+        <FinanceChart transactions={transactions} loading={loading} />
       </div>
 
+      {/* Modal */}
       <AddTransactionModal 
         isOpen={isModalOpen} 
         onClose={() => {

@@ -22,47 +22,48 @@ export default function FinanceStats({ summary, loading, className }: FinanceSta
     return (
       <div className={cn("grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4", className)}>
         {[...Array(4)].map((_, i) => (
-          <div key={i} className="p-6 rounded-2xl border border-slate-100 bg-white animate-pulse">
-            <div className="size-10 rounded-xl bg-slate-100 mb-4" />
-            <div className="h-3 w-20 bg-slate-50 rounded mb-2" />
-            <div className="h-8 w-32 bg-slate-100 rounded" />
+          <div key={i} className="p-4 bg-[#1c1b1b] border border-white/5 animate-pulse">
+            <div className="size-10 bg-white/5 mb-4" />
+            <div className="h-3 w-20 bg-white/5 mb-2" />
+            <div className="h-8 w-32 bg-white/5" />
           </div>
         ))}
       </div>
     );
   }
+
   const stats = [
     {
       label: 'Total Pemasukan',
       value: formatIDR(summary.totalIncome),
       icon: 'trending_up',
-      color: 'text-emerald-500',
-      bgColor: 'bg-emerald-50',
-      borderColor: 'border-emerald-100',
+      valueColor: 'text-[#FFFF00]',
+      iconBg: 'bg-[#FFFF00]/10',
+      iconColor: 'text-[#FFFF00]',
     },
     {
       label: 'Total Pengeluaran',
       value: formatIDR(summary.totalExpense),
       icon: 'trending_down',
-      color: 'text-rose-500',
-      bgColor: 'bg-rose-50',
-      borderColor: 'border-rose-100',
+      valueColor: 'text-[#ffb4ab]',
+      iconBg: 'bg-[#ffb4ab]/10',
+      iconColor: 'text-[#ffb4ab]',
     },
     {
       label: 'Profit Bersih',
       value: formatIDR(summary.netProfit),
       icon: 'payments',
-      color: summary.netProfit >= 0 ? 'text-teal-500' : 'text-rose-600',
-      bgColor: summary.netProfit >= 0 ? 'bg-teal-50' : 'bg-rose-50',
-      borderColor: summary.netProfit >= 0 ? 'border-teal-100' : 'border-rose-100',
+      valueColor: summary.netProfit >= 0 ? 'text-[#FFFF00]' : 'text-[#ffb4ab]',
+      iconBg: summary.netProfit >= 0 ? 'bg-[#FFFF00]/10' : 'bg-[#ffb4ab]/10',
+      iconColor: summary.netProfit >= 0 ? 'text-[#FFFF00]' : 'text-[#ffb4ab]',
     },
     {
       label: 'Jumlah Transaksi',
       value: summary.transactionCount.toString(),
       icon: 'receipt_long',
-      color: 'text-slate-500',
-      bgColor: 'bg-slate-50',
-      borderColor: 'border-slate-100',
+      valueColor: 'text-white',
+      iconBg: 'bg-white/5',
+      iconColor: 'text-white/40',
     },
   ];
 
@@ -71,28 +72,22 @@ export default function FinanceStats({ summary, loading, className }: FinanceSta
       {stats.map((stat, i) => (
         <div 
           key={i}
-          className={cn(
-            "p-6 rounded-2xl border bg-white shadow-sm transition-all hover:shadow-md hover:scale-[1.02]",
-            stat.borderColor
-          )}
+          className="bg-[#1c1b1b] border border-white/5 p-4 flex flex-col justify-between"
         >
-          <div className="flex items-center justify-between mb-4">
-            <div className={cn("p-2.5 rounded-xl", stat.bgColor)}>
-              <span className={cn("material-symbols-outlined block text-[24px]", stat.color)}>
+          <div className="flex items-center gap-2">
+            <div className={cn("p-2", stat.iconBg)}>
+              <span className={cn("material-symbols-outlined block text-[20px]", stat.iconColor)}>
                 {stat.icon}
               </span>
             </div>
-            <span className="material-symbols-outlined text-slate-300 text-[20px]">
-              more_horiz
-            </span>
-          </div>
-          <div>
-            <p className="text-[12px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+            <p className="text-[10px] font-headline font-black text-white/40 uppercase tracking-widest">
               {stat.label}
             </p>
-            <h3 className={cn("text-2xl font-black tracking-tight", stat.color === 'text-slate-500' ? 'text-slate-900' : stat.color)}>
+          </div>
+          <div className="mt-3">
+            <span className={cn("font-headline font-black text-2xl tracking-tight", stat.valueColor)}>
               {stat.value}
-            </h3>
+            </span>
           </div>
         </div>
       ))}

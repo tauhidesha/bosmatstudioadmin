@@ -107,12 +107,12 @@ export default function AddTransactionModal({ isOpen, onClose, editData }: AddTr
           paymentMethod: editData.paymentMethod || 'transfer',
           customerId: editData.customerId || '',
           customerName: editData.customerName || editData.customer?.name || '',
-          vehicleId: '', // We don't easily have vehicle context from base transaction
+          vehicleId: '',
           plateNumber: '',
           serviceType: '',
           bookingId: editData.bookingId || '',
         });
-        setCart([]); // Clear cart for edits for now to avoid complexity
+        setCart([]);
         setUseManualTotal(true);
         setManualTotal(editData.amount);
         setMotorSearch('');
@@ -187,14 +187,12 @@ export default function AddTransactionModal({ isOpen, onClose, editData }: AddTr
 
   const fetchCustomerBookings = async (customerId: string) => {
     try {
-      // Find customer phone for the API
       const customer = customers.find(c => c.id === customerId);
       if (!customer) return;
 
       const res = await fetch(`/api/bookings?customerPhone=${customer.phone}&limit=20`);
       const data = await res.json();
       if (data.success) {
-        // Filter for active or unpaid bookings
         const activeBookings = data.data.filter((b: any) => 
           ['pending', 'in_progress', 'done'].includes(b.status) && 
           ['UNPAID', 'PARTIAL'].includes(b.paymentStatus || 'UNPAID')
@@ -240,7 +238,6 @@ export default function AddTransactionModal({ isOpen, onClose, editData }: AddTr
     setSelectedMotor(motor);
     setMotorSearch(motor.model);
     setShowMotorDropdown(false);
-    // Re-price cart
     setCart(prev => prev.map(item => ({
       ...item,
       autoPrice: getServicePrice(item.service, motor),
@@ -318,17 +315,18 @@ export default function AddTransactionModal({ isOpen, onClose, editData }: AddTr
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={editData ? "Edit Transaksi" : "Tambah Transaksi Baru"}>
       <form onSubmit={handleSubmit} className="space-y-4 pt-2">
-        <div className="flex bg-slate-100 p-1 rounded-xl">
+        {/* Type Toggle */}
+        <div className="flex gap-1 bg-[#0e0e0e] p-1">
           {(['income', 'expense'] as const).map((t) => (
             <button
               key={t}
               type="button"
               onClick={() => setFormData({ ...formData, type: t })}
-              className={`flex-1 py-2 rounded-lg text-[13px] font-black transition-all ${
-                formData.type === t ? "bg-white text-slate-900 shadow-sm" : "text-slate-500"
+              className={`flex-1 py-2 text-[11px] font-headline font-black uppercase tracking-widest transition-all ${
+                formData.type === t ? "bg-[#FFFF00] text-[#131313]" : "text-white/40 hover:text-white"
               }`}
             >
-              {t === 'income' ? 'Pemasukan' : 'Pengeluaran'}
+              {t === 'income' ? 'PEMASUKAN' : 'PENGELUARAN'}
             </button>
           ))}
         </div>
@@ -336,7 +334,7 @@ export default function AddTransactionModal({ isOpen, onClose, editData }: AddTr
         {formData.type === 'income' && (
           <>
             <div className="space-y-1.5">
-              <label className="text-[12px] font-black text-slate-400 uppercase tracking-wider">Pelanggan</label>
+              <label className="text-[10px] font-headline font-black text-white/40 uppercase tracking-widest">Pelanggan</label>
               <div className="relative">
                 <input
                   type="text"
@@ -347,10 +345,10 @@ export default function AddTransactionModal({ isOpen, onClose, editData }: AddTr
                     setShowCustomerDropdown(true);
                   }}
                   onFocus={() => setShowCustomerDropdown(true)}
-                  className="w-full h-12 px-4 rounded-xl border border-slate-200 bg-white text-[14px] font-bold focus:ring-2 focus:ring-teal-500 outline-none transition-all"
+                  className="w-full h-10 px-4 bg-[#0e0e0e] border-none text-white text-[13px] font-bold focus:ring-1 focus:ring-[#FFFF00]/30 outline-none transition-all placeholder:text-white/20"
                 />
                 {showCustomerDropdown && searchQuery && (
-                  <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg max-h-48 overflow-y-auto">
+                  <div className="absolute z-10 w-full mt-1 bg-[#1c1b1b] border border-white/10 max-h-48 overflow-y-auto">
                     {filteredCustomers.length > 0 ? (
                       filteredCustomers.map(c => (
                         <button
@@ -361,22 +359,23 @@ export default function AddTransactionModal({ isOpen, onClose, editData }: AddTr
                             setSearchQuery(c.name);
                             setShowCustomerDropdown(false);
                           }}
-                          className="w-full px-4 py-2 text-left hover:bg-slate-50 text-sm"
+                          className="w-full px-4 py-2 text-left hover:bg-[#353534] text-sm text-white"
                         >
                           <span className="font-bold">{c.name}</span>
-                          <span className="text-slate-400 ml-2">{c.phone}</span>
+                          <span className="text-white/40 ml-2">{c.phone}</span>
                         </button>
                       ))
                     ) : (
-                      <div className="px-4 py-2 text-sm text-slate-400">Tidak ditemukan</div>
+                      <div className="px-4 py-2 text-sm text-white/30">Tidak ditemukan</div>
                     )}
                   </div>
                 )}
               </div>
+
               {selectedCustomer && (
-                <div className="space-y-4 mt-4 p-4 bg-slate-50 rounded-xl border border-slate-100">
+                <div className="space-y-4 mt-4 p-4 bg-[#0e0e0e] border border-white/5">
                   <div className="space-y-2">
-                    <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider">Booking Aktif (Belum Lunas)</label>
+                    <label className="text-[10px] font-headline font-black text-white/40 uppercase tracking-widest">Booking Aktif</label>
                     <div className="flex flex-col gap-2">
                       {bookings.length > 0 ? (
                         bookings.map(b => (
@@ -397,51 +396,51 @@ export default function AddTransactionModal({ isOpen, onClose, editData }: AddTr
                               setUseManualTotal(true);
                               setManualTotal(remaining);
                             }}
-                            className={`flex flex-col p-3 rounded-xl border text-left transition-all ${
+                            className={`flex flex-col p-3 text-left transition-all border ${
                               formData.bookingId === b.id
-                                ? 'bg-teal-50 border-teal-500 shadow-sm'
-                                : 'bg-white border-slate-200 hover:border-slate-300'
+                                ? 'bg-[#FFFF00]/10 border-[#FFFF00]/30'
+                                : 'bg-[#1c1b1b] border-white/5 hover:border-white/10'
                             }`}
                           >
                             <div className="flex justify-between items-start">
-                              <span className="font-bold text-sm text-slate-800">{b.serviceType}</span>
-                              <span className={`text-[10px] font-black px-2 py-0.5 rounded uppercase ${
-                                b.status === 'done' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
+                              <span className="font-bold text-sm text-white">{b.serviceType}</span>
+                              <span className={`text-[9px] font-headline font-black px-2 py-0.5 uppercase tracking-wider ${
+                                b.status === 'done' ? 'bg-[#676700] text-[#e6e67a]' : 'bg-zinc-800 text-white/60'
                               }`}>
                                 {b.status}
                               </span>
                             </div>
                             <div className="flex justify-between items-center mt-1">
-                              <span className="text-[11px] text-slate-500 font-medium">
+                              <span className="text-[10px] text-white/40">
                                 {b.plateNumber || 'Tanpa Plat'} • {b.bookingDate}
                               </span>
-                              <span className="text-[11px] font-bold text-teal-600">
+                              <span className="text-[10px] font-bold text-[#FFFF00]">
                                 Sisa: Rp {((b.subtotal || 0) - (b.amountPaid || 0)).toLocaleString()}
                               </span>
                             </div>
                           </button>
                         ))
                       ) : (
-                        <div className="text-[11px] text-slate-400 italic py-1 px-1">Tidak ada booking aktif untuk pelanggan ini.</div>
+                        <div className="text-[10px] text-white/20 italic py-1">Tidak ada booking aktif</div>
                       )}
                     </div>
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider">Model Motor</label>
+                    <label className="text-[10px] font-headline font-black text-white/40 uppercase tracking-widest">Model Motor</label>
                     <div className="relative">
                       <input 
                         value={motorSearch}
                         onChange={e => { setMotorSearch(e.target.value); setShowMotorDropdown(true); }}
                         onFocus={() => setShowMotorDropdown(true)}
-                        className="w-full h-10 px-3 rounded-lg border border-slate-200 bg-white text-[13px] font-bold focus:ring-2 focus:ring-teal-500 outline-none"
+                        className="w-full h-9 px-3 bg-[#1c1b1b] border-none text-white text-[12px] font-bold focus:ring-1 focus:ring-[#FFFF00]/30 outline-none placeholder:text-white/20"
                         placeholder="Cari: NMax, Vario..." 
                       />
                       {showMotorDropdown && filteredMotors.length > 0 && (
-                        <div className="absolute z-20 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-xl max-h-40 overflow-y-auto">
+                        <div className="absolute z-20 w-full mt-1 bg-[#1c1b1b] border border-white/10 max-h-40 overflow-y-auto">
                           {filteredMotors.map(m => (
                             <button key={m.model} type="button" onClick={() => handleSelectMotor(m)}
-                              className="w-full px-3 py-2 text-left text-xs hover:bg-slate-50 font-bold border-b border-slate-50 last:border-0">
+                              className="w-full px-3 py-2 text-left text-xs hover:bg-[#353534] font-bold text-white border-b border-white/5 last:border-0">
                               {m.model}
                             </button>
                           ))}
@@ -451,7 +450,7 @@ export default function AddTransactionModal({ isOpen, onClose, editData }: AddTr
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider">Pilih Kendaraan Terdaftar</label>
+                    <label className="text-[10px] font-headline font-black text-white/40 uppercase tracking-widest">Kendaraan Terdaftar</label>
                     <div className="flex flex-wrap gap-2">
                       {selectedCustomer.vehicles.map(v => (
                         <button
@@ -460,8 +459,6 @@ export default function AddTransactionModal({ isOpen, onClose, editData }: AddTr
                           onClick={() => {
                             setFormData({ ...formData, vehicleId: v.id, plateNumber: v.plateNumber || '' });
                             setMotorSearch(v.modelName);
-                            
-                            // NEW: Find matching motor in database to trigger auto-price
                             const motorMatch = MOTOR_DATABASE.find(m => 
                               m.model.toLowerCase().includes(v.modelName.toLowerCase()) ||
                               v.modelName.toLowerCase().includes(m.model.toLowerCase())
@@ -472,10 +469,10 @@ export default function AddTransactionModal({ isOpen, onClose, editData }: AddTr
                               setSelectedMotor(null);
                             }
                           }}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${
+                          className={`px-3 py-1.5 text-[10px] font-headline font-black uppercase tracking-wider border transition-all ${
                             formData.vehicleId === v.id
-                              ? 'bg-teal-50 border-teal-500 text-teal-700'
-                              : 'bg-white border-slate-200 text-slate-600 hover:border-teal-300'
+                              ? 'bg-[#FFFF00]/10 border-[#FFFF00]/30 text-[#FFFF00]'
+                              : 'bg-[#1c1b1b] border-white/5 text-white/40 hover:border-white/10 hover:text-white'
                           }`}
                         >
                           {v.modelName} {v.plateNumber && `(${v.plateNumber})`}
@@ -502,11 +499,11 @@ export default function AddTransactionModal({ isOpen, onClose, editData }: AddTr
               />
             </div>
 
-            {/* NEW: Basket / Cart Section */}
-            <div className="space-y-3 p-4 bg-slate-900 rounded-2xl border border-slate-800 shadow-inner">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex justify-between items-center">
-                <span>🛒 Keranjang Servis</span>
-                <span className="text-teal-400">{cart.length} item</span>
+            {/* Cart Section */}
+            <div className="space-y-3 p-4 bg-[#0e0e0e] border border-white/5">
+              <label className="text-[10px] font-headline font-black text-white/40 uppercase tracking-widest flex justify-between items-center">
+                <span>SERVICE_CART</span>
+                <span className="text-[#FFFF00]">{cart.length} item</span>
               </label>
               
               <div className="flex flex-wrap gap-2">
@@ -515,10 +512,10 @@ export default function AddTransactionModal({ isOpen, onClose, editData }: AddTr
                     key={svc.name}
                     type="button"
                     onClick={() => toggleService(svc)}
-                    className={`px-3 py-1.5 rounded-xl text-[11px] font-bold transition-all border ${
+                    className={`px-3 py-1.5 text-[10px] font-headline font-black uppercase tracking-wider transition-all border ${
                       cart.find(i => i.service.name === svc.name)
-                        ? 'bg-teal-500 border-teal-400 text-white shadow-lg'
-                        : 'bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-500'
+                        ? 'bg-[#FFFF00] border-[#FFFF00] text-[#131313]'
+                        : 'bg-[#1c1b1b] border-white/10 text-white/40 hover:border-white/20 hover:text-white'
                     }`}
                   >
                     {svc.name}
@@ -527,14 +524,14 @@ export default function AddTransactionModal({ isOpen, onClose, editData }: AddTr
               </div>
 
               {cart.length > 0 && (
-                <div className="space-y-2 mt-4 pt-4 border-t border-slate-800">
+                <div className="space-y-2 mt-4 pt-4 border-t border-white/5">
                   {cart.map(item => {
                     const isSpot = item.service.name === 'Spot Repair';
                     return (
-                      <div key={item.service.name} className="flex flex-col gap-2 p-3 bg-slate-800/50 rounded-xl border border-slate-700/50">
-                        <div className="flex justify-between items-center text-[12px]">
-                          <span className="text-slate-300 font-bold">{item.service.name}</span>
-                          <button type="button" onClick={() => toggleService(item.service)} className="text-slate-500 hover:text-red-400 text-sm">✕</button>
+                      <div key={item.service.name} className="flex flex-col gap-2 p-3 bg-[#1c1b1b] border border-white/5">
+                        <div className="flex justify-between items-center text-[11px]">
+                          <span className="text-white font-bold">{item.service.name}</span>
+                          <button type="button" onClick={() => toggleService(item.service)} className="text-white/30 hover:text-[#ffb4ab] text-sm">✕</button>
                         </div>
                         
                         <div className="flex items-center gap-3">
@@ -548,9 +545,9 @@ export default function AddTransactionModal({ isOpen, onClose, editData }: AddTr
                                   const val = parseInt(e.target.value) || 1;
                                   setCart(prev => prev.map(i => i.service.name === item.service.name ? { ...i, spotCount: val } : i));
                                 }}
-                                className="w-12 bg-slate-800 border border-slate-700 rounded-lg px-2 py-1 text-center text-white text-[11px]"
+                                className="w-12 bg-[#0e0e0e] border-none px-2 py-1 text-center text-white text-[11px] focus:ring-1 focus:ring-[#FFFF00]/30 outline-none"
                               />
-                              <span className="text-slate-500 text-[10px]">spot ×</span>
+                              <span className="text-white/30 text-[10px]">spot ×</span>
                               <input 
                                 type="number" 
                                 value={item.spotPrice || 100000}
@@ -558,7 +555,7 @@ export default function AddTransactionModal({ isOpen, onClose, editData }: AddTr
                                   const val = parseInt(e.target.value) || 0;
                                   setCart(prev => prev.map(i => i.service.name === item.service.name ? { ...i, spotPrice: val } : i));
                                 }}
-                                className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-2 py-1 text-right text-teal-400 font-mono font-bold text-[11px]"
+                                className="flex-1 bg-[#0e0e0e] border-none px-2 py-1 text-right text-[#FFFF00] font-mono font-bold text-[11px] focus:ring-1 focus:ring-[#FFFF00]/30 outline-none"
                               />
                             </div>
                           ) : (
@@ -569,10 +566,10 @@ export default function AddTransactionModal({ isOpen, onClose, editData }: AddTr
                                 const val = parseInt(e.target.value) || 0;
                                 setCart(prev => prev.map(i => i.service.name === item.service.name ? { ...i, manualPrice: val } : i));
                               }}
-                              className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-2 py-1 text-right text-teal-400 font-mono font-bold text-[12px]"
+                              className="flex-1 bg-[#0e0e0e] border-none px-2 py-1 text-right text-[#FFFF00] font-mono font-bold text-[12px] focus:ring-1 focus:ring-[#FFFF00]/30 outline-none"
                             />
                           )}
-                          <div className="text-[12px] font-mono font-bold text-white min-w-[80px] text-right">
+                          <div className="text-[11px] font-mono font-bold text-white min-w-[80px] text-right">
                             {formatRupiah(isSpot ? (item.spotCount || 1) * (item.spotPrice || 100000) : (item.manualPrice ?? item.autoPrice))}
                           </div>
                         </div>
@@ -581,7 +578,7 @@ export default function AddTransactionModal({ isOpen, onClose, editData }: AddTr
                   })}
 
                   <div className="pt-3 space-y-2">
-                    <div className="flex justify-between text-[11px] text-slate-400 font-black uppercase">
+                    <div className="flex justify-between text-[10px] text-white/40 font-headline font-black uppercase tracking-widest">
                       <span>Subtotal</span>
                       <span className="font-mono">{formatRupiah(subtotal)}</span>
                     </div>
@@ -590,7 +587,7 @@ export default function AddTransactionModal({ isOpen, onClose, editData }: AddTr
                       <select 
                         value={discountType} 
                         onChange={e => setDiscountType(e.target.value as any)}
-                        className="bg-slate-800 border border-slate-700 rounded-lg text-[10px] text-slate-300 px-1 py-1"
+                        className="bg-[#0e0e0e] border-none text-[10px] text-white/60 px-2 py-1 focus:ring-1 focus:ring-[#FFFF00]/30 outline-none"
                       >
                         <option value="nominal">IDR</option>
                         <option value="percentage">%</option>
@@ -600,29 +597,29 @@ export default function AddTransactionModal({ isOpen, onClose, editData }: AddTr
                         value={discountValue || ''} 
                         onChange={e => setDiscountValue(parseInt(e.target.value) || 0)}
                         placeholder="Diskon"
-                        className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-2 py-1 text-right text-[12px] text-white"
+                        className="flex-1 bg-[#0e0e0e] border-none px-2 py-1 text-right text-[11px] text-white focus:ring-1 focus:ring-[#FFFF00]/30 outline-none placeholder:text-white/20"
                       />
-                      {discountAmount > 0 && <span className="text-red-400 text-[11px] font-bold">-{formatRupiah(discountAmount)}</span>}
+                      {discountAmount > 0 && <span className="text-[#ffb4ab] text-[10px] font-bold">-{formatRupiah(discountAmount)}</span>}
                     </div>
 
                     <div className="flex items-center gap-3 pt-1">
                       <label className="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" checked={useManualTotal} onChange={e => setUseManualTotal(e.target.checked)} className="size-3 rounded border-slate-700 bg-slate-800" />
-                        <span className="text-[10px] font-black text-amber-500 uppercase">Special Price</span>
+                        <input type="checkbox" checked={useManualTotal} onChange={e => setUseManualTotal(e.target.checked)} className="size-3 bg-[#0e0e0e] border-white/20" />
+                        <span className="text-[9px] font-headline font-black text-[#FFFF00] uppercase tracking-widest">Special Price</span>
                       </label>
                       {useManualTotal && (
                         <input 
                           type="number" 
                           value={manualTotal || ''} 
                           onChange={e => setManualTotal(parseInt(e.target.value) || 0)}
-                          className="flex-1 bg-amber-900/30 border border-amber-700 rounded-lg px-2 py-1 text-right text-[12px] text-amber-400 font-bold"
+                          className="flex-1 bg-[#FFFF00]/10 border border-[#FFFF00]/20 px-2 py-1 text-right text-[11px] text-[#FFFF00] font-bold focus:ring-1 focus:ring-[#FFFF00]/30 outline-none"
                         />
                       )}
                     </div>
 
-                    <div className="flex justify-between items-center pt-3 mt-2 border-t border-slate-800">
-                      <span className="text-[13px] font-black text-white uppercase tracking-wider">Total</span>
-                      <span className="text-[18px] font-black text-teal-400 font-mono">{formatRupiah(grandTotal)}</span>
+                    <div className="flex justify-between items-center pt-3 mt-2 border-t border-white/5">
+                      <span className="text-[12px] font-headline font-black text-white uppercase tracking-widest">TOTAL</span>
+                      <span className="text-[18px] font-headline font-black text-[#FFFF00] font-mono">{formatRupiah(grandTotal)}</span>
                     </div>
                   </div>
                 </div>
@@ -659,9 +656,9 @@ export default function AddTransactionModal({ isOpen, onClose, editData }: AddTr
         />
 
         <div className="space-y-1.5">
-          <label className="text-[12px] font-black text-slate-400 uppercase tracking-wider">Metode Pembayaran</label>
+          <label className="text-[10px] font-headline font-black text-white/40 uppercase tracking-widest">Metode Pembayaran</label>
           <select 
-            className="w-full h-12 px-4 rounded-xl border border-slate-200 bg-white text-[14px] font-bold focus:ring-2 focus:ring-teal-500 outline-none transition-all"
+            className="w-full h-10 px-4 bg-[#0e0e0e] border-none text-white text-[13px] font-bold focus:ring-1 focus:ring-[#FFFF00]/30 outline-none"
             value={formData.paymentMethod}
             onChange={(e) => setFormData({ ...formData, paymentMethod: e.target.value })}
           >
@@ -672,10 +669,12 @@ export default function AddTransactionModal({ isOpen, onClose, editData }: AddTr
         </div>
 
         <div className="pt-4 flex gap-3">
-          <Button variant="outline" className="flex-1 rounded-xl h-12" onClick={onClose} type="button">Batal</Button>
-          <Button className="flex-1 bg-teal-500 hover:bg-teal-600 rounded-xl h-12" type="submit" isLoading={loading}>
-            Simpan Transaksi
-          </Button>
+          <button type="button" onClick={onClose} className="flex-1 h-10 border border-white/10 text-white/40 font-headline font-black text-xs uppercase tracking-widest hover:text-white hover:border-white/20 transition-all">
+            BATAL
+          </button>
+          <button type="submit" disabled={loading} className="flex-1 h-10 bg-[#FFFF00] text-[#131313] font-headline font-black text-xs uppercase tracking-widest active:scale-95 transition-transform disabled:opacity-50">
+            {loading ? 'MENYIMPAN...' : 'SIMPAN TRANSAKSI'}
+          </button>
         </div>
       </form>
     </Modal>
