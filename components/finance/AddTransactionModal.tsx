@@ -2,13 +2,39 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import BaseModal from '@/components/shared/Modal';
-import Input from '@/components/shared/Input';
 import {
   MOTOR_DATABASE, SERVICES,
   getServicePrice, formatRupiah,
   type MotorModel, type ServiceItem
 } from '@/lib/data/pricing';
 import { Transaction } from '@/lib/hooks/useFinanceData';
+
+// ─── KATEGORI DROPDOWN ───
+// Income: kategori layanan yang menghasilkan revenue
+const INCOME_CATEGORIES = [
+  { value: 'Repaint', label: '🎨 Repaint' },
+  { value: 'Detailing', label: '✨ Detailing' },
+  { value: 'Coating', label: '🛡️ Coating' },
+  { value: 'Cuci Motor', label: '🚿 Cuci Motor' },
+  { value: 'Spot Repair', label: '🔧 Spot Repair' },
+  { value: 'Custom Paint', label: '🖌️ Custom Paint' },
+  { value: 'Home Service', label: '🏠 Home Service' },
+  { value: 'Lainnya', label: '📦 Lainnya' },
+];
+
+// Expense: kategori pengeluaran operasional bengkel
+const EXPENSE_CATEGORIES = [
+  { value: 'Bahan Baku', label: '🪣 Bahan Baku (Cat, Thinner, dll)' },
+  { value: 'Perlengkapan', label: '🧰 Perlengkapan & Tools' },
+  { value: 'Gaji', label: '💵 Gaji & Upah' },
+  { value: 'Listrik & Air', label: '⚡ Listrik & Air' },
+  { value: 'Sewa Tempat', label: '🏢 Sewa Tempat' },
+  { value: 'Transportasi', label: '🚗 Transportasi' },
+  { value: 'Perawatan Alat', label: '🔩 Perawatan Alat' },
+  { value: 'Marketing', label: '📢 Marketing & Promosi' },
+  { value: 'Pajak & Admin', label: '📋 Pajak & Administrasi' },
+  { value: 'Lainnya', label: '📦 Lainnya' },
+];
 
 interface Vehicle {
   id: string;
@@ -74,7 +100,7 @@ export default function AddTransactionModal({ isOpen, onClose, editData }: AddTr
   const [downPaymentAmount, setDownPaymentAmount] = useState(0);
 
   const [formData, setFormData] = useState({
-    type: 'income',
+    type: 'income' as 'income' | 'expense',
     amount: '',
     category: '',
     description: '',
@@ -87,14 +113,15 @@ export default function AddTransactionModal({ isOpen, onClose, editData }: AddTr
     bookingId: '',
   });
 
+  // ─── Init / Edit ───
   useEffect(() => {
     if (isOpen) {
       if (editData) {
         setFormData({
-          type: editData.type,
+          type: editData.type as 'income' | 'expense',
           amount: editData.amount.toString(),
           category: editData.category || '',
-          description: editData.description || '',
+          description: (editData.description || '').replace(/^\[CAR\]\s*/, ''), // strip prefix
           paymentMethod: editData.paymentMethod || 'transfer',
           customerId: editData.customerId || '',
           customerName: editData.customerName || editData.customer?.name || '',
@@ -134,7 +161,8 @@ export default function AddTransactionModal({ isOpen, onClose, editData }: AddTr
   useEffect(() => {
     if (isOpen && formData.customerId && !editData) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({
-        formData, cart, discountType, discountValue, useManualTotal, manualTotal, selectedMotor, motorSearch, customerName: searchQuery
+        formData, cart, discountType, discountValue, useManualTotal,
+        manualTotal, selectedMotor, motorSearch, customerName: searchQuery
       }));
     }
   }, [formData, cart, discountType, discountValue, useManualTotal, manualTotal, selectedMotor, motorSearch, isOpen, editData]);
@@ -153,16 +181,10 @@ export default function AddTransactionModal({ isOpen, onClose, editData }: AddTr
     setDownPaymentAmount(0);
   };
 
+  useEffect(() => { if (isOpen) fetchCustomers(); }, [isOpen]);
   useEffect(() => {
-    if (isOpen) fetchCustomers();
-  }, [isOpen]);
-
-  useEffect(() => {
-    if (formData.customerId) {
-      fetchCustomerBookings(formData.customerId);
-    } else {
-      setBookings([]);
-    }
+    if (formData.customerId) fetchCustomerBookings(formData.customerId);
+    else setBookings([]);
   }, [formData.customerId]);
 
   const fetchCustomers = async () => {
@@ -170,9 +192,7 @@ export default function AddTransactionModal({ isOpen, onClose, editData }: AddTr
       const res = await fetch('/api/crm/customers?limit=100');
       const data = await res.json();
       if (data.success) setCustomers(data.customers);
-    } catch (err) {
-      console.error('Failed to fetch customers:', err);
-    }
+    } catch (err) { console.error('Failed to fetch customers:', err); }
   };
 
   const fetchCustomerBookings = async (customerId: string) => {
@@ -182,20 +202,16 @@ export default function AddTransactionModal({ isOpen, onClose, editData }: AddTr
       const res = await fetch(`/api/bookings?customerPhone=${customer.phone}&limit=20`);
       const data = await res.json();
       if (data.success) {
-        const activeBookings = data.data.filter((b: any) =>
+        setBookings(data.data.filter((b: any) =>
           ['pending', 'in_progress', 'done'].includes(b.status) &&
           ['UNPAID', 'PARTIAL'].includes(b.paymentStatus || 'UNPAID')
-        );
-        setBookings(activeBookings);
+        ));
       }
-    } catch (err) {
-      console.error('Failed to fetch bookings:', err);
-    }
+    } catch (err) { console.error('Failed to fetch bookings:', err); }
   };
 
   const filteredCustomers = customers.filter(c =>
-    c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    c.phone.includes(searchQuery)
+    c.name.toLowerCase().includes(searchQuery.toLowerCase()) || c.phone.includes(searchQuery)
   );
 
   const filteredMotors = useMemo(() => {
@@ -208,12 +224,9 @@ export default function AddTransactionModal({ isOpen, onClose, editData }: AddTr
 
   const subtotal = useMemo(() =>
     cart.reduce((sum, item) => {
-      if (item.service.name === 'Spot Repair') {
-        return sum + ((item.spotCount || 1) * (item.spotPrice || 100000));
-      }
+      if (item.service.name === 'Spot Repair') return sum + ((item.spotCount || 1) * (item.spotPrice || 100000));
       return sum + (item.manualPrice ?? item.autoPrice);
-    }, 0),
-    [cart]);
+    }, 0), [cart]);
 
   const discountAmount = useMemo(() => {
     if (discountType === 'percentage') return Math.round(subtotal * (discountValue / 100));
@@ -222,14 +235,23 @@ export default function AddTransactionModal({ isOpen, onClose, editData }: AddTr
 
   const grandTotal = useManualTotal ? manualTotal : Math.max(0, subtotal - discountAmount);
 
+  // Auto-set kategori saat cart berubah (income only)
+  useEffect(() => {
+    if (formData.type === 'income' && cart.length > 0 && !formData.category) {
+      const firstService = cart[0].service;
+      const autoCategory =
+        firstService.category === 'repaint' ? 'Repaint' :
+          firstService.category === 'detailing' ? 'Detailing' :
+            firstService.category === 'coating' ? 'Coating' : '';
+      if (autoCategory) setFormData(prev => ({ ...prev, category: autoCategory }));
+    }
+  }, [cart, formData.type]);
+
   const handleSelectMotor = (motor: MotorModel) => {
     setSelectedMotor(motor);
     setMotorSearch(motor.model);
     setShowMotorDropdown(false);
-    setCart(prev => prev.map(item => ({
-      ...item,
-      autoPrice: getServicePrice(item.service, motor),
-    })));
+    setCart(prev => prev.map(item => ({ ...item, autoPrice: getServicePrice(item.service, motor) })));
   };
 
   const toggleService = (service: ServiceItem) => {
@@ -238,13 +260,10 @@ export default function AddTransactionModal({ isOpen, onClose, editData }: AddTr
       setCart(prev => prev.filter(i => i.service.name !== service.name));
     } else {
       const price = getServicePrice(service, selectedMotor);
-      const newItem: CartItem = {
-        service,
-        autoPrice: price,
-        manualPrice: null,
+      setCart(prev => [...prev, {
+        service, autoPrice: price, manualPrice: null,
         ...(service.name === 'Spot Repair' ? { spotCount: 1, spotPrice: 100000 } : {})
-      };
-      setCart(prev => [...prev, newItem]);
+      }]);
     }
   };
 
@@ -259,11 +278,23 @@ export default function AddTransactionModal({ isOpen, onClose, editData }: AddTr
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Validasi minimal
+    if (!formData.category) { alert('Mohon pilih kategori transaksi.'); return; }
+    if (!formData.description) { alert('Mohon isi keterangan transaksi.'); return; }
+    if (grandTotal <= 0 && formData.type === 'income') { alert('Total transaksi harus lebih dari 0.'); return; }
+    if (formData.type === 'expense' && !formData.amount) { alert('Mohon isi nominal pengeluaran.'); return; }
+
     setLoading(true);
     try {
       const finalServiceType = cart.map(i => i.service.name).join(', ') || formData.serviceType;
-      const isNewCart = cart.length > 0;
-      const finalDescription = isNewCart ? `[CAR] ${formData.description || finalServiceType}` : formData.description;
+      const finalDescription = cart.length > 0
+        ? `[CAR] ${formData.description || finalServiceType}`
+        : formData.description;
+
+      const finalAmount = formData.type === 'expense'
+        ? (parseInt(formData.amount) || 0)
+        : grandTotal;
 
       const url = editData ? `/api/finance/${editData.id}` : '/api/finance';
       const method = editData ? 'PATCH' : 'POST';
@@ -273,9 +304,10 @@ export default function AddTransactionModal({ isOpen, onClose, editData }: AddTr
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...formData,
-          amount: grandTotal,
+          amount: finalAmount,
           serviceType: finalServiceType,
           description: finalDescription,
+          downPayment: downPaymentEnabled ? downPaymentAmount : 0,
         }),
       });
 
@@ -292,424 +324,490 @@ export default function AddTransactionModal({ isOpen, onClose, editData }: AddTr
       setSearchQuery('');
       setBookings([]);
     } catch (error) {
-      console.error('Error adding transaction:', error);
-      alert('Gagal menambah transaksi');
+      console.error('Error saving transaction:', error);
+      alert('Gagal menyimpan transaksi');
     } finally {
       setLoading(false);
     }
   };
 
-  const PAYMENT_METHODS = [
-    { value: 'transfer', label: 'Transfer Bank (BCA)' },
-    { value: 'cash', label: 'Cash' },
-    { value: 'qris', label: 'QRIS' },
-  ];
+  const currentCategories = formData.type === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
 
   return (
-    <BaseModal isOpen={isOpen} onClose={onClose} size="4xl" showHeader={false}>
-      <div className="flex h-[85vh]">
+    <BaseModal isOpen={isOpen} onClose={onClose} size="6xl" showHeader={false}>
+      <div className="flex h-[88vh] overflow-hidden rounded-lg">
 
-        {/* LEFT COLUMN */}
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto bg-[#131313] p-8 space-y-6 min-w-0">
-
-          {/* Title */}
-          <div className="flex items-end gap-4">
-            <h1 className="font-headline text-4xl font-black tracking-tighter uppercase leading-none text-white">
+        {/* ── LEFT COLUMN ── */}
+        <section className="flex-1 flex flex-col min-w-0 bg-[#1C1B1B]">
+          {/* Header */}
+          <div className="px-8 py-5 border-b border-white/5 flex items-center justify-between bg-[#131313]/50 shrink-0">
+            <h1 className="font-headline text-2xl font-black tracking-tight uppercase flex items-center gap-3 text-white">
+              <span className="material-symbols-outlined text-[#FFFF00]">point_of_sale</span>
               {editData ? 'Edit Transaksi' : 'New Transaction'}
             </h1>
-            <div className="h-px flex-1 bg-[#eaea00]/20 mb-1" />
+            <div className="flex p-1 bg-[#131313] rounded border border-white/5">
+              {(['income', 'expense'] as const).map(t => (
+                <button key={t} type="button"
+                  onClick={() => setFormData(prev => ({ ...prev, type: t, category: '' }))}
+                  className={`px-4 py-1.5 rounded font-headline font-bold text-xs uppercase transition-all ${formData.type === t ? 'bg-[#FFFF00] text-[#131313]' : 'text-white/40 hover:text-white'
+                    }`}>
+                  {t === 'income' ? '↑ Income' : '↓ Expense'}
+                </button>
+              ))}
+            </div>
           </div>
 
-          {/* Type toggle */}
-          <div className="flex gap-px bg-[#0e0e0e] p-px w-fit">
-            {(['income', 'expense'] as const).map(t => (
-              <button key={t} type="button"
-                onClick={() => setFormData({ ...formData, type: t })}
-                className={`px-6 py-2 text-[11px] font-headline font-black uppercase tracking-widest transition-all ${
-                  formData.type === t ? 'bg-[#FFFF00] text-[#131313]' : 'text-white/30 hover:text-white'
-                }`}>
-                {t === 'income' ? 'Pemasukan' : 'Pengeluaran'}
-              </button>
-            ))}
-          </div>
+          {/* Scrollable content */}
+          <div className="flex-1 overflow-y-auto p-8 space-y-10 no-scrollbar">
 
-          <div className="grid grid-cols-2 gap-6">
-            {/* Customer Info */}
-            <div className="space-y-6">
-              <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-[#eaea00] text-[20px]">person</span>
-                <h3 className="font-headline text-base font-bold tracking-tight uppercase text-white">Customer Info</h3>
-              </div>
-              <div className="space-y-4">
-                <div className="relative">
-                  <label className="block text-[10px] font-bold uppercase text-white/40 mb-1 ml-1">Full Name</label>
+            {/* ── KATEGORI & KETERANGAN — selalu di atas ── */}
+            <div className="space-y-4">
+              <SectionLabel icon="label" text="Informasi Transaksi" />
+              <div className="grid grid-cols-2 gap-6">
+
+                {/* Kategori Dropdown */}
+                <div className="space-y-2">
+                  <label className="text-[11px] font-bold uppercase text-white/50 tracking-wider block">
+                    Kategori <span className="text-[#FFFF00]">*</span>
+                  </label>
+                  <div className="relative">
+                    <select
+                      value={formData.category}
+                      onChange={e => setFormData(prev => ({ ...prev, category: e.target.value }))}
+                      required
+                      className="w-full bg-[#131313] border border-white/5 focus:border-[#FFFF00] focus:ring-1 focus:ring-[#FFFF00] outline-none px-4 py-3 text-sm text-white rounded appearance-none transition-all"
+                    >
+                      <option value="" disabled>Pilih kategori...</option>
+                      {currentCategories.map(cat => (
+                        <option key={cat.value} value={cat.value}>{cat.label}</option>
+                      ))}
+                    </select>
+                    <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-white/30 text-sm pointer-events-none">expand_more</span>
+                  </div>
+                </div>
+
+                {/* Keterangan */}
+                <div className="space-y-2">
+                  <label className="text-[11px] font-bold uppercase text-white/50 tracking-wider block">
+                    Keterangan <span className="text-[#FFFF00]">*</span>
+                  </label>
                   <input
-                    type="text"
-                    placeholder="Cari nama atau nomor HP..."
-                    value={searchQuery}
-                    onChange={e => { setSearchQuery(e.target.value); setShowCustomerDropdown(true); }}
-                    onFocus={() => setShowCustomerDropdown(true)}
-                    onBlur={() => setTimeout(() => setShowCustomerDropdown(false), 150)}
-                    className="w-full bg-[#0e0e0e] border-none focus:ring-0 p-4 text-white border-l-2 border-transparent focus:border-[#eaea00] transition-all placeholder:text-[#353534]"
+                    placeholder={formData.type === 'income' ? 'Contoh: Repaint full body NMax Tauhid' : 'Contoh: Beli cat PU 1kg + thinner'}
+                    value={formData.description}
+                    onChange={e => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                    required
+                    className="w-full bg-[#131313] border border-white/5 focus:border-[#FFFF00] focus:ring-1 focus:ring-[#FFFF00] outline-none px-4 py-3 text-sm text-white rounded placeholder:text-white/20 transition-all"
                   />
-                  {showCustomerDropdown && searchQuery && (
-                    <div className="absolute z-50 w-full bg-[#1c1b1b] border border-white/10 max-h-48 overflow-y-auto shadow-2xl">
-                      {filteredCustomers.length > 0 ? filteredCustomers.map(c => (
-                        <button key={c.id} type="button"
-                          onClick={() => { setFormData({ ...formData, customerId: c.id, customerName: c.name }); setSearchQuery(c.name); setShowCustomerDropdown(false); }}
-                          className="w-full px-4 py-2.5 text-left hover:bg-[#353534] border-b border-white/5 last:border-0">
-                          <span className="font-bold text-[12px] text-white">{c.name}</span>
-                          <span className="text-white/40 text-[10px] ml-2">{c.phone}</span>
-                        </button>
-                      )) : <div className="px-4 py-2 text-[11px] text-white/30">Tidak ditemukan</div>}
+                </div>
+              </div>
+
+              {/* Payment Method — selalu tampil */}
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-[11px] font-bold uppercase text-white/50 tracking-wider block">Metode Pembayaran</label>
+                  <div className="flex gap-2">
+                    {[
+                      { value: 'transfer', label: 'Transfer BCA' },
+                      { value: 'cash', label: 'Tunai' },
+                      { value: 'qris', label: 'QRIS' },
+                    ].map(m => (
+                      <button key={m.value} type="button"
+                        onClick={() => setFormData(prev => ({ ...prev, paymentMethod: m.value }))}
+                        className={`flex-1 py-2.5 text-[10px] font-headline font-black uppercase tracking-widest border transition-all ${formData.paymentMethod === m.value
+                          ? 'bg-[#FFFF00] text-[#131313] border-[#FFFF00]'
+                          : 'bg-[#131313] text-white/40 border-white/5 hover:border-white/20'
+                          }`}>
+                        {m.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Nominal — untuk expense langsung di sini */}
+                {formData.type === 'expense' && (
+                  <div className="space-y-2">
+                    <label className="text-[11px] font-bold uppercase text-white/50 tracking-wider block">
+                      Nominal Pengeluaran (IDR) <span className="text-[#FFFF00]">*</span>
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[10px] text-white/30 font-headline">Rp</span>
+                      <input
+                        type="number" placeholder="0"
+                        value={formData.amount}
+                        onChange={e => setFormData(prev => ({ ...prev, amount: e.target.value }))}
+                        required
+                        className="w-full bg-[#131313] border border-white/5 focus:border-[#FFFF00] focus:ring-1 focus:ring-[#FFFF00] outline-none pl-10 pr-4 py-3 text-sm text-[#ffb4ab] font-bold text-right rounded placeholder:text-white/20 transition-all"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* ── CUSTOMER — hanya untuk income ── */}
+            {formData.type === 'income' && (
+              <>
+                <div className="space-y-5">
+                  <SectionLabel icon="person" text="Customer Details" />
+                  <div className="grid grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <label className="text-[11px] font-bold uppercase text-white/50 tracking-wider block">Cari Customer (Nama / WA)</label>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          placeholder="Ketik nama atau nomor WA..."
+                          value={searchQuery}
+                          onChange={e => { setSearchQuery(e.target.value); setShowCustomerDropdown(true); }}
+                          onFocus={() => setShowCustomerDropdown(true)}
+                          onBlur={() => setTimeout(() => setShowCustomerDropdown(false), 150)}
+                          className="w-full bg-[#131313] border border-white/5 focus:border-[#FFFF00] focus:ring-1 focus:ring-[#FFFF00] outline-none px-4 py-3 text-sm text-white rounded placeholder:text-white/20 transition-all"
+                        />
+                        <span className="material-symbols-outlined absolute right-3 top-2.5 text-white/30 text-sm">search</span>
+                        {showCustomerDropdown && searchQuery && (
+                          <div className="absolute z-50 w-full mt-1 bg-[#1C1B1B] border border-white/10 rounded max-h-48 overflow-y-auto shadow-2xl">
+                            {filteredCustomers.length > 0 ? filteredCustomers.map(c => (
+                              <button key={c.id} type="button"
+                                onClick={() => {
+                                  setFormData(prev => ({ ...prev, customerId: c.id, customerName: c.name }));
+                                  setSearchQuery(c.name);
+                                  setShowCustomerDropdown(false);
+                                }}
+                                className="w-full px-4 py-2.5 text-left hover:bg-white/5 border-b border-white/5 last:border-0">
+                                <span className="font-bold text-[13px] text-white">{c.name}</span>
+                                <span className="text-white/40 text-[11px] ml-2">{c.phone}</span>
+                              </button>
+                            )) : (
+                              <div className="px-4 py-3 text-[12px] text-white/30">Tidak ditemukan</div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[11px] font-bold uppercase text-white/50 tracking-wider block">Plat Nomor</label>
+                      <input
+                        placeholder="B 1234 XYZ"
+                        value={formData.plateNumber}
+                        onChange={e => setFormData(prev => ({ ...prev, plateNumber: e.target.value }))}
+                        className="w-full bg-[#131313] border border-white/5 focus:border-[#FFFF00] focus:ring-1 focus:ring-[#FFFF00] outline-none px-4 py-3 text-sm text-white font-headline font-bold tracking-widest uppercase rounded placeholder:font-normal placeholder:text-white/20 transition-all"
+                      />
+                    </div>
+                  </div>
+
+                  {selectedCustomer && (
+                    <div className="grid grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                        <label className="text-[11px] font-bold uppercase text-white/50 tracking-wider block">Model Motor</label>
+                        <div className="relative">
+                          <input
+                            value={motorSearch}
+                            onChange={e => { setMotorSearch(e.target.value); setShowMotorDropdown(true); }}
+                            onFocus={() => setShowMotorDropdown(true)}
+                            onBlur={() => setTimeout(() => setShowMotorDropdown(false), 150)}
+                            placeholder="NMax, Vario, PCX..."
+                            className="w-full bg-[#131313] border border-white/5 focus:border-[#FFFF00] focus:ring-1 focus:ring-[#FFFF00] outline-none px-4 py-3 text-sm text-white rounded placeholder:text-white/20 transition-all"
+                          />
+                          {showMotorDropdown && filteredMotors.length > 0 && (
+                            <div className="absolute z-50 w-full mt-1 bg-[#1C1B1B] border border-white/10 rounded max-h-48 overflow-y-auto shadow-2xl">
+                              {filteredMotors.map(m => (
+                                <button key={m.model} type="button" onClick={() => handleSelectMotor(m)}
+                                  className="w-full px-4 py-2.5 text-left text-[13px] font-bold text-white hover:bg-white/5 border-b border-white/5 last:border-0">
+                                  {m.model}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      {selectedCustomer.vehicles.length > 0 && (
+                        <div className="space-y-2">
+                          <label className="text-[11px] font-bold uppercase text-white/50 tracking-wider block">Kendaraan Terdaftar</label>
+                          <div className="flex flex-wrap gap-2 pt-1">
+                            {selectedCustomer.vehicles.map(v => (
+                              <button key={v.id} type="button"
+                                onClick={() => {
+                                  setFormData(prev => ({ ...prev, vehicleId: v.id, plateNumber: v.plateNumber || '' }));
+                                  setMotorSearch(v.modelName);
+                                  const match = MOTOR_DATABASE.find(m =>
+                                    m.model.toLowerCase().includes(v.modelName.toLowerCase()) ||
+                                    v.modelName.toLowerCase().includes(m.model.toLowerCase())
+                                  );
+                                  if (match) handleSelectMotor(match); else setSelectedMotor(null);
+                                }}
+                                className={`px-3 py-1.5 text-[10px] font-bold uppercase border transition-all ${formData.vehicleId === v.id
+                                  ? 'bg-[#FFFF00]/10 border-[#FFFF00]/40 text-[#FFFF00]'
+                                  : 'bg-[#131313] border-white/10 text-white/40 hover:text-white hover:border-white/20'
+                                  }`}>
+                                {v.modelName}{v.plateNumber ? ` · ${v.plateNumber}` : ''}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {selectedCustomer && bookings.length > 0 && (
+                    <div className="space-y-2">
+                      <label className="text-[11px] font-bold uppercase text-white/50 tracking-wider block">Booking Aktif (Klik untuk link ke booking)</label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {bookings.map(b => {
+                          const remaining = (b.subtotal || 0) - (b.amountPaid || 0);
+                          return (
+                            <button key={b.id} type="button"
+                              onClick={() => {
+                                setFormData(prev => ({
+                                  ...prev,
+                                  bookingId: b.id,
+                                  serviceType: b.serviceType,
+                                  plateNumber: b.plateNumber || '',
+                                  description: `Pelunasan: ${b.serviceType}`,
+                                  category: 'Repaint',
+                                }));
+                                setUseManualTotal(true);
+                                setManualTotal(remaining);
+                              }}
+                              className={`flex justify-between items-center px-4 py-3 text-left border transition-all ${formData.bookingId === b.id
+                                ? 'bg-[#FFFF00]/8 border-[#FFFF00]/30'
+                                : 'bg-[#131313] border-white/5 hover:border-white/15'
+                                }`}>
+                              <div>
+                                <p className="text-[12px] font-bold text-white">{b.serviceType}</p>
+                                <p className="text-[10px] text-white/30">{b.plateNumber || '-'} · {b.bookingDate}</p>
+                              </div>
+                              <span className="text-[11px] font-bold text-[#FFFF00]">{formatRupiah(remaining)}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
                   )}
                 </div>
 
-                <div>
-                  <label className="block text-[10px] font-bold uppercase text-white/40 mb-1 ml-1">Model Motor</label>
-                  <div className="relative">
-                    <input
-                      value={motorSearch}
-                      onChange={e => { setMotorSearch(e.target.value); setShowMotorDropdown(true); }}
-                      onFocus={() => setShowMotorDropdown(true)}
-                      onBlur={() => setTimeout(() => setShowMotorDropdown(false), 150)}
-                      placeholder="NMax, Vario, PCX..."
-                      className="w-full bg-[#0e0e0e] border-none focus:ring-0 p-4 text-white border-l-2 border-transparent focus:border-[#eaea00] transition-all placeholder:text-[#353534]"
-                    />
-                    {showMotorDropdown && filteredMotors.length > 0 && (
-                      <div className="absolute z-50 w-full bg-[#1c1b1b] border border-white/10 max-h-48 overflow-y-auto shadow-2xl">
-                        {filteredMotors.map(m => (
-                          <button key={m.model} type="button" onClick={() => handleSelectMotor(m)}
-                            className="w-full px-4 py-2.5 text-left text-[12px] font-bold text-white hover:bg-[#353534] border-b border-white/5 last:border-0">
-                            {m.model}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-bold uppercase text-white/40 mb-1 ml-1">Plate Number</label>
-                  <input
-                    placeholder="B 1234 XYZ"
-                    value={formData.plateNumber}
-                    onChange={e => setFormData({ ...formData, plateNumber: e.target.value })}
-                    className="w-full bg-[#0e0e0e] border-none focus:ring-0 p-4 text-white font-headline font-bold border-l-2 border-transparent focus:border-[#eaea00] transition-all placeholder:text-[#353534]"
-                  />
-                </div>
-
-                {/* Registered vehicles */}
-                {selectedCustomer && selectedCustomer.vehicles.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 pt-1">
-                    {selectedCustomer.vehicles.map(v => (
-                      <button key={v.id} type="button"
-                        onClick={() => {
-                          setFormData({ ...formData, vehicleId: v.id, plateNumber: v.plateNumber || '' });
-                          setMotorSearch(v.modelName);
-                          const match = MOTOR_DATABASE.find(m => m.model.toLowerCase().includes(v.modelName.toLowerCase()) || v.modelName.toLowerCase().includes(m.model.toLowerCase()));
-                          if (match) handleSelectMotor(match); else setSelectedMotor(null);
-                        }}
-                        className={`px-3 py-1 text-[9px] font-headline font-black uppercase tracking-wider border-l-2 transition-all bg-[#0e0e0e] ${
-                          formData.vehicleId === v.id ? 'border-[#eaea00] text-[#eaea00]' : 'border-transparent text-white/30 hover:text-white hover:border-white/20'
-                        }`}>
-                        {v.modelName}{v.plateNumber ? ` · ${v.plateNumber}` : ''}
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {/* Active bookings */}
-                {selectedCustomer && bookings.length > 0 && (
-                  <div className="space-y-1.5">
-                    <label className="block text-[10px] font-bold uppercase text-white/40 ml-1">Booking Aktif</label>
-                    {bookings.map(b => {
-                      const remaining = (b.subtotal || 0) - (b.amountPaid || 0);
+                {/* ── SERVICES ── */}
+                <div className="space-y-5">
+                  <SectionLabel icon="auto_fix_high" text="Pilih Layanan" />
+                  <div className="grid grid-cols-3 gap-4">
+                    {SERVICES.map(svc => {
+                      const inCart = !!cart.find(i => i.service.name === svc.name);
+                      const price = getServicePrice(svc, selectedMotor);
                       return (
-                        <button key={b.id} type="button"
-                          onClick={() => { setFormData({ ...formData, bookingId: b.id, serviceType: b.serviceType, plateNumber: b.plateNumber || '', description: `Pembayaran Sisa Booking untuk ${b.serviceType}`, category: 'Repaint' }); setUseManualTotal(true); setManualTotal(remaining); }}
-                          className={`w-full flex justify-between items-center p-3 text-left border-l-2 transition-all bg-[#0e0e0e] ${
-                            formData.bookingId === b.id ? 'border-[#eaea00]' : 'border-transparent hover:border-white/20'
-                          }`}>
-                          <div>
-                            <p className="text-[11px] font-bold text-white">{b.serviceType}</p>
-                            <p className="text-[9px] text-white/30">{b.plateNumber || 'Tanpa Plat'} · {b.bookingDate}</p>
-                          </div>
-                          <span className="text-[10px] font-bold text-[#eaea00]">Sisa: {formatRupiah(remaining)}</span>
+                        <button key={svc.name} type="button" onClick={() => toggleService(svc)}
+                          className={`p-4 text-left border transition-all ${inCart ? 'bg-[#FFFF00]/10 border-[#FFFF00]/40' : 'bg-[#131313] border-white/5 hover:border-[#FFFF00]/30'
+                            }`}>
+                          <p className="font-headline font-bold text-xs uppercase mb-3 text-white">{svc.name}</p>
+                          <p className={`font-headline font-black text-sm ${inCart ? 'text-[#FFFF00]' : 'text-white/60'}`}>
+                            {selectedMotor ? formatRupiah(price) : 'Pilih motor dulu'}
+                          </p>
                         </button>
                       );
                     })}
                   </div>
-                )}
-              </div>
-            </div>
+                </div>
 
-            {/* Service Selection */}
-            <div className="space-y-6">
-              <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-[#eaea00] text-[20px]">auto_fix_high</span>
-                <h3 className="font-headline text-base font-bold tracking-tight uppercase text-white">Service Selection</h3>
-              </div>
-              <div className="space-y-px">
-                {SERVICES.map(svc => {
-                  const inCart = !!cart.find(i => i.service.name === svc.name);
-                  const price = getServicePrice(svc, selectedMotor);
-                  return (
-                    <button key={svc.name} type="button" onClick={() => toggleService(svc)}
-                      className={`w-full flex justify-between items-center px-4 py-3 border-l-2 transition-colors ${
-                        inCart
-                          ? 'bg-[#2a2a2a] border-[#eaea00]'
-                          : 'bg-[#1c1b1b] border-transparent hover:bg-[#2a2a2a] hover:border-[#eaea00]/50'
-                      }`}>
-                      <div className="text-left">
-                        <p className="font-bold text-sm uppercase text-white">{svc.name}</p>
+                {/* ── CUSTOM SERVICE ── */}
+                <div className="space-y-5">
+                  <SectionLabel icon="edit_note" text="Custom / Spot Repair" />
+                  <div className="bg-[#131313]/30 p-6 border border-white/5 space-y-4">
+                    <div className="grid grid-cols-12 gap-4">
+                      <div className="col-span-6 space-y-1.5">
+                        <label className="text-[10px] font-bold uppercase text-white/40 block">Nama Layanan</label>
+                        <input value={customServiceDesc} onChange={e => setCustomServiceDesc(e.target.value)}
+                          placeholder="Contoh: Poles Kaca Depan"
+                          className="w-full bg-[#131313] border border-white/5 focus:border-[#FFFF00] focus:ring-1 focus:ring-[#FFFF00] outline-none px-4 py-3 text-sm text-white rounded placeholder:text-white/20 transition-all" />
                       </div>
-                      <span className={`font-headline font-black text-sm ${inCart ? 'text-[#eaea00]' : 'text-white/60'}`}>
-                        {selectedMotor ? formatRupiah(price) : '—'}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-
-          {/* Custom Service + Discounts */}
-          <div className="grid grid-cols-12 gap-8">
-            <div className="col-span-7 space-y-4">
-              <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-[#eaea00] text-[20px]">edit_note</span>
-                <h3 className="font-headline text-base font-bold tracking-tight uppercase text-white">Custom Service</h3>
-              </div>
-              <div className="flex gap-2">
-                <input
-                  value={customServiceDesc}
-                  onChange={e => setCustomServiceDesc(e.target.value)}
-                  placeholder="Service Description"
-                  className="flex-1 bg-[#0e0e0e] border-none focus:ring-0 p-4 text-white border-l-2 border-transparent focus:border-[#eaea00] transition-all placeholder:text-[#353534]"
-                />
-                <input
-                  value={customServicePrice}
-                  onChange={e => setCustomServicePrice(e.target.value)}
-                  type="number"
-                  placeholder="Price"
-                  className="w-32 bg-[#0e0e0e] border-none focus:ring-0 p-4 text-white border-l-2 border-transparent focus:border-[#eaea00] transition-all placeholder:text-[#353534]"
-                />
-                <button type="button" onClick={addCustomService}
-                  className="bg-[#eaea00] text-[#131313] px-4 hover:opacity-90 active:scale-95 transition-all">
-                  <span className="material-symbols-outlined">add</span>
-                </button>
-              </div>
-            </div>
-
-            <div className="col-span-5 space-y-4">
-              <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-[#eaea00] text-[20px]">sell</span>
-                <h3 className="font-headline text-base font-bold tracking-tight uppercase text-white">Discounts</h3>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="relative">
-                  <span className="absolute right-3 top-4 text-[10px] font-bold text-white/40">%</span>
-                  <input
-                    type="number"
-                    value={discountType === 'percentage' ? (discountValue || '') : ''}
-                    onChange={e => { setDiscountType('percentage'); setDiscountValue(parseInt(e.target.value) || 0); }}
-                    placeholder="Rate"
-                    className="w-full bg-[#0e0e0e] border-none focus:ring-0 p-4 text-white border-l-2 border-transparent focus:border-[#eaea00] transition-all placeholder:text-[#353534]"
-                  />
+                      <div className="col-span-2 space-y-1.5">
+                        <label className="text-[10px] font-bold uppercase text-white/40 block">Qty</label>
+                        <input type="number" defaultValue={1} min={1}
+                          className="w-full bg-[#131313] border border-white/5 focus:border-[#FFFF00] outline-none px-4 py-3 text-sm text-white text-center rounded transition-all" />
+                      </div>
+                      <div className="col-span-3 space-y-1.5">
+                        <label className="text-[10px] font-bold uppercase text-white/40 block">Harga (Rp)</label>
+                        <input value={customServicePrice} onChange={e => setCustomServicePrice(e.target.value)}
+                          type="number" placeholder="0"
+                          className="w-full bg-[#131313] border border-white/5 focus:border-[#FFFF00] outline-none px-4 py-3 text-sm text-white rounded placeholder:text-white/20 transition-all" />
+                      </div>
+                      <div className="col-span-1 flex items-end">
+                        <button type="button" onClick={addCustomService}
+                          className="w-full h-[46px] bg-[#FFFF00] text-[#131313] flex items-center justify-center hover:opacity-90 active:scale-95 transition-all">
+                          <span className="material-symbols-outlined font-bold">add</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <div className="relative">
-                  <span className="absolute left-3 top-4 text-[10px] font-bold text-white/40">Rp</span>
-                  <input
-                    type="number"
-                    value={discountType === 'nominal' ? (discountValue || '') : ''}
-                    onChange={e => { setDiscountType('nominal'); setDiscountValue(parseInt(e.target.value) || 0); }}
-                    placeholder="Fixed"
-                    className="w-full bg-[#0e0e0e] border-none focus:ring-0 p-4 pl-8 text-white border-l-2 border-transparent focus:border-[#eaea00] transition-all placeholder:text-[#353534]"
-                  />
-                </div>
-              </div>
-            </div>
+              </>
+            )}
           </div>
+        </section>
 
-          {/* Meta fields */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-[10px] font-bold uppercase text-white/40 mb-1 ml-1">Kategori</label>
-              <input
-                placeholder="Repaint, Gaji, Listrik..."
-                value={formData.category}
-                onChange={e => setFormData({ ...formData, category: e.target.value })}
-                required
-                className="w-full bg-[#0e0e0e] border-none focus:ring-0 p-4 text-white border-l-2 border-transparent focus:border-[#eaea00] transition-all placeholder:text-[#353534]"
-              />
-            </div>
-            <div>
-              <label className="block text-[10px] font-bold uppercase text-white/40 mb-1 ml-1">Keterangan</label>
-              <input
-                placeholder="Detail transaksi..."
-                value={formData.description}
-                onChange={e => setFormData({ ...formData, description: e.target.value })}
-                required
-                className="w-full bg-[#0e0e0e] border-none focus:ring-0 p-4 text-white border-l-2 border-transparent focus:border-[#eaea00] transition-all placeholder:text-[#353534]"
-              />
-            </div>
-          </div>
-
-          {formData.type === 'expense' && (
-            <div>
-              <label className="block text-[10px] font-bold uppercase text-white/40 mb-1 ml-1">Nominal (IDR)</label>
-              <input
-                type="number"
-                placeholder="500000"
-                value={formData.amount}
-                onChange={e => setFormData({ ...formData, amount: e.target.value })}
-                required
-                className="w-full bg-[#0e0e0e] border-none focus:ring-0 p-4 text-white border-l-2 border-transparent focus:border-[#eaea00] transition-all placeholder:text-[#353534]"
-              />
-            </div>
-          )}
-        </form>
-
-        {/* RIGHT COLUMN — ORDER SUMMARY */}
-        <section className="w-[340px] shrink-0 bg-[#2a2a2a] flex flex-col shadow-[0px_24px_48px_rgba(0,0,0,0.4)]">
-          <div className="flex-1 overflow-y-auto p-8 flex flex-col">
-            {/* Header */}
+        {/* ── RIGHT COLUMN — ORDER SUMMARY ── */}
+        <section className="w-[380px] shrink-0 bg-[#131313] border-l border-white/5 flex flex-col">
+          <div className="p-8 flex-1 flex flex-col overflow-hidden">
             <div className="flex items-center justify-between mb-8">
-              <h3 className="font-headline text-xl font-black tracking-tight uppercase text-white">Order Summary</h3>
-              <span className="material-symbols-outlined text-[#eaea00]">receipt_long</span>
+              <h3 className="font-headline text-xl font-black uppercase tracking-tighter text-white">
+                {formData.type === 'income' ? 'Order Summary' : 'Expense Detail'}
+              </h3>
+              <span className="material-symbols-outlined text-white/30">receipt_long</span>
             </div>
 
-            {/* Cart items */}
-            <div className="flex-1 space-y-4 mb-8 overflow-y-auto pr-1">
-              {cart.length === 0 ? (
-                <p className="text-[11px] text-white/20 italic text-center pt-12">Belum ada layanan dipilih</p>
-              ) : (
-                cart.map(item => {
+            {/* Type indicator */}
+            <div className={`mb-6 px-4 py-3 border-l-2 text-[10px] font-headline font-bold uppercase tracking-widest ${formData.type === 'income'
+              ? 'border-[#FFFF00] bg-[#FFFF00]/5 text-[#FFFF00]'
+              : 'border-[#ffb4ab] bg-[#ffb4ab]/5 text-[#ffb4ab]'
+              }`}>
+              {formData.type === 'income' ? '↑ Pemasukan' : '↓ Pengeluaran'}
+              {formData.category && ` · ${formData.category}`}
+            </div>
+
+            {/* Cart items (income only) */}
+            {formData.type === 'income' && (
+              <div className="flex-1 space-y-3 overflow-y-auto mb-6 pr-1 min-h-0 no-scrollbar">
+                {cart.length === 0 ? (
+                  <p className="text-[12px] text-white/20 italic text-center pt-8">Belum ada layanan dipilih</p>
+                ) : cart.map(item => {
                   const isSpot = item.service.name === 'Spot Repair';
                   const itemTotal = isSpot
                     ? (item.spotCount || 1) * (item.spotPrice || 100000)
                     : (item.manualPrice ?? item.autoPrice);
                   return (
-                    <div key={item.service.name} className="flex justify-between items-start">
-                      <div className="flex-1">
-                        <p className="font-bold text-sm uppercase text-white">{item.service.name}</p>
+                    <div key={item.service.name} className="group bg-[#1C1B1B]/40 p-3 border border-transparent hover:border-white/5">
+                      <div className="flex justify-between items-start mb-1">
+                        <span className="font-headline font-bold text-xs uppercase text-white truncate pr-4">{item.service.name}</span>
+                        <button type="button" onClick={() => toggleService(item.service)}
+                          className="text-white/20 hover:text-red-400 transition-colors shrink-0">
+                          <span className="material-symbols-outlined text-sm">close</span>
+                        </button>
+                      </div>
+                      <div className="flex justify-between items-center">
                         {isSpot ? (
-                          <div className="flex items-center gap-2 mt-1">
+                          <div className="flex items-center gap-1.5">
                             <input type="number" min={1} value={item.spotCount || 1}
                               onChange={e => setCart(prev => prev.map(i => i.service.name === item.service.name ? { ...i, spotCount: parseInt(e.target.value) || 1 } : i))}
-                              className="w-10 bg-[#131313] border-none px-1.5 py-0.5 text-center text-white text-[10px] focus:ring-0"
-                            />
-                            <span className="text-[9px] text-white/30">spot x</span>
+                              className="w-10 bg-[#131313] border-none px-1 py-0.5 text-center text-white text-[10px] focus:ring-0" />
+                            <span className="text-[9px] text-white/30">× Rp</span>
                             <input type="number" value={item.spotPrice || 100000}
                               onChange={e => setCart(prev => prev.map(i => i.service.name === item.service.name ? { ...i, spotPrice: parseInt(e.target.value) || 0 } : i))}
-                              className="w-24 bg-[#131313] border-none px-1.5 py-0.5 text-right text-[#eaea00] text-[10px] font-bold focus:ring-0"
-                            />
+                              className="w-20 bg-[#131313] border-none px-1 py-0.5 text-right text-[#FFFF00] text-[10px] font-bold focus:ring-0" />
                           </div>
                         ) : (
                           <input type="number" value={item.manualPrice ?? item.autoPrice}
                             onChange={e => setCart(prev => prev.map(i => i.service.name === item.service.name ? { ...i, manualPrice: parseInt(e.target.value) || 0 } : i))}
-                            className="mt-0.5 w-full bg-[#131313] border-none px-0 py-0.5 text-left text-[#eaea00]/60 text-[10px] font-bold focus:ring-0 focus:text-[#eaea00]"
-                          />
+                            className="bg-transparent border-none px-0 py-0 text-[10px] text-white/40 focus:ring-0 w-24" />
                         )}
-                        <p className="text-[10px] text-white/40">Manual Entry</p>
-                      </div>
-                      <div className="flex items-start gap-2 ml-4 shrink-0">
                         <span className="font-headline font-bold text-sm text-white">
-                          {(itemTotal / 1000).toLocaleString('id-ID')}.000
+                          {itemTotal.toLocaleString('id-ID')}
                         </span>
-                        <button type="button" onClick={() => toggleService(item.service)}
-                          className="text-white/20 hover:text-[#ffb4ab] text-[12px] transition-colors leading-none mt-0.5">x</button>
                       </div>
                     </div>
                   );
-                })
-              )}
+                })}
+              </div>
+            )}
 
-              {discountAmount > 0 && (
-                <div className="border-t border-[#353534] pt-4 flex justify-between items-start text-[#eaea00]">
-                  <div>
-                    <p className="font-bold text-sm uppercase">
-                      {discountType === 'percentage' ? 'Promo Discount' : 'Discount'}
-                    </p>
-                    <p className="text-[10px] opacity-70">
-                      {discountType === 'percentage' ? `${discountValue}% OFF` : 'Fixed'}
-                    </p>
+            {/* Adjustments (income only) */}
+            {formData.type === 'income' && (
+              <div className="space-y-5 pt-5 border-t border-white/5">
+                {/* Discount */}
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-white/30 text-sm">sell</span>
+                    <label className="text-[10px] font-bold uppercase text-white/40 tracking-wider">Diskon</label>
                   </div>
-                  <span className="font-headline font-bold text-sm">- {(discountAmount / 1000).toLocaleString('id-ID')}.000</span>
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <span className="absolute left-3 top-2.5 text-[10px] font-bold text-white/30">Rp</span>
+                      <input type="number"
+                        value={discountType === 'nominal' ? (discountValue || '') : ''}
+                        onChange={e => { setDiscountType('nominal'); setDiscountValue(parseInt(e.target.value) || 0); }}
+                        placeholder="Nominal"
+                        className="w-full bg-[#1C1B1B] border border-white/5 focus:border-[#FFFF00] outline-none pl-8 pr-3 py-2 text-xs text-white rounded placeholder:text-white/20" />
+                    </div>
+                    <div className="relative w-20">
+                      <span className="absolute right-3 top-2.5 text-[10px] font-bold text-white/30">%</span>
+                      <input type="number"
+                        value={discountType === 'percentage' ? (discountValue || '') : ''}
+                        onChange={e => { setDiscountType('percentage'); setDiscountValue(parseInt(e.target.value) || 0); }}
+                        placeholder="%"
+                        className="w-full bg-[#1C1B1B] border border-white/5 focus:border-[#FFFF00] outline-none pl-3 pr-7 py-2 text-xs text-white rounded text-center placeholder:text-white/20" />
+                    </div>
+                  </div>
                 </div>
+
+                {/* Down Payment */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="material-symbols-outlined text-white/30 text-sm">payments</span>
+                      <span className="text-[10px] font-bold uppercase text-white/40 tracking-wider">Down Payment</span>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input type="checkbox" className="sr-only peer" checked={downPaymentEnabled} onChange={e => setDownPaymentEnabled(e.target.checked)} />
+                      <div className="w-8 h-4 bg-[#1C1B1B] border border-white/10 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-[#FFFF00]" />
+                    </label>
+                  </div>
+                  {downPaymentEnabled && (
+                    <input type="number" value={downPaymentAmount || ''} onChange={e => setDownPaymentAmount(parseInt(e.target.value) || 0)}
+                      placeholder="Jumlah DP"
+                      className="w-full bg-[#1C1B1B] border border-white/5 focus:border-[#FFFF00] outline-none px-3 py-2.5 text-sm text-[#FFFF00] font-bold rounded placeholder:text-white/20" />
+                  )}
+                </div>
+
+                {/* Special price override */}
+                <div className="flex items-center gap-3">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" checked={useManualTotal} onChange={e => setUseManualTotal(e.target.checked)} className="size-3 accent-[#FFFF00]" />
+                    <span className="text-[10px] font-bold uppercase text-[#FFFF00]/60 tracking-wider">Special Price</span>
+                  </label>
+                  {useManualTotal && (
+                    <input type="number" value={manualTotal || ''} onChange={e => setManualTotal(parseInt(e.target.value) || 0)}
+                      className="flex-1 bg-[#1C1B1B] border border-white/5 focus:border-[#FFFF00] outline-none px-3 py-1.5 text-right text-sm text-[#FFFF00] font-bold rounded" />
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Totals */}
+            <div className={`pt-4 space-y-1 ${formData.type === 'income' ? 'border-t border-white/5 mt-4' : 'mt-auto'}`}>
+              {formData.type === 'income' && (
+                <>
+                  <div className="flex justify-between items-center text-white/40">
+                    <span className="text-[10px] font-bold uppercase">Subtotal</span>
+                    <span className="font-headline font-semibold text-xs">{formatRupiah(subtotal)}</span>
+                  </div>
+                  {discountAmount > 0 && (
+                    <div className="flex justify-between items-center text-[#ffb4ab]">
+                      <span className="text-[10px] font-bold uppercase">Diskon</span>
+                      <span className="font-headline font-semibold text-xs">- {formatRupiah(discountAmount)}</span>
+                    </div>
+                  )}
+                </>
               )}
-            </div>
-
-            {/* Payment details */}
-            <div className="space-y-6 pt-6 border-t border-[#eaea00]/20">
-              {/* Down Payment */}
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold uppercase text-white/40 tracking-widest">Down Payment</span>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input type="checkbox" className="sr-only peer"
-                    checked={downPaymentEnabled}
-                    onChange={e => setDownPaymentEnabled(e.target.checked)} />
-                  <div className="w-10 h-5 bg-[#353534] rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#eaea00]" />
-                </label>
-              </div>
-              {downPaymentEnabled && (
-                <input type="number" value={downPaymentAmount || ''} onChange={e => setDownPaymentAmount(parseInt(e.target.value) || 0)}
-                  placeholder="Jumlah DP"
-                  className="w-full bg-[#131313] border-none focus:ring-0 p-3 text-[#eaea00] font-bold text-right placeholder:text-white/20 border-l-2 border-[#eaea00]/40"
-                />
-              )}
-
-              {/* Payment Method */}
-              <div className="space-y-2">
-                <label className="block text-[10px] font-bold uppercase text-white/40">Payment Method</label>
-                <select
-                  value={formData.paymentMethod}
-                  onChange={e => setFormData({ ...formData, paymentMethod: e.target.value })}
-                  className="w-full bg-[#131313] border-none p-4 text-white focus:ring-1 focus:ring-[#eaea00] transition-all text-xs font-bold uppercase"
-                >
-                  <option value="transfer">Transfer Bank (BCA)</option>
-                  <option value="cash">Cash / Tunai</option>
-                  <option value="qris">QRIS</option>
-                </select>
-              </div>
-
-              {/* Special Price */}
-              <div className="flex items-center gap-3">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" checked={useManualTotal} onChange={e => setUseManualTotal(e.target.checked)}
-                    className="size-3 accent-[#eaea00]" />
-                  <span className="text-[10px] font-bold uppercase text-[#eaea00]/70 tracking-widest">Special Price</span>
-                </label>
-                {useManualTotal && (
-                  <input type="number" value={manualTotal || ''} onChange={e => setManualTotal(parseInt(e.target.value) || 0)}
-                    className="flex-1 bg-[#131313] border-none focus:ring-0 p-2 text-right text-[#eaea00] font-bold text-sm" />
-                )}
-              </div>
-
-              {/* Totals */}
-              <div className="space-y-1">
-                <div className="flex justify-between items-center text-white/40">
-                  <span className="text-[10px] font-bold uppercase">Subtotal</span>
-                  <span className="font-headline font-medium text-xs">{formatRupiah(subtotal)}</span>
-                </div>
-                <div className="flex justify-between items-end pt-2">
-                  <span className="text-xs font-black uppercase text-[#eaea00] leading-none">Total Amount</span>
-                  <span className="font-headline font-black text-3xl text-[#eaea00] leading-none">{formatRupiah(grandTotal)}</span>
-                </div>
+              <div className="flex justify-between items-end pt-3">
+                <span className={`text-xs font-black uppercase leading-none ${formData.type === 'income' ? 'text-[#FFFF00]' : 'text-[#ffb4ab]'}`}>
+                  {formData.type === 'income' ? 'Grand Total' : 'Total Pengeluaran'}
+                </span>
+                <p className={`font-headline font-black text-3xl leading-none tracking-tighter ${formData.type === 'income' ? 'text-[#FFFF00]' : 'text-[#ffb4ab]'}`}>
+                  {formData.type === 'income'
+                    ? formatRupiah(grandTotal)
+                    : formatRupiah(parseInt(formData.amount) || 0)
+                  }
+                </p>
               </div>
             </div>
           </div>
 
           {/* Actions */}
           <div className="p-8 pt-0 space-y-3">
-            <button type="submit" onClick={handleSubmit as any} disabled={loading}
-              className="w-full py-5 bg-[#eaea00] text-[#131313] font-headline font-black text-base tracking-widest uppercase hover:bg-white active:scale-95 transition-all disabled:opacity-50">
-              {loading ? 'MENYIMPAN...' : 'SIMPAN TRANSAKSI'}
+            <button type="button" onClick={handleSubmit as any} disabled={loading}
+              className={`w-full py-5 font-headline font-black text-lg tracking-widest uppercase transition-all active:scale-[0.98] disabled:opacity-50 ${formData.type === 'income'
+                ? 'bg-[#FFFF00] text-[#131313] hover:bg-white'
+                : 'bg-[#ffb4ab] text-[#690005] hover:bg-white'
+                }`}>
+              {loading ? 'MENYIMPAN...' : editData ? 'UPDATE TRANSAKSI' : 'SIMPAN TRANSAKSI'}
             </button>
             <button type="button" onClick={onClose}
-              className="w-full py-3 border border-[#484831] text-white/40 font-headline font-bold text-xs tracking-widest uppercase hover:bg-[#353534] transition-all">
+              className="w-full py-3 border border-white/5 text-white/40 hover:text-white hover:bg-[#1C1B1B] font-headline font-bold text-[10px] tracking-widest uppercase transition-all">
               BATAL
             </button>
           </div>
@@ -721,15 +819,9 @@ export default function AddTransactionModal({ isOpen, onClose, editData }: AddTr
 
 function SectionLabel({ icon, text }: { icon: string; text: string }) {
   return (
-    <div className="flex items-center gap-2 pb-1 border-b border-white/5">
-      <span className="material-symbols-outlined text-[#eaea00] text-[14px]">{icon}</span>
+    <div className="flex items-center gap-2 pb-2 border-b border-white/5">
+      <span className="material-symbols-outlined text-[#FFFF00] text-[16px]">{icon}</span>
       <span className="text-[10px] font-headline font-black text-white/60 uppercase tracking-widest">{text}</span>
     </div>
-  );
-}
-
-function FieldLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <p className="text-[9px] font-headline font-black text-white/30 uppercase tracking-widest mb-1">{children}</p>
   );
 }
