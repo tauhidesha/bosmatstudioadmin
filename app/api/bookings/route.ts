@@ -236,7 +236,7 @@ export async function POST(req: NextRequest) {
 function getServiceCategory(serviceName: string): string {
   const lower = serviceName.toLowerCase();
   if (lower.includes('repaint') || lower.includes('cat')) return 'repaint';
-  if (lower.includes('coating')) return 'coating';
+  if (lower.includes('coating') || lower.includes('glossy') || lower.includes('doff') || lower.includes('complete service') || lower.includes('nano ceramic')) return 'coating';
   if (lower.includes('detailing')) return 'detailing';
   return 'service';
 }

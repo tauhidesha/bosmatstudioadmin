@@ -52,8 +52,18 @@ export async function POST(
       console.log(`[Payment] Receipt sent for booking ${bookingId}`);
 
       const servicesString = booking.serviceType?.toLowerCase() || '';
-      const includesRepaint = servicesString.includes('repaint');
-      const includesCoating = servicesString.includes('coating');
+      const categoryString = booking.category?.toLowerCase() || '';
+
+      // Check repaint: keyword in serviceType OR category
+      const includesRepaint = servicesString.includes('repaint') 
+                           || categoryString === 'repaint';
+
+      // Check coating: keyword in serviceType, category, or known service names
+      const includesCoating = servicesString.includes('coating')
+                           || servicesString.includes('glossy')
+                           || servicesString.includes('complete service')
+                           || servicesString.includes('nano ceramic')
+                           || categoryString === 'coating';
 
       if (includesRepaint) {
         await fetch(`${backendUrl}/generate-invoice`, {
