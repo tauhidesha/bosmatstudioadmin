@@ -37,6 +37,7 @@ export default function BookingsPage() {
   const [paymentModal, setPaymentModal] = useState<Booking | null>(null);
   const [nominalDP, setNominalDP] = useState<number>(0);
   const [metodePembayaran, setMetodePembayaran] = useState('Transfer BCA');
+  const [sendInvoice, setSendInvoice] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
   
   const { setHeaderTitle, setHeaderExtra } = useLayout();
@@ -87,71 +88,24 @@ export default function BookingsPage() {
     if (!paymentModal) return;
     setIsProcessing(true);
     try {
-      await updateBookingStatus(paymentModal.id, 'paid');
-
-      // Build items string
-      const servicesList = Array.isArray(paymentModal.services)
-        ? paymentModal.services
-        : String(paymentModal.services || '').split(/§|\n/).map(s => s.trim()).filter(Boolean);
-
-      const pricePerService = servicesList.length > 0
-        ? Math.round((Number(paymentModal.subtotal) || 0) / servicesList.length)
-        : 0;
-
-      const itemsString = servicesList
-        .map(s => `${s.trim()}||${pricePerService}||`)
-        .join('\n');
-
-      // 1. Generate invoice / bukti bayar
-      await fetch('/api/bookings/invoice', {
+      const res = await fetch(`/api/bookings/${paymentModal.id}/pay`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          documentType: nominalDP >= (Number(paymentModal.subtotal) || 0) ? 'bukti_bayar' : 'invoice',
-          customerName: paymentModal.customerName,
-          customerPhone: paymentModal.customerPhone,
-          motorDetails: paymentModal.vehicleInfo || '-',
-          items: itemsString,
-          totalAmount: Number(paymentModal.subtotal) || 0,
-          amountPaid: nominalDP,
           paymentMethod: metodePembayaran,
-          bookingDate: paymentModal.bookingDate,
-          notes: paymentModal.notes || '-',
+          amountPaid: nominalDP || undefined,
+          sendInvoice,
         }),
       });
 
-      // 2. Auto-generate garansi jika layanan coating atau repaint
-      const servicesStr = servicesList.join(' ').toLowerCase();
-
-      const isCoating = servicesStr.includes('coating')
-        || servicesStr.includes('glossy')
-        || servicesStr.includes('nano')
-        || servicesStr.includes('ceramic')
-        || servicesStr.includes('complete service');
-
-      const isRepaint = servicesStr.includes('repaint')
-        || servicesStr.includes('cat ulang');
-
-      if (isCoating || isRepaint) {
-        await fetch('/api/bookings/invoice', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            documentType: isCoating ? 'garansi_coating' : 'garansi_repaint',
-            customerName: paymentModal.customerName,
-            customerPhone: paymentModal.customerPhone,
-            motorDetails: paymentModal.vehicleInfo || '-',
-            serviceType: servicesList.join(' § '),
-            bookingDate: paymentModal.bookingDate,
-            notes: '-',
-          }),
-        });
-      }
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error || 'Gagal memproses pembayaran');
 
       setPaymentModal(null);
       setNominalDP(0);
-    } catch (err) {
-      alert('Gagal generate invoice');
+      setSendInvoice(true);
+    } catch (err: any) {
+      alert(err.message || 'Gagal memproses pembayaran');
     } finally {
       setIsProcessing(false);
     }
@@ -451,6 +405,20 @@ export default function BookingsPage() {
             </select>
           </div>
 
+          {/* Kirim Invoice Checkbox */}
+          <label className="flex items-center gap-3 cursor-pointer bg-[#1c1b1b] p-3 rounded-sm">
+            <input
+              type="checkbox"
+              checked={sendInvoice}
+              onChange={e => setSendInvoice(e.target.checked)}
+              className="size-4 accent-[#FFFF00]"
+            />
+            <div>
+              <span className="text-[11px] font-headline font-bold text-white uppercase tracking-wider">Kirim Invoice & Garansi</span>
+              <p className="text-[9px] text-white/30 mt-0.5">Kirim PDF invoice + garansi via WhatsApp ke customer</p>
+            </div>
+          </label>
+
           {/* Actions */}
           <div className="flex gap-3 mt-4">
             <button
@@ -469,7 +437,7 @@ export default function BookingsPage() {
               ) : (
                 <span className="material-symbols-outlined text-[18px]">receipt_long</span>
               )} 
-              {isProcessing ? 'Memproses...' : 'Generate Invoice & Kirim'}
+              {isProcessing ? 'Memproses...' : sendInvoice ? 'Bayar & Kirim Invoice' : 'Simpan Pembayaran'}
             </button>
           </div>
         </div>

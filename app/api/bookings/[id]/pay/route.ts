@@ -10,7 +10,7 @@ export async function POST(
   try {
     const { id: bookingId } = params;
     const body = await req.json();
-    const { paymentMethod = 'Transfer BCA', amountPaid } = body;
+    const { paymentMethod = 'Transfer BCA', amountPaid, sendInvoice = true } = body;
 
     // Check if booking exists
     const booking = await prisma.booking.findUnique({
@@ -30,9 +30,10 @@ export async function POST(
     const remainingBalance = Math.max(0, subtotal - dp);
     const finalAmount = amountPaid || remainingBalance;
 
-    // 1. Send receipt via Express Backend
-    const backendUrl = process.env.BACKEND_API_URL || 'https://unblissful-unverdantly-stan.ngrok-free.dev';
-    try {
+    // 1. Send receipt & warranty via Express Backend (if sendInvoice is true)
+    if (sendInvoice) {
+      const backendUrl = process.env.BACKEND_API_URL || 'https://unblissful-unverdantly-stan.ngrok-free.dev';
+      try {
       await fetch(`${backendUrl}/generate-invoice`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -119,9 +120,10 @@ export async function POST(
           }
         });
       }
-    } catch (e) {
-      console.warn(`[Payment] Failed to send document for booking ${bookingId}:`, e);
-    }
+      } catch (e) {
+        console.warn(`[Payment] Failed to send document for booking ${bookingId}:`, e);
+      }
+    } // end if (sendInvoice)
 
     // 2. Update Booking Status to PAID
     const updatedBooking = await prisma.booking.update({
