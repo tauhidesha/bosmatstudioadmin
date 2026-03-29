@@ -89,16 +89,11 @@ export default function BookingsPage() {
     try {
       await updateBookingStatus(paymentModal.id, 'paid');
 
-      // Build items string dengan harga
+      // Build items string
       const servicesList = Array.isArray(paymentModal.services)
         ? paymentModal.services
         : String(paymentModal.services || '').split(/§|\n/).map(s => s.trim()).filter(Boolean);
 
-      // If split by newline results in only 1 item but it contains commas, 
-      // it might be legacy comma-separated data. 
-      // HOWEVER, we must be careful not to split "Repaint Cover CVT, Arm".
-      // Let's improve the delimiter to be more specific or just trust the new newline format.
-      
       const pricePerService = servicesList.length > 0
         ? Math.round((Number(paymentModal.subtotal) || 0) / servicesList.length)
         : 0;
@@ -107,6 +102,7 @@ export default function BookingsPage() {
         .map(s => `${s.trim()}||${pricePerService}||`)
         .join('\n');
 
+      // 1. Generate invoice / bukti bayar
       await fetch('/api/bookings/invoice', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -123,6 +119,34 @@ export default function BookingsPage() {
           notes: paymentModal.notes || '-',
         }),
       });
+
+      // 2. Auto-generate garansi jika layanan coating atau repaint
+      const servicesStr = servicesList.join(' ').toLowerCase();
+
+      const isCoating = servicesStr.includes('coating')
+        || servicesStr.includes('glossy')
+        || servicesStr.includes('nano')
+        || servicesStr.includes('ceramic')
+        || servicesStr.includes('complete service');
+
+      const isRepaint = servicesStr.includes('repaint')
+        || servicesStr.includes('cat ulang');
+
+      if (isCoating || isRepaint) {
+        await fetch('/api/bookings/invoice', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            documentType: isCoating ? 'garansi_coating' : 'garansi_repaint',
+            customerName: paymentModal.customerName,
+            customerPhone: paymentModal.customerPhone,
+            motorDetails: paymentModal.vehicleInfo || '-',
+            serviceType: servicesList.join(' § '),
+            bookingDate: paymentModal.bookingDate,
+            notes: '-',
+          }),
+        });
+      }
 
       setPaymentModal(null);
       setNominalDP(0);

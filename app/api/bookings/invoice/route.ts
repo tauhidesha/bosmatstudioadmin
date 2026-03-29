@@ -27,16 +27,7 @@ export async function POST(req: NextRequest) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        documentType,
-        customerName,
-        customerPhone,
-        motorDetails,
-        items,
-        totalAmount,
-        amountPaid,
-        paymentMethod,
-        notes,
-        bookingDate,
+        ...body,
       }),
     });
 
