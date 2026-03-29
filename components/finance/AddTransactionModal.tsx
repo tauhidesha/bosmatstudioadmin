@@ -306,432 +306,423 @@ export default function AddTransactionModal({ isOpen, onClose, editData }: AddTr
   ];
 
   return (
-    <BaseModal
-      isOpen={isOpen}
-      onClose={onClose}
-      size="4xl"
-      showHeader={false}
-    >
-      {/* Custom full-width layout inside modal */}
-      <div className="flex flex-row gap-0 h-[85vh]">
+    <BaseModal isOpen={isOpen} onClose={onClose} size="4xl" showHeader={false}>
+      <div className="flex h-[85vh]">
 
-        {/* ── LEFT PANEL ─────────────────────────────── */}
-        <form onSubmit={handleSubmit} className="flex-1 flex flex-col bg-[#131313] p-6 gap-5 overflow-y-auto min-w-0">
+        {/* LEFT COLUMN */}
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto bg-[#131313] p-8 space-y-6 min-w-0">
 
-          {/* Modal Title + Type Toggle */}
-          <div className="flex items-center justify-between">
-            <h2 className="font-headline font-black text-white uppercase tracking-widest text-sm italic">
-              {editData ? 'EDIT TRANSAKSI' : 'NEW TRANSACTION'}
-            </h2>
-            <div className="flex gap-px bg-[#0e0e0e] p-px">
-              {(['income', 'expense'] as const).map(t => (
-                <button
-                  key={t}
-                  type="button"
-                  onClick={() => setFormData({ ...formData, type: t })}
-                  className={`px-4 py-1.5 text-[10px] font-headline font-black uppercase tracking-widest transition-all ${formData.type === t ? 'bg-[#FFFF00] text-[#131313]' : 'text-white/30 hover:text-white'
-                    }`}
-                >
-                  {t === 'income' ? 'PEMASUKAN' : 'PENGELUARAN'}
-                </button>
-              ))}
-            </div>
+          {/* Title */}
+          <div className="flex items-end gap-4">
+            <h1 className="font-headline text-4xl font-black tracking-tighter uppercase leading-none text-white">
+              {editData ? 'Edit Transaksi' : 'New Transaction'}
+            </h1>
+            <div className="h-px flex-1 bg-[#eaea00]/20 mb-1" />
           </div>
 
-          {/* ── CUSTOMER INFO ── */}
-          <div>
-            <SectionLabel icon="person" text="CUSTOMER INFO" />
-            <div className="grid grid-cols-1 gap-3 mt-3">
-              {/* Customer Search */}
-              <div className="relative">
-                <FieldLabel>Full Name</FieldLabel>
-                <input
-                  type="text"
-                  placeholder="Cari nama atau nomor HP..."
-                  value={searchQuery}
-                  onChange={e => { setSearchQuery(e.target.value); setShowCustomerDropdown(true); }}
-                  onFocus={() => setShowCustomerDropdown(true)}
-                  className="w-full h-10 px-3 bg-[#1c1b1b] border border-white/8 text-white text-[12px] font-bold focus:border-[#FFFF00]/40 outline-none transition-all placeholder:text-white/20"
-                />
-                {showCustomerDropdown && searchQuery && (
-                  <div className="absolute z-30 w-full mt-0.5 bg-[#1c1b1b] border border-white/10 max-h-40 overflow-y-auto shadow-2xl">
-                    {filteredCustomers.length > 0 ? filteredCustomers.map(c => (
-                      <button key={c.id} type="button"
-                        onClick={() => {
-                          setFormData({ ...formData, customerId: c.id, customerName: c.name });
-                          setSearchQuery(c.name);
-                          setShowCustomerDropdown(false);
-                        }}
-                        className="w-full px-3 py-2 text-left hover:bg-[#353534] text-sm text-white border-b border-white/5 last:border-0"
-                      >
-                        <span className="font-bold text-[12px]">{c.name}</span>
-                        <span className="text-white/40 text-[10px] ml-2">{c.phone}</span>
-                      </button>
-                    )) : (
-                      <div className="px-3 py-2 text-[11px] text-white/30">Tidak ditemukan</div>
-                    )}
-                  </div>
-                )}
-              </div>
+          {/* Type toggle */}
+          <div className="flex gap-px bg-[#0e0e0e] p-px w-fit">
+            {(['income', 'expense'] as const).map(t => (
+              <button key={t} type="button"
+                onClick={() => setFormData({ ...formData, type: t })}
+                className={`px-6 py-2 text-[11px] font-headline font-black uppercase tracking-widest transition-all ${
+                  formData.type === t ? 'bg-[#FFFF00] text-[#131313]' : 'text-white/30 hover:text-white'
+                }`}>
+                {t === 'income' ? 'Pemasukan' : 'Pengeluaran'}
+              </button>
+            ))}
+          </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                {/* Motor / Plate */}
+          <div className="grid grid-cols-2 gap-6">
+            {/* Customer Info */}
+            <div className="space-y-6">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-[#eaea00] text-[20px]">person</span>
+                <h3 className="font-headline text-base font-bold tracking-tight uppercase text-white">Customer Info</h3>
+              </div>
+              <div className="space-y-4">
                 <div className="relative">
-                  <FieldLabel>Model Motor</FieldLabel>
+                  <label className="block text-[10px] font-bold uppercase text-white/40 mb-1 ml-1">Full Name</label>
                   <input
-                    value={motorSearch}
-                    onChange={e => { setMotorSearch(e.target.value); setShowMotorDropdown(true); }}
-                    onFocus={() => setShowMotorDropdown(true)}
-                    className="w-full h-10 px-3 bg-[#1c1b1b] border border-white/8 text-white text-[12px] font-bold focus:border-[#FFFF00]/40 outline-none placeholder:text-white/20"
-                    placeholder="NMax, Vario..."
+                    type="text"
+                    placeholder="Cari nama atau nomor HP..."
+                    value={searchQuery}
+                    onChange={e => { setSearchQuery(e.target.value); setShowCustomerDropdown(true); }}
+                    onFocus={() => setShowCustomerDropdown(true)}
+                    onBlur={() => setTimeout(() => setShowCustomerDropdown(false), 150)}
+                    className="w-full bg-[#0e0e0e] border-none focus:ring-0 p-4 text-white border-l-2 border-transparent focus:border-[#eaea00] transition-all placeholder:text-[#353534]"
                   />
-                  {showMotorDropdown && filteredMotors.length > 0 && (
-                    <div className="absolute z-30 w-full mt-0.5 bg-[#1c1b1b] border border-white/10 max-h-40 overflow-y-auto shadow-2xl">
-                      {filteredMotors.map(m => (
-                        <button key={m.model} type="button" onClick={() => handleSelectMotor(m)}
-                          className="w-full px-3 py-2 text-left text-[11px] font-bold text-white hover:bg-[#353534] border-b border-white/5 last:border-0">
-                          {m.model}
+                  {showCustomerDropdown && searchQuery && (
+                    <div className="absolute z-50 w-full bg-[#1c1b1b] border border-white/10 max-h-48 overflow-y-auto shadow-2xl">
+                      {filteredCustomers.length > 0 ? filteredCustomers.map(c => (
+                        <button key={c.id} type="button"
+                          onClick={() => { setFormData({ ...formData, customerId: c.id, customerName: c.name }); setSearchQuery(c.name); setShowCustomerDropdown(false); }}
+                          className="w-full px-4 py-2.5 text-left hover:bg-[#353534] border-b border-white/5 last:border-0">
+                          <span className="font-bold text-[12px] text-white">{c.name}</span>
+                          <span className="text-white/40 text-[10px] ml-2">{c.phone}</span>
                         </button>
-                      ))}
+                      )) : <div className="px-4 py-2 text-[11px] text-white/30">Tidak ditemukan</div>}
                     </div>
                   )}
                 </div>
 
                 <div>
-                  <FieldLabel>Plate Number</FieldLabel>
+                  <label className="block text-[10px] font-bold uppercase text-white/40 mb-1 ml-1">Model Motor</label>
+                  <div className="relative">
+                    <input
+                      value={motorSearch}
+                      onChange={e => { setMotorSearch(e.target.value); setShowMotorDropdown(true); }}
+                      onFocus={() => setShowMotorDropdown(true)}
+                      onBlur={() => setTimeout(() => setShowMotorDropdown(false), 150)}
+                      placeholder="NMax, Vario, PCX..."
+                      className="w-full bg-[#0e0e0e] border-none focus:ring-0 p-4 text-white border-l-2 border-transparent focus:border-[#eaea00] transition-all placeholder:text-[#353534]"
+                    />
+                    {showMotorDropdown && filteredMotors.length > 0 && (
+                      <div className="absolute z-50 w-full bg-[#1c1b1b] border border-white/10 max-h-48 overflow-y-auto shadow-2xl">
+                        {filteredMotors.map(m => (
+                          <button key={m.model} type="button" onClick={() => handleSelectMotor(m)}
+                            className="w-full px-4 py-2.5 text-left text-[12px] font-bold text-white hover:bg-[#353534] border-b border-white/5 last:border-0">
+                            {m.model}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold uppercase text-white/40 mb-1 ml-1">Plate Number</label>
                   <input
-                    placeholder="B 1234 AB"
+                    placeholder="B 1234 XYZ"
                     value={formData.plateNumber}
                     onChange={e => setFormData({ ...formData, plateNumber: e.target.value })}
-                    className="w-full h-10 px-3 bg-[#1c1b1b] border border-white/8 text-white text-[12px] font-bold focus:border-[#FFFF00]/40 outline-none placeholder:text-white/20"
+                    className="w-full bg-[#0e0e0e] border-none focus:ring-0 p-4 text-white font-headline font-bold border-l-2 border-transparent focus:border-[#eaea00] transition-all placeholder:text-[#353534]"
                   />
                 </div>
-              </div>
 
-              {/* Registered Vehicles */}
-              {selectedCustomer && selectedCustomer.vehicles.length > 0 && (
-                <div className="flex flex-wrap gap-1.5">
-                  {selectedCustomer.vehicles.map(v => (
-                    <button key={v.id} type="button"
-                      onClick={() => {
-                        setFormData({ ...formData, vehicleId: v.id, plateNumber: v.plateNumber || '' });
-                        setMotorSearch(v.modelName);
-                        const motorMatch = MOTOR_DATABASE.find(m =>
-                          m.model.toLowerCase().includes(v.modelName.toLowerCase()) ||
-                          v.modelName.toLowerCase().includes(m.model.toLowerCase())
-                        );
-                        if (motorMatch) handleSelectMotor(motorMatch);
-                        else setSelectedMotor(null);
-                      }}
-                      className={`px-2.5 py-1 text-[9px] font-headline font-black uppercase tracking-wider border transition-all ${formData.vehicleId === v.id
-                          ? 'bg-[#FFFF00]/10 border-[#FFFF00]/40 text-[#FFFF00]'
-                          : 'bg-[#1c1b1b] border-white/8 text-white/30 hover:text-white hover:border-white/20'
-                        }`}
-                    >
-                      {v.modelName}{v.plateNumber ? ` · ${v.plateNumber}` : ''}
-                    </button>
-                  ))}
-                </div>
-              )}
+                {/* Registered vehicles */}
+                {selectedCustomer && selectedCustomer.vehicles.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    {selectedCustomer.vehicles.map(v => (
+                      <button key={v.id} type="button"
+                        onClick={() => {
+                          setFormData({ ...formData, vehicleId: v.id, plateNumber: v.plateNumber || '' });
+                          setMotorSearch(v.modelName);
+                          const match = MOTOR_DATABASE.find(m => m.model.toLowerCase().includes(v.modelName.toLowerCase()) || v.modelName.toLowerCase().includes(m.model.toLowerCase()));
+                          if (match) handleSelectMotor(match); else setSelectedMotor(null);
+                        }}
+                        className={`px-3 py-1 text-[9px] font-headline font-black uppercase tracking-wider border-l-2 transition-all bg-[#0e0e0e] ${
+                          formData.vehicleId === v.id ? 'border-[#eaea00] text-[#eaea00]' : 'border-transparent text-white/30 hover:text-white hover:border-white/20'
+                        }`}>
+                        {v.modelName}{v.plateNumber ? ` · ${v.plateNumber}` : ''}
+                      </button>
+                    ))}
+                  </div>
+                )}
 
-              {/* Active Bookings */}
-              {selectedCustomer && bookings.length > 0 && (
-                <div>
-                  <FieldLabel>Booking Aktif</FieldLabel>
-                  <div className="flex flex-col gap-1.5 mt-1">
+                {/* Active bookings */}
+                {selectedCustomer && bookings.length > 0 && (
+                  <div className="space-y-1.5">
+                    <label className="block text-[10px] font-bold uppercase text-white/40 ml-1">Booking Aktif</label>
                     {bookings.map(b => {
                       const remaining = (b.subtotal || 0) - (b.amountPaid || 0);
                       return (
                         <button key={b.id} type="button"
-                          onClick={() => {
-                            setFormData({ ...formData, bookingId: b.id, serviceType: b.serviceType, plateNumber: b.plateNumber || '', description: `Pembayaran Sisa Booking untuk ${b.serviceType}`, category: 'Repaint' });
-                            setUseManualTotal(true);
-                            setManualTotal(remaining);
-                          }}
-                          className={`flex justify-between items-center px-3 py-2 text-left border transition-all ${formData.bookingId === b.id
-                              ? 'bg-[#FFFF00]/8 border-[#FFFF00]/30'
-                              : 'bg-[#1c1b1b] border-white/8 hover:border-white/15'
-                            }`}
-                        >
+                          onClick={() => { setFormData({ ...formData, bookingId: b.id, serviceType: b.serviceType, plateNumber: b.plateNumber || '', description: `Pembayaran Sisa Booking untuk ${b.serviceType}`, category: 'Repaint' }); setUseManualTotal(true); setManualTotal(remaining); }}
+                          className={`w-full flex justify-between items-center p-3 text-left border-l-2 transition-all bg-[#0e0e0e] ${
+                            formData.bookingId === b.id ? 'border-[#eaea00]' : 'border-transparent hover:border-white/20'
+                          }`}>
                           <div>
                             <p className="text-[11px] font-bold text-white">{b.serviceType}</p>
                             <p className="text-[9px] text-white/30">{b.plateNumber || 'Tanpa Plat'} · {b.bookingDate}</p>
                           </div>
-                          <span className="text-[10px] font-bold text-[#FFFF00]">Sisa: {formatRupiah(remaining)}</span>
+                          <span className="text-[10px] font-bold text-[#eaea00]">Sisa: {formatRupiah(remaining)}</span>
                         </button>
                       );
                     })}
                   </div>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* ── SERVICE SELECTION ── */}
-          {formData.type === 'income' && (
-            <div>
-              <SectionLabel icon="build" text="SERVICE SELECTION" />
-              <div className="flex flex-wrap gap-1.5 mt-3">
-                {SERVICES.map(svc => (
-                  <button key={svc.name} type="button" onClick={() => toggleService(svc)}
-                    className={`px-3 py-1.5 text-[10px] font-headline font-black uppercase tracking-wider border transition-all ${cart.find(i => i.service.name === svc.name)
-                        ? 'bg-[#FFFF00] border-[#FFFF00] text-[#131313]'
-                        : 'bg-[#1c1b1b] border-white/10 text-white/40 hover:border-white/25 hover:text-white'
-                      }`}
-                  >
-                    {svc.name}
-                  </button>
-                ))}
+                )}
               </div>
             </div>
-          )}
 
-          {/* ── CUSTOM SERVICE ── */}
-          <div>
-            <SectionLabel icon="edit_note" text="CUSTOM SERVICE" />
-            <div className="flex gap-2 mt-3">
-              <input
-                value={customServiceDesc}
-                onChange={e => setCustomServiceDesc(e.target.value)}
-                placeholder="Service Description"
-                className="flex-1 h-10 px-3 bg-[#1c1b1b] border border-white/8 text-white text-[12px] font-bold focus:border-[#FFFF00]/40 outline-none placeholder:text-white/20"
-              />
-              <input
-                value={customServicePrice}
-                onChange={e => setCustomServicePrice(e.target.value)}
-                type="number"
-                placeholder="Price"
-                className="w-28 h-10 px-3 bg-[#1c1b1b] border border-white/8 text-white text-[12px] font-bold focus:border-[#FFFF00]/40 outline-none placeholder:text-white/20"
-              />
-              <button type="button" onClick={addCustomService}
-                className="h-10 px-3 bg-[#1c1b1b] border border-white/10 text-white/40 hover:text-white hover:border-white/25 text-[11px] font-headline font-black transition-all">
-                + ADD
-              </button>
+            {/* Service Selection */}
+            <div className="space-y-6">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-[#eaea00] text-[20px]">auto_fix_high</span>
+                <h3 className="font-headline text-base font-bold tracking-tight uppercase text-white">Service Selection</h3>
+              </div>
+              <div className="space-y-px">
+                {SERVICES.map(svc => {
+                  const inCart = !!cart.find(i => i.service.name === svc.name);
+                  const price = getServicePrice(svc, selectedMotor);
+                  return (
+                    <button key={svc.name} type="button" onClick={() => toggleService(svc)}
+                      className={`w-full flex justify-between items-center px-4 py-3 border-l-2 transition-colors ${
+                        inCart
+                          ? 'bg-[#2a2a2a] border-[#eaea00]'
+                          : 'bg-[#1c1b1b] border-transparent hover:bg-[#2a2a2a] hover:border-[#eaea00]/50'
+                      }`}>
+                      <div className="text-left">
+                        <p className="font-bold text-sm uppercase text-white">{svc.name}</p>
+                      </div>
+                      <span className={`font-headline font-black text-sm ${inCart ? 'text-[#eaea00]' : 'text-white/60'}`}>
+                        {selectedMotor ? formatRupiah(price) : '—'}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
 
-          {/* ── DISCOUNTS ── */}
-          <div>
-            <SectionLabel icon="sell" text="DISCOUNTS" />
-            <div className="flex gap-2 mt-3 items-center">
-              <select
-                value={discountType}
-                onChange={e => setDiscountType(e.target.value as any)}
-                className="h-10 px-3 bg-[#1c1b1b] border border-white/8 text-white text-[11px] font-bold outline-none focus:border-[#FFFF00]/40"
-              >
-                <option value="percentage">%</option>
-                <option value="nominal">Rp Fixed</option>
-              </select>
-              <input
-                type="number"
-                value={discountValue || ''}
-                onChange={e => setDiscountValue(parseInt(e.target.value) || 0)}
-                placeholder="Rate"
-                className="w-24 h-10 px-3 bg-[#1c1b1b] border border-white/8 text-white text-[12px] font-bold focus:border-[#FFFF00]/40 outline-none placeholder:text-white/20"
-              />
-              {discountAmount > 0 && (
-                <span className="text-[#ffb4ab] text-[11px] font-bold">- {formatRupiah(discountAmount)}</span>
-              )}
+          {/* Custom Service + Discounts */}
+          <div className="grid grid-cols-12 gap-8">
+            <div className="col-span-7 space-y-4">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-[#eaea00] text-[20px]">edit_note</span>
+                <h3 className="font-headline text-base font-bold tracking-tight uppercase text-white">Custom Service</h3>
+              </div>
+              <div className="flex gap-2">
+                <input
+                  value={customServiceDesc}
+                  onChange={e => setCustomServiceDesc(e.target.value)}
+                  placeholder="Service Description"
+                  className="flex-1 bg-[#0e0e0e] border-none focus:ring-0 p-4 text-white border-l-2 border-transparent focus:border-[#eaea00] transition-all placeholder:text-[#353534]"
+                />
+                <input
+                  value={customServicePrice}
+                  onChange={e => setCustomServicePrice(e.target.value)}
+                  type="number"
+                  placeholder="Price"
+                  className="w-32 bg-[#0e0e0e] border-none focus:ring-0 p-4 text-white border-l-2 border-transparent focus:border-[#eaea00] transition-all placeholder:text-[#353534]"
+                />
+                <button type="button" onClick={addCustomService}
+                  className="bg-[#eaea00] text-[#131313] px-4 hover:opacity-90 active:scale-95 transition-all">
+                  <span className="material-symbols-outlined">add</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="col-span-5 space-y-4">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-[#eaea00] text-[20px]">sell</span>
+                <h3 className="font-headline text-base font-bold tracking-tight uppercase text-white">Discounts</h3>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="relative">
+                  <span className="absolute right-3 top-4 text-[10px] font-bold text-white/40">%</span>
+                  <input
+                    type="number"
+                    value={discountType === 'percentage' ? (discountValue || '') : ''}
+                    onChange={e => { setDiscountType('percentage'); setDiscountValue(parseInt(e.target.value) || 0); }}
+                    placeholder="Rate"
+                    className="w-full bg-[#0e0e0e] border-none focus:ring-0 p-4 text-white border-l-2 border-transparent focus:border-[#eaea00] transition-all placeholder:text-[#353534]"
+                  />
+                </div>
+                <div className="relative">
+                  <span className="absolute left-3 top-4 text-[10px] font-bold text-white/40">Rp</span>
+                  <input
+                    type="number"
+                    value={discountType === 'nominal' ? (discountValue || '') : ''}
+                    onChange={e => { setDiscountType('nominal'); setDiscountValue(parseInt(e.target.value) || 0); }}
+                    placeholder="Fixed"
+                    className="w-full bg-[#0e0e0e] border-none focus:ring-0 p-4 pl-8 text-white border-l-2 border-transparent focus:border-[#eaea00] transition-all placeholder:text-[#353534]"
+                  />
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* ── META ── */}
-          <div className="grid grid-cols-2 gap-3">
+          {/* Meta fields */}
+          <div className="grid grid-cols-2 gap-4">
             <div>
-              <FieldLabel>Kategori</FieldLabel>
+              <label className="block text-[10px] font-bold uppercase text-white/40 mb-1 ml-1">Kategori</label>
               <input
-                placeholder="Repaint, Gaji..."
+                placeholder="Repaint, Gaji, Listrik..."
                 value={formData.category}
                 onChange={e => setFormData({ ...formData, category: e.target.value })}
                 required
-                className="w-full h-10 px-3 bg-[#1c1b1b] border border-white/8 text-white text-[12px] font-bold focus:border-[#FFFF00]/40 outline-none placeholder:text-white/20"
+                className="w-full bg-[#0e0e0e] border-none focus:ring-0 p-4 text-white border-l-2 border-transparent focus:border-[#eaea00] transition-all placeholder:text-[#353534]"
               />
             </div>
             <div>
-              <FieldLabel>Keterangan</FieldLabel>
+              <label className="block text-[10px] font-bold uppercase text-white/40 mb-1 ml-1">Keterangan</label>
               <input
                 placeholder="Detail transaksi..."
                 value={formData.description}
                 onChange={e => setFormData({ ...formData, description: e.target.value })}
                 required
-                className="w-full h-10 px-3 bg-[#1c1b1b] border border-white/8 text-white text-[12px] font-bold focus:border-[#FFFF00]/40 outline-none placeholder:text-white/20"
+                className="w-full bg-[#0e0e0e] border-none focus:ring-0 p-4 text-white border-l-2 border-transparent focus:border-[#eaea00] transition-all placeholder:text-[#353534]"
               />
             </div>
           </div>
 
           {formData.type === 'expense' && (
             <div>
-              <FieldLabel>Nominal (IDR)</FieldLabel>
+              <label className="block text-[10px] font-bold uppercase text-white/40 mb-1 ml-1">Nominal (IDR)</label>
               <input
                 type="number"
                 placeholder="500000"
                 value={formData.amount}
                 onChange={e => setFormData({ ...formData, amount: e.target.value })}
                 required
-                className="w-full h-10 px-3 bg-[#1c1b1b] border border-white/8 text-white text-[12px] font-bold focus:border-[#FFFF00]/40 outline-none placeholder:text-white/20"
+                className="w-full bg-[#0e0e0e] border-none focus:ring-0 p-4 text-white border-l-2 border-transparent focus:border-[#eaea00] transition-all placeholder:text-[#353534]"
               />
             </div>
           )}
         </form>
 
-        {/* ── RIGHT PANEL — ORDER SUMMARY ─────────────── */}
-        <div className="w-[300px] shrink-0 bg-[#1a1a1a] border-l border-white/8 flex flex-col">
-          {/* Header */}
-          <div className="flex items-center justify-between px-5 py-4 border-b border-white/8">
-            <h3 className="font-headline font-black text-white uppercase tracking-widest text-[11px]">ORDER SUMMARY</h3>
-            <span className="material-symbols-outlined text-white/30 text-[18px]">receipt_long</span>
-          </div>
+        {/* RIGHT COLUMN — ORDER SUMMARY */}
+        <section className="w-[340px] shrink-0 bg-[#2a2a2a] flex flex-col shadow-[0px_24px_48px_rgba(0,0,0,0.4)]">
+          <div className="flex-1 overflow-y-auto p-8 flex flex-col">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-8">
+              <h3 className="font-headline text-xl font-black tracking-tight uppercase text-white">Order Summary</h3>
+              <span className="material-symbols-outlined text-[#eaea00]">receipt_long</span>
+            </div>
 
-          {/* Cart Items */}
-          <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
-            {cart.length === 0 ? (
-              <p className="text-[10px] text-white/20 italic text-center pt-8">Belum ada layanan dipilih</p>
-            ) : (
-              cart.map(item => {
-                const isSpot = item.service.name === 'Spot Repair';
-                const itemTotal = isSpot
-                  ? (item.spotCount || 1) * (item.spotPrice || 100000)
-                  : (item.manualPrice ?? item.autoPrice);
-                return (
-                  <div key={item.service.name} className="group">
-                    <div className="flex justify-between items-start">
+            {/* Cart items */}
+            <div className="flex-1 space-y-4 mb-8 overflow-y-auto pr-1">
+              {cart.length === 0 ? (
+                <p className="text-[11px] text-white/20 italic text-center pt-12">Belum ada layanan dipilih</p>
+              ) : (
+                cart.map(item => {
+                  const isSpot = item.service.name === 'Spot Repair';
+                  const itemTotal = isSpot
+                    ? (item.spotCount || 1) * (item.spotPrice || 100000)
+                    : (item.manualPrice ?? item.autoPrice);
+                  return (
+                    <div key={item.service.name} className="flex justify-between items-start">
                       <div className="flex-1">
-                        <p className="text-[12px] font-bold text-white">{item.service.name}</p>
+                        <p className="font-bold text-sm uppercase text-white">{item.service.name}</p>
                         {isSpot ? (
                           <div className="flex items-center gap-2 mt-1">
                             <input type="number" min={1} value={item.spotCount || 1}
                               onChange={e => setCart(prev => prev.map(i => i.service.name === item.service.name ? { ...i, spotCount: parseInt(e.target.value) || 1 } : i))}
-                              className="w-10 bg-[#0e0e0e] border border-white/10 px-1.5 py-0.5 text-center text-white text-[10px] outline-none focus:border-[#FFFF00]/30"
+                              className="w-10 bg-[#131313] border-none px-1.5 py-0.5 text-center text-white text-[10px] focus:ring-0"
                             />
-                            <span className="text-[9px] text-white/30">spot × </span>
+                            <span className="text-[9px] text-white/30">spot x</span>
                             <input type="number" value={item.spotPrice || 100000}
                               onChange={e => setCart(prev => prev.map(i => i.service.name === item.service.name ? { ...i, spotPrice: parseInt(e.target.value) || 0 } : i))}
-                              className="w-20 bg-[#0e0e0e] border border-white/10 px-1.5 py-0.5 text-right text-[#FFFF00] text-[10px] font-bold outline-none focus:border-[#FFFF00]/30"
+                              className="w-24 bg-[#131313] border-none px-1.5 py-0.5 text-right text-[#eaea00] text-[10px] font-bold focus:ring-0"
                             />
                           </div>
                         ) : (
                           <input type="number" value={item.manualPrice ?? item.autoPrice}
                             onChange={e => setCart(prev => prev.map(i => i.service.name === item.service.name ? { ...i, manualPrice: parseInt(e.target.value) || 0 } : i))}
-                            className="mt-1 w-full bg-[#0e0e0e] border border-white/10 px-2 py-0.5 text-right text-[#FFFF00]/70 text-[11px] font-bold outline-none focus:border-[#FFFF00]/30 focus:text-[#FFFF00]"
+                            className="mt-0.5 w-full bg-[#131313] border-none px-0 py-0.5 text-left text-[#eaea00]/60 text-[10px] font-bold focus:ring-0 focus:text-[#eaea00]"
                           />
                         )}
+                        <p className="text-[10px] text-white/40">Manual Entry</p>
                       </div>
-                      <div className="flex items-start gap-2 ml-3">
-                        <p className="text-[12px] font-bold text-white whitespace-nowrap">{formatRupiah(itemTotal)}</p>
+                      <div className="flex items-start gap-2 ml-4 shrink-0">
+                        <span className="font-headline font-bold text-sm text-white">
+                          {(itemTotal / 1000).toLocaleString('id-ID')}.000
+                        </span>
                         <button type="button" onClick={() => toggleService(item.service)}
-                          className="text-white/20 hover:text-[#ffb4ab] text-[13px] leading-none transition-colors mt-0.5">✕</button>
+                          className="text-white/20 hover:text-[#ffb4ab] text-[12px] transition-colors leading-none mt-0.5">x</button>
                       </div>
                     </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
-
-          {/* Summary Footer */}
-          <div className="px-5 py-4 border-t border-white/8 space-y-3">
-            {/* Down Payment toggle */}
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-headline font-black text-white/40 uppercase tracking-widest">Down Payment</span>
-              <button
-                type="button"
-                onClick={() => setDownPaymentEnabled(!downPaymentEnabled)}
-                className={`relative w-10 h-5 transition-colors ${downPaymentEnabled ? 'bg-[#FFFF00]' : 'bg-white/10'}`}
-              >
-                <span className={`absolute top-0.5 size-4 bg-[#131313] transition-all ${downPaymentEnabled ? 'left-5' : 'left-0.5'}`} />
-              </button>
-            </div>
-            {downPaymentEnabled && (
-              <input
-                type="number"
-                value={downPaymentAmount || ''}
-                onChange={e => setDownPaymentAmount(parseInt(e.target.value) || 0)}
-                placeholder="Jumlah DP"
-                className="w-full h-8 px-3 bg-[#0e0e0e] border border-[#FFFF00]/20 text-[#FFFF00] text-[11px] font-bold outline-none placeholder:text-white/20"
-              />
-            )}
-
-            {/* Payment Method */}
-            <div>
-              <FieldLabel>Payment Method</FieldLabel>
-              <select
-                value={formData.paymentMethod}
-                onChange={e => setFormData({ ...formData, paymentMethod: e.target.value })}
-                className="w-full h-10 px-3 bg-[#0e0e0e] border border-white/10 text-white text-[11px] font-bold outline-none focus:border-[#FFFF00]/30 mt-1"
-              >
-                {PAYMENT_METHODS.map(m => (
-                  <option key={m.value} value={m.value}>{m.label}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Special Price */}
-            <div className="flex items-center gap-3">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" checked={useManualTotal} onChange={e => setUseManualTotal(e.target.checked)}
-                  className="size-3 bg-[#0e0e0e] accent-[#FFFF00]" />
-                <span className="text-[9px] font-headline font-black text-[#FFFF00]/70 uppercase tracking-widest">Special Price</span>
-              </label>
-              {useManualTotal && (
-                <input type="number" value={manualTotal || ''} onChange={e => setManualTotal(parseInt(e.target.value) || 0)}
-                  className="flex-1 h-8 bg-[#FFFF00]/8 border border-[#FFFF00]/20 px-2 text-right text-[11px] text-[#FFFF00] font-bold outline-none" />
+                  );
+                })
               )}
-            </div>
 
-            {/* Subtotal + Discount */}
-            <div className="space-y-1 pt-1">
-              <div className="flex justify-between text-[10px] text-white/40 font-headline font-black uppercase tracking-widest">
-                <span>Subtotal</span>
-                <span className="font-mono">{formatRupiah(subtotal)}</span>
-              </div>
               {discountAmount > 0 && (
-                <div className="flex justify-between text-[10px] font-headline font-black uppercase tracking-widest">
-                  <span className="text-[#ffb4ab]">
-                    {discountType === 'percentage' ? `Promo Discount (${discountValue}% OFF)` : 'Discount'}
-                  </span>
-                  <span className="text-[#ffb4ab] font-mono">- {formatRupiah(discountAmount)}</span>
+                <div className="border-t border-[#353534] pt-4 flex justify-between items-start text-[#eaea00]">
+                  <div>
+                    <p className="font-bold text-sm uppercase">
+                      {discountType === 'percentage' ? 'Promo Discount' : 'Discount'}
+                    </p>
+                    <p className="text-[10px] opacity-70">
+                      {discountType === 'percentage' ? `${discountValue}% OFF` : 'Fixed'}
+                    </p>
+                  </div>
+                  <span className="font-headline font-bold text-sm">- {(discountAmount / 1000).toLocaleString('id-ID')}.000</span>
                 </div>
               )}
             </div>
 
-            {/* Total */}
-            <div className="pt-2 border-t border-white/8">
-              <p className="text-[10px] font-headline font-black text-white/40 uppercase tracking-widest">Total Amount</p>
-              <p className="text-[28px] font-headline font-black text-[#FFFF00] leading-tight tracking-tight">
-                {formatRupiah(grandTotal)}
-              </p>
-            </div>
+            {/* Payment details */}
+            <div className="space-y-6 pt-6 border-t border-[#eaea00]/20">
+              {/* Down Payment */}
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold uppercase text-white/40 tracking-widest">Down Payment</span>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input type="checkbox" className="sr-only peer"
+                    checked={downPaymentEnabled}
+                    onChange={e => setDownPaymentEnabled(e.target.checked)} />
+                  <div className="w-10 h-5 bg-[#353534] rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#eaea00]" />
+                </label>
+              </div>
+              {downPaymentEnabled && (
+                <input type="number" value={downPaymentAmount || ''} onChange={e => setDownPaymentAmount(parseInt(e.target.value) || 0)}
+                  placeholder="Jumlah DP"
+                  className="w-full bg-[#131313] border-none focus:ring-0 p-3 text-[#eaea00] font-bold text-right placeholder:text-white/20 border-l-2 border-[#eaea00]/40"
+                />
+              )}
 
-            {/* Actions */}
-            <button
-              type="submit"
-              form="transaction-form"
-              onClick={handleSubmit as any}
-              disabled={loading}
-              className="w-full h-12 bg-[#FFFF00] text-[#131313] font-headline font-black text-[11px] uppercase tracking-widest active:scale-95 transition-transform disabled:opacity-50"
-            >
+              {/* Payment Method */}
+              <div className="space-y-2">
+                <label className="block text-[10px] font-bold uppercase text-white/40">Payment Method</label>
+                <select
+                  value={formData.paymentMethod}
+                  onChange={e => setFormData({ ...formData, paymentMethod: e.target.value })}
+                  className="w-full bg-[#131313] border-none p-4 text-white focus:ring-1 focus:ring-[#eaea00] transition-all text-xs font-bold uppercase"
+                >
+                  <option value="transfer">Transfer Bank (BCA)</option>
+                  <option value="cash">Cash / Tunai</option>
+                  <option value="qris">QRIS</option>
+                </select>
+              </div>
+
+              {/* Special Price */}
+              <div className="flex items-center gap-3">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={useManualTotal} onChange={e => setUseManualTotal(e.target.checked)}
+                    className="size-3 accent-[#eaea00]" />
+                  <span className="text-[10px] font-bold uppercase text-[#eaea00]/70 tracking-widest">Special Price</span>
+                </label>
+                {useManualTotal && (
+                  <input type="number" value={manualTotal || ''} onChange={e => setManualTotal(parseInt(e.target.value) || 0)}
+                    className="flex-1 bg-[#131313] border-none focus:ring-0 p-2 text-right text-[#eaea00] font-bold text-sm" />
+                )}
+              </div>
+
+              {/* Totals */}
+              <div className="space-y-1">
+                <div className="flex justify-between items-center text-white/40">
+                  <span className="text-[10px] font-bold uppercase">Subtotal</span>
+                  <span className="font-headline font-medium text-xs">{formatRupiah(subtotal)}</span>
+                </div>
+                <div className="flex justify-between items-end pt-2">
+                  <span className="text-xs font-black uppercase text-[#eaea00] leading-none">Total Amount</span>
+                  <span className="font-headline font-black text-3xl text-[#eaea00] leading-none">{formatRupiah(grandTotal)}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="p-8 pt-0 space-y-3">
+            <button type="submit" onClick={handleSubmit as any} disabled={loading}
+              className="w-full py-5 bg-[#eaea00] text-[#131313] font-headline font-black text-base tracking-widest uppercase hover:bg-white active:scale-95 transition-all disabled:opacity-50">
               {loading ? 'MENYIMPAN...' : 'SIMPAN TRANSAKSI'}
             </button>
-            <button
-              type="button"
-              onClick={onClose}
-              className="w-full h-9 border border-white/10 text-white/30 font-headline font-black text-[10px] uppercase tracking-widest hover:text-white hover:border-white/20 transition-all"
-            >
+            <button type="button" onClick={onClose}
+              className="w-full py-3 border border-[#484831] text-white/40 font-headline font-bold text-xs tracking-widest uppercase hover:bg-[#353534] transition-all">
               BATAL
             </button>
           </div>
-        </div>
+        </section>
       </div>
     </BaseModal>
   );
 }
 
-// ── Helper Components ──────────────────────────────────────────
-
 function SectionLabel({ icon, text }: { icon: string; text: string }) {
   return (
     <div className="flex items-center gap-2 pb-1 border-b border-white/5">
-      <span className="material-symbols-outlined text-[#FFFF00] text-[14px]">{icon}</span>
+      <span className="material-symbols-outlined text-[#eaea00] text-[14px]">{icon}</span>
       <span className="text-[10px] font-headline font-black text-white/60 uppercase tracking-widest">{text}</span>
     </div>
   );
