@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useMemo, useCallback } from 'react';
-import { Booking } from '@/lib/hooks/useBookings';
+import { Booking, BookingStatus } from '@/lib/hooks/useBookings';
 import { 
   format, 
   startOfMonth, 
@@ -28,6 +28,8 @@ interface MobileBookingsViewProps {
   onNewBooking: () => void;
   onEditBooking?: (booking: Booking) => void;
   onDeleteBooking?: (bookingId: string) => void;
+  onUpdateStatus?: (id: string, status: BookingStatus) => void;
+  onOpenPayment?: (booking: Booking) => void;
 }
 
 export default function MobileBookingsView({
@@ -39,6 +41,8 @@ export default function MobileBookingsView({
   onNewBooking,
   onEditBooking,
   onDeleteBooking,
+  onUpdateStatus,
+  onOpenPayment,
 }: MobileBookingsViewProps) {
   
   // Calendar logic
@@ -139,59 +143,111 @@ export default function MobileBookingsView({
               <div 
                 key={booking.id}
                 className={cn(
-                  "bg-[#1C1B1B] p-4 rounded-lg flex items-center gap-4 relative overflow-hidden transition-all border border-white/5",
+                  "bg-[#1C1B1B] p-4 rounded-lg flex flex-col relative overflow-hidden transition-all border border-white/5",
                   isActive ? "border-l-4 border-l-[#FFFF00]" : "border-l-4 border-l-zinc-800"
                 )}
               >
-                {/* Time & Status Column */}
-                <div className="flex flex-col items-center justify-center min-w-[70px] border-r border-white/5 pr-4">
-                  <span className={cn(
-                    "text-xs font-bold",
-                    isActive ? "text-[#FFFF00]" : "text-zinc-500"
-                  )}>
-                    {booking.bookingTime || '09:00'}
-                  </span>
-                  {isActive && (
-                    <span className="text-[8px] text-[#FFFF00] font-black mt-1 uppercase tracking-tighter animate-pulse">
-                      Active
+                {/* Main Info Row */}
+                <div className="flex items-center gap-4">
+                  {/* Time & Status Column */}
+                  <div className="flex flex-col items-center justify-center min-w-[70px] border-r border-white/5 pr-4">
+                    <span className={cn(
+                      "text-xs font-bold",
+                      isActive ? "text-[#FFFF00]" : "text-zinc-500"
+                    )}>
+                      {booking.bookingTime || '09:00'}
+                    </span>
+                    {isActive && (
+                      <span className="text-[8px] text-[#FFFF00] font-black mt-1 uppercase tracking-tighter animate-pulse">
+                        Active
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Info Column */}
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-spartan font-bold text-white text-[15px] truncate uppercase tracking-tight">
+                      {booking.customerName}
+                    </h3>
+                    <p className="text-[11px] text-zinc-400 font-medium truncate mt-0.5">
+                      {booking.vehicleInfo || 'Motor'}
+                    </p>
+                  </div>
+
+                  {/* Actions Column */}
+                  <div className="flex flex-col items-end gap-2">
+                    <div className="flex gap-2 text-zinc-500">
+                      <button 
+                        onClick={() => onEditBooking?.(booking)}
+                        className="w-8 h-8 flex items-center justify-center rounded bg-zinc-800/50 border border-white/5 active:bg-zinc-700 transition-colors"
+                      >
+                        <Edit2 size={14} />
+                      </button>
+                      <button 
+                        onClick={() => onDeleteBooking?.(booking.id)}
+                        className="w-8 h-8 flex items-center justify-center rounded bg-zinc-800/50 border border-white/5 text-red-400/50 active:bg-zinc-700 transition-colors"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Quick Actions Footer */}
+                <div className="flex gap-1 mt-4 pt-4 border-t border-white/5 w-full">
+                  {(booking.status === 'waiting' || booking.status === 'pending') && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onUpdateStatus?.(booking.id, 'in_progress');
+                      }}
+                      className="flex-1 py-3 text-[10px] font-black font-headline uppercase tracking-widest bg-[#676700] text-[#e6e67a] active:bg-[#FFFF00] active:text-[#1d1d00] transition-all rounded-sm"
+                    >
+                      ▶ Mulai Proses
+                    </button>
+                  )}
+
+                  {booking.status === 'in_progress' && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onUpdateStatus?.(booking.id, 'done');
+                      }}
+                      className="flex-1 py-3 text-[10px] font-black font-headline uppercase tracking-widest bg-[#353534] text-white/60 active:bg-white active:text-[#131313] transition-all rounded-sm"
+                    >
+                      ✓ Tandai Selesai
+                    </button>
+                  )}
+
+                  {booking.status === 'done' && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onOpenPayment?.(booking);
+                      }}
+                      className="flex-1 py-3 text-[10px] font-black font-headline uppercase tracking-widest bg-[#FFFF00] text-[#1d1d00] active:brightness-110 transition-all rounded-sm"
+                    >
+                      ⚡ Bayar & Invoice
+                    </button>
+                  )}
+
+                  {booking.status === 'paid' && (
+                    <span className="flex-1 py-3 text-[10px] font-black font-headline uppercase tracking-widest text-center text-green-400">
+                      ✓ Lunas
                     </span>
                   )}
-                </div>
 
-                {/* Info Column */}
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-spartan font-bold text-white text-[15px] truncate uppercase tracking-tight">
-                    {booking.customerName}
-                  </h3>
-                  <p className="text-[11px] text-zinc-400 font-medium truncate mt-0.5">
-                    {booking.vehicleInfo || 'Motor'}
-                  </p>
-                </div>
-
-                {/* Actions Column */}
-                <div className="flex flex-col items-end gap-2">
-                  <div className="flex gap-2 text-zinc-500">
-                    <button 
-                      onClick={() => onEditBooking?.(booking)}
-                      className="w-8 h-8 flex items-center justify-center rounded bg-zinc-800/50 border border-white/5 active:bg-zinc-700 transition-colors"
+                  {!['done', 'paid', 'cancelled'].includes(booking.status) && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (confirm('Batalkan booking ini?')) onUpdateStatus?.(booking.id, 'cancelled');
+                      }}
+                      className="px-4 py-3 text-[10px] font-black font-headline uppercase text-white/20 active:text-red-400 transition-colors"
                     >
-                      <Edit2 size={14} />
+                      ✕
                     </button>
-                    <button 
-                      onClick={() => onDeleteBooking?.(booking.id)}
-                      className="w-8 h-8 flex items-center justify-center rounded bg-zinc-800/50 border border-white/5 text-red-400/50 active:bg-zinc-700 transition-colors"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                  <span className={cn(
-                    "text-[9px] font-black px-2 py-0.5 rounded-sm uppercase tracking-widest border",
-                    isActive 
-                      ? "bg-[#FFFF00]/10 text-[#FFFF00] border-[#FFFF00]/30" 
-                      : "bg-zinc-800 text-zinc-500 border-transparent"
-                  )}>
-                    {isActive ? 'ON GOING' : 'WAITING'}
-                  </span>
+                  )}
                 </div>
               </div>
             );

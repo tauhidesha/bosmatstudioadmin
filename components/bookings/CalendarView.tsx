@@ -11,7 +11,10 @@ import {
   isSameMonth, 
   isSameDay, 
   addMonths, 
-  subMonths 
+  subMonths,
+  addDays,
+  isWithinInterval,
+  parseISO
 } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { Booking } from '@/lib/hooks/useBookings';
@@ -42,7 +45,20 @@ export function CalendarView({
   const dayLabels = ['MINGGU', 'SENIN', 'SELASA', 'RABU', 'KAMIS', 'JUMAT', 'SABTU'];
 
   const getBookingsForDay = (date: Date) => {
-    return bookings.filter(b => b.bookingDate === format(date, 'yyyy-MM-dd') && b.status !== 'cancelled');
+    return bookings.filter(b => {
+      const start = parseISO(b.bookingDate);
+      const end = addDays(start, (b.durationDays || 1) - 1);
+      
+      // Ensure we compare at midnight/safe boundaries
+      const targetDate = new Date(date);
+      targetDate.setHours(0, 0, 0, 0);
+      const startDate = new Date(start);
+      startDate.setHours(0, 0, 0, 0);
+      const endDate = new Date(end);
+      endDate.setHours(23, 59, 59, 999);
+
+      return isWithinInterval(targetDate, { start: startDate, end: endDate }) && b.status !== 'cancelled';
+    });
   };
 
   return (

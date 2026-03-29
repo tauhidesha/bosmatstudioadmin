@@ -9,7 +9,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 
-export type BookingStatus = 'pending' | 'in_progress' | 'done' | 'paid' | 'cancelled';
+export type BookingStatus = 'waiting' | 'pending' | 'in_progress' | 'done' | 'paid' | 'cancelled';
 
 export interface Booking {
   id: string;
@@ -28,6 +28,7 @@ export interface Booking {
   subtotal?: number;
   downPayment?: number;
   paymentMethod?: string;
+  durationDays?: number;
 }
 
 export function useBookings() {
@@ -59,8 +60,8 @@ export function useBookings() {
     // Initial fetch
     fetchBookings();
 
-    // Constant polling (15s)
-    intervalRef.current = setInterval(fetchBookings, 15000);
+    // Constant polling (30s)
+    intervalRef.current = setInterval(fetchBookings, 30000);
 
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
@@ -69,19 +70,22 @@ export function useBookings() {
 
   const updateBookingStatus = async (id: string, newStatus: BookingStatus) => {
     try {
+      // Optimistic update dulu
+      setBookings(prev => prev.map(b => b.id === id ? { ...b, status: newStatus } : b));
+
       const res = await fetch('/api/bookings', {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, status: newStatus }),
       });
 
       const json = await res.json();
-      if (!json.success) throw new Error(json.error);
+      if (!json.success) {
+        // Rollback kalau gagal
+        await fetchBookings();
+        throw new Error(json.error);
+      }
 
-      // Local update for responsiveness
-      setBookings(prev => prev.map(b => b.id === id ? { ...b, status: newStatus } : b));
       return true;
     } catch (err) {
       console.error('Error updating booking status:', err);

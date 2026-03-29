@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
     // Get vehicle by specific plate number
     if (plate) {
       const normalizedPlate = plate.toUpperCase().replace(/\s+/g, ' ');
-      const vehicle = await prisma.vehicle.findUnique({
+      const vehicle = await prisma.vehicle.findFirst({
         where: { plateNumber: normalizedPlate },
         include: {
           customer: {
@@ -155,7 +155,7 @@ export async function POST(req: NextRequest) {
     // Check if plate already exists
     if (plateNumber) {
       const normalizedPlate = plateNumber.toUpperCase().replace(/\s+/g, ' ');
-      const existing = await prisma.vehicle.findUnique({
+      const existing = await prisma.vehicle.findFirst({
         where: { plateNumber: normalizedPlate }
       });
 

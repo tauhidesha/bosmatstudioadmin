@@ -26,8 +26,8 @@ export function CapacityWidget({ bookings }: CapacityWidgetProps) {
       const isDetailing = servicesStr.includes('detailing') || servicesStr.includes('coating') || servicesStr.includes('cuci') || servicesStr.includes('wash');
 
       if (isRepaint) {
-        // Repaint uses capacity if it's currently pending or in_progress
-        if (booking.status === 'pending' || booking.status === 'in_progress') {
+        // Repaint uses capacity if it's currently waiting/pending or in_progress
+        if (booking.status === 'waiting' || booking.status === 'pending' || (booking.status as string) === 'in_progress') {
           repaintActive += 1;
         }
       } else if (isDetailing) {
@@ -49,55 +49,55 @@ export function CapacityWidget({ bookings }: CapacityWidgetProps) {
 
   return (
     <div className="flex gap-4 mb-6">
-      <div className="bg-white border text-sm border-slate-200 shadow-sm rounded-xl p-4 flex-1 flex flex-col justify-between">
+      <div className="bg-[#1c1b1b] border border-white/5 p-4 flex-1 flex flex-col justify-between rounded-sm">
         <div className="flex justify-between items-start mb-2">
           <div className="flex items-center gap-2">
-            <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
+            <div className="p-2 bg-[#FFFF00]/10 text-[#FFFF00] rounded-lg">
               <PaintBucket className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-bold text-slate-800">Kapasitas Repaint</h3>
-              <p className="text-xs text-slate-500 font-medium">Dalam Pengerjaan</p>
+              <h3 className="font-bold text-white font-headline uppercase text-xs tracking-widest">Kapasitas Repaint</h3>
+              <p className="text-[10px] text-white/40 font-medium font-headline uppercase">Dalam Pengerjaan</p>
             </div>
           </div>
-          <span className={`font-black text-xl ${repaintCount >= maxRepaint ? 'text-red-600' : 'text-slate-800'}`}>
-            {repaintCount} <span className="text-slate-400 text-sm font-semibold">/ {maxRepaint}</span>
+          <span className={`font-black text-xl font-headline ${repaintCount >= maxRepaint ? 'text-red-500' : 'text-white'}`}>
+            {repaintCount} <span className="text-white/30 text-sm font-semibold">/ {maxRepaint}</span>
           </span>
         </div>
-        <div className="w-full bg-slate-100 rounded-full h-2 mt-2 overflow-hidden">
+        <div className="w-full bg-white/5 rounded-full h-1 mt-2 overflow-hidden">
           <div 
-            className={`h-full rounded-full ${repaintCount >= maxRepaint ? 'bg-red-500' : 'bg-blue-500'}`}
+            className={`h-full rounded-full ${repaintCount >= maxRepaint ? 'bg-red-500' : 'bg-[#FFFF00]'}`}
             style={{ width: `${repaintPercentage}%` }}
           />
         </div>
         {repaintCount >= maxRepaint && (
-          <p className="text-xs text-red-600 mt-2 font-medium">Kapasitas penuh! Stop terima booking repaint.</p>
+          <p className="text-[9px] text-red-500 mt-2 font-black font-headline uppercase tracking-widest">Kapasitas penuh! Stop terima booking repaint.</p>
         )}
       </div>
 
-      <div className="bg-white border text-sm border-slate-200 shadow-sm rounded-xl p-4 flex-1 flex flex-col justify-between">
+      <div className="bg-[#1c1b1b] border border-white/5 p-4 flex-1 flex flex-col justify-between rounded-sm">
         <div className="flex justify-between items-start mb-2">
           <div className="flex items-center gap-2">
-            <div className="p-2 bg-teal-50 text-teal-600 rounded-lg">
+            <div className="p-2 bg-[#FFFF00]/10 text-[#FFFF00] rounded-lg">
               <Sparkles className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-bold text-slate-800">Kapasitas Detailing</h3>
-              <p className="text-xs text-slate-500 font-medium">Jadwal Hari Ini</p>
+              <h3 className="font-bold text-white font-headline uppercase text-xs tracking-widest">Kapasitas Detailing</h3>
+              <p className="text-[10px] text-white/40 font-medium font-headline uppercase">Jadwal Hari Ini</p>
             </div>
           </div>
-          <span className={`font-black text-xl ${detailingCount >= maxDetailing ? 'text-red-600' : 'text-slate-800'}`}>
-            {detailingCount} <span className="text-slate-400 text-sm font-semibold">/ {maxDetailing}</span>
+          <span className={`font-black text-xl font-headline ${detailingCount >= maxDetailing ? 'text-red-500' : 'text-white'}`}>
+            {detailingCount} <span className="text-white/30 text-sm font-semibold">/ {maxDetailing}</span>
           </span>
         </div>
-        <div className="w-full bg-slate-100 rounded-full h-2 mt-2 overflow-hidden">
+        <div className="w-full bg-white/5 rounded-full h-1 mt-2 overflow-hidden">
           <div 
-            className={`h-full rounded-full ${detailingCount >= maxDetailing ? 'bg-red-500' : 'bg-teal-500'}`}
+            className={`h-full rounded-full ${detailingCount >= maxDetailing ? 'bg-red-500' : 'bg-[#FFFF00]'}`}
             style={{ width: `${detailingPercentage}%` }}
           />
         </div>
         {detailingCount >= maxDetailing && (
-           <p className="text-xs text-red-600 mt-2 font-medium">Slot detailing hari ini sudah penuh.</p>
+           <p className="text-[9px] text-red-500 mt-2 font-black font-headline uppercase tracking-widest">Slot detailing hari ini sudah penuh.</p>
         )}
       </div>
     </div>

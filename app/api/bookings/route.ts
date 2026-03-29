@@ -39,22 +39,31 @@ export async function GET(req: NextRequest) {
       take: limit
     });
 
-    const transformedBookings = bookings.map(b => ({
-      id: b.id,
-      customerName: b.customerName || b.customer?.name,
-      customerPhone: b.customerPhone || b.customer?.phone,
-      vehicleInfo: b.vehicleModel ? `${b.vehicleModel}${b.plateNumber ? ' (' + b.plateNumber + ')' : ''}` : b.vehicle?.modelName,
-      services: b.serviceType ? b.serviceType.split(/, | \/ /) : [],
-      bookingDate: b.bookingDate.toISOString().split('T')[0],
-      bookingTime: b.bookingDate.toISOString().slice(11, 16),
-      status: b.status.toLowerCase(),
-      subtotal: b.subtotal,
-      downPayment: b.downPayment,
-      paymentMethod: b.paymentMethod,
-      homeService: b.homeService,
-      notes: b.notes || b.adminNotes,
-      createdAt: b.createdAt.toISOString(),
-    }));
+    const transformedBookings = bookings.map(b => {
+      const services = b.serviceType 
+        ? (b.serviceType.includes(' § ') ? b.serviceType.split(' § ') : b.serviceType.split(/, | \/ |\n/))
+        : [];
+      return {
+        id: b.id,
+        customerName: b.customerName || b.customer?.name,
+        customerPhone: b.customerPhone || b.customer?.phone,
+        vehicleInfo: b.vehicleModel ? `${b.vehicleModel}${b.plateNumber ? ' (' + b.plateNumber + ')' : ''}` : b.vehicle?.modelName,
+        services,
+        bookingDate: b.bookingDate.toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' }),
+        bookingTime: b.bookingDate.toLocaleTimeString('en-GB', { timeZone: 'Asia/Jakarta', hour12: false }).slice(0, 5),
+        status: b.status.toLowerCase(),
+        subtotal: b.subtotal || 0,
+        totalAmount: b.totalAmount || b.subtotal || 0,
+        downPayment: b.downPayment || 0,
+        amountPaid: b.amountPaid || 0,
+        paymentStatus: b.paymentStatus || 'UNPAID',
+        paymentMethod: b.paymentMethod,
+        homeService: b.homeService,
+        notes: b.notes || b.adminNotes,
+        durationDays: calculateDurationDays(services),
+        createdAt: b.createdAt.toISOString(),
+      };
+    });
 
     return NextResponse.json({
       success: true,
@@ -103,44 +112,50 @@ export async function POST(req: NextRequest) {
     const bookingDateTime = new Date(`${bookingDate}T${bookingTime}:00`);
     const downPayment = dpAmount || 0;
 
-    // Find or create customer
-    let customer = await prisma.customer.findUnique({
-      where: { phone: normalizedPhone }
-    });
-
-    if (!customer) {
-      customer = await prisma.customer.create({
-        data: {
-          phone: normalizedPhone,
-          name: customerName,
-          status: 'new'
-        }
-      });
-    }
-
-    // Handle vehicle
-    let vehicleId = null;
-    let finalPlateNumber = plateNumber;
-    let finalVehicleModel = motorModel;
-
     const modelToUse = motorModel || (vehicleInfo ? extractModelFromText(vehicleInfo) : null);
     const plateToUse = plateNumber || extractPlateFromText(vehicleInfo);
 
-    if (modelToUse) {
-      try {
-        const vehicle = await createOrUpdateVehicleAdmin({
-          phone: normalizedPhone,
-          modelName: modelToUse,
-          plateNumber: plateToUse,
-          color
-        });
-        vehicleId = vehicle.id;
-        finalPlateNumber = vehicle.plateNumber;
-        finalVehicleModel = vehicle.modelName;
-      } catch (err) {
-        console.error('Vehicle creation failed:', err);
+    // 1. Find or create customer (using phoneReal if possible)
+    const existingCustomer = await prisma.customer.findFirst({
+      where: {
+        OR: [{ phoneReal: normalizedPhone }, { phone: normalizedPhone }]
       }
-    }
+    });
+
+    const customer = existingCustomer
+      ? await prisma.customer.update({
+          where: { id: existingCustomer.id },
+          data: { phoneReal: normalizedPhone }
+        })
+      : await prisma.customer.create({
+          data: {
+            phone: normalizedPhone,
+            phoneReal: normalizedPhone,
+            name: customerName,
+            status: 'new',
+            totalSpending: 0,
+          }
+        });
+
+    // 2. Upsert vehicle
+    const vehicle = plateToUse ? await prisma.vehicle.upsert({
+      where: { 
+        customerId_plateNumber: { 
+          customerId: customer.id, 
+          plateNumber: plateToUse.toUpperCase().trim()
+        }
+      },
+      update: { modelName: modelToUse || 'Motor' },
+      create: { 
+        customerId: customer.id, 
+        modelName: modelToUse || 'Motor', 
+        plateNumber: plateToUse.toUpperCase().trim()
+      }
+    }) : null;
+
+    const vehicleId = vehicle?.id;
+    const finalPlateNumber = vehicle?.plateNumber;
+    const finalVehicleModel = vehicle?.modelName;
 
     // Create booking
     const booking = await prisma.booking.create({
@@ -195,12 +210,16 @@ export async function POST(req: NextRequest) {
         customerPhone: booking.customerPhone,
         vehicleInfo: finalVehicleModel,
         plateNumber: finalPlateNumber,
-        services: [booking.serviceType], // Convert to array
-        bookingDate: booking.bookingDate.toISOString().split('T')[0],
-        bookingTime: booking.bookingDate.toISOString().slice(11, 16),
+        services: [booking.serviceType],
+        bookingDate: booking.bookingDate.toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' }),
+        bookingTime: booking.bookingDate.toLocaleTimeString('en-GB', { timeZone: 'Asia/Jakarta', hour12: false }).slice(0, 5),
         status: 'pending',
         subtotal: booking.subtotal,
+        totalAmount: booking.totalAmount || booking.subtotal,
         downPayment: booking.downPayment,
+        amountPaid: booking.amountPaid || 0,
+        paymentStatus: booking.paymentStatus || 'UNPAID',
+        durationDays: calculateDurationDays([booking.serviceType]),
       },
       message: `Booking untuk ${customerName} berhasil dibuat`,
     });
@@ -213,50 +232,6 @@ export async function POST(req: NextRequest) {
   }
 }
 
-async function createOrUpdateVehicleAdmin({ phone, modelName, plateNumber, color }: { phone: string, modelName: string, plateNumber?: string | null, color?: string }) {
-  const customer = await prisma.customer.findUnique({ where: { phone } });
-  if (!customer) throw new Error(`Customer not found: ${phone}`);
-
-  const plate = plateNumber ? plateNumber.toUpperCase().replace(/\s+/g, ' ').trim() : null;
-
-  if (plate) {
-    const existing = await prisma.vehicle.findUnique({ where: { plateNumber: plate } });
-    if (existing) {
-      return prisma.vehicle.update({
-        where: { id: existing.id },
-        data: {
-          modelName: modelName || existing.modelName,
-          color: color || existing.color,
-          customerId: customer.id
-        }
-      });
-    }
-  }
-
-  const existingByModel = modelName ? await prisma.vehicle.findFirst({
-    where: {
-      customerId: customer.id,
-      modelName: { equals: modelName, mode: 'insensitive' },
-      plateNumber: null
-    }
-  }) : null;
-
-  if (existingByModel && plate) {
-    return prisma.vehicle.update({
-      where: { id: existingByModel.id },
-      data: { plateNumber: plate, color }
-    });
-  }
-
-  return prisma.vehicle.create({
-    data: {
-      customerId: customer.id,
-      modelName,
-      plateNumber: plate,
-      color
-    }
-  });
-}
 
 function getServiceCategory(serviceName: string): string {
   const lower = serviceName.toLowerCase();
@@ -381,6 +356,21 @@ export async function PUT(req: NextRequest) {
       updateData.vehicleModel = parts[0];
       if (parts[1]) updateData.plateNumber = parts[1].replace(')', '');
     }
+    if (data.status) updateData.status = data.status.toUpperCase();
+    if (data.amountPaid !== undefined) {
+      updateData.amountPaid = data.amountPaid;
+      // Auto-update paymentStatus
+      const finalTotal = data.totalAmount || 0;
+      if (data.amountPaid >= finalTotal && finalTotal > 0) {
+        updateData.paymentStatus = 'PAID';
+      } else if (data.amountPaid > 0) {
+        updateData.paymentStatus = 'PARTIAL';
+      } else {
+        updateData.paymentStatus = 'UNPAID';
+      }
+    }
+    if (data.paymentStatus) updateData.paymentStatus = data.paymentStatus;
+    if (data.totalAmount !== undefined) updateData.totalAmount = data.totalAmount;
     if (data.subtotal !== undefined) updateData.subtotal = data.subtotal;
     if (data.dpAmount !== undefined) updateData.downPayment = data.dpAmount;
     if (data.homeService !== undefined) updateData.homeService = data.homeService;
@@ -404,4 +394,16 @@ export async function PUT(req: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+function calculateDurationDays(services: string[]): number {
+  const lowerServices = services.map(s => s.toLowerCase());
+  
+  if (lowerServices.some(s => s.includes('repaint bodi halus'))) return 4;
+  if (lowerServices.some(s => s.includes('repaint bodi kasar') || s.includes('repaint velg'))) return 2;
+  if (lowerServices.some(s => s.includes('repaint'))) return 3;
+  if (lowerServices.some(s => s.includes('coating'))) return 2;
+  if (lowerServices.some(s => s.includes('detailing') || s.includes('poles'))) return 1;
+  
+  return 1;
 }

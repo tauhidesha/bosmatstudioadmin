@@ -130,17 +130,21 @@ export default function ManualBookingForm({
 
   // --- INITIAL POPULATION FOR EDIT ---
   useEffect(() => {
+    console.log('--- ManualBookingForm: initialData ---', initialData);
     if (initialData) {
       setInvoiceName(initialData.customerName || '');
       setContactPhone(initialData.customerPhone || '');
 
       // Handle vehicle info properly
-      if (initialData.vehicleInfo) {
-        setPlatNomor(initialData.vehicleInfo?.split('(')[1]?.replace(')', '') || '');
-        const modelName = initialData.vehicleInfo?.split(' (')[0];
+      const vehicleSource = initialData.vehicleInfo || initialData.vehicleModel || '';
+      if (vehicleSource) {
+        setPlatNomor(initialData.plateNumber || vehicleSource?.split('(')[1]?.replace(')', '') || '');
+        const modelName = vehicleSource?.split(' (')[0] || vehicleSource;
         const model = MOTOR_DATABASE.find(m => m.model === modelName);
         if (model) setMotorcycleModel(model);
       }
+      
+      if (initialData.plateNumber) setPlatNomor(initialData.plateNumber.trim());
 
       // Handle dates (ISO string to YYYY-MM-DD)
       if (initialData.bookingDate) {
@@ -155,54 +159,43 @@ export default function ManualBookingForm({
       // Handle Status and Payment History
       if (initialData.status) setBookingStatus(initialData.status.toLowerCase());
       if (initialData.amountPaid !== undefined) setAmountPaid(initialData.amountPaid);
+      if (initialData.downPayment !== undefined) setNominalDP(initialData.downPayment);
+      if (initialData.paymentMethod) setPaymentMethod(initialData.paymentMethod);
+      if (initialData.homeService !== undefined) setHomeService(!!initialData.homeService);
 
       // Handle services population
-      if (initialData.services) {
-        const rawServices = Array.isArray(initialData.services)
-          ? initialData.services
-          : (initialData.services?.split(' § ') || initialData.services?.split('\n') || []);
+      const rawServices = Array.isArray(initialData.services) 
+        ? initialData.services 
+        : (typeof initialData.services === 'string' 
+            ? initialData.services.split(' § ').flatMap((s: string) => s.split('\n'))
+            : []);
 
+      if (rawServices.length > 0) {
         const newCart: CartItem[] = [];
-        const currentModel = initialData.vehicleInfo
-          ? MOTOR_DATABASE.find(m => m.model === initialData.vehicleInfo.split(' (')[0])
-          : null;
+        const modelName = vehicleSource?.split(' (')[0] || vehicleSource;
+        const currentModel = MOTOR_DATABASE.find(m => m.model === modelName) || null;
 
         rawServices.forEach((s: string) => {
           const serviceName = s.trim();
+          if (!serviceName) return;
+          
           const found = SERVICES.find(srv => srv.name === serviceName);
           if (found) {
             newCart.push({
               name: found.name,
-              price: getServicePrice(found, currentModel || null)
+              price: getServicePrice(found, currentModel)
             });
           } else if (serviceName.includes('Spot Repair')) {
-            // Found a Spot Repair string in array or summary
             const match = serviceName.match(/Spot Repair \((\d+) spots\)/);
             if (match) setSpotCount(parseInt(match[1]));
-
-            // Add to cart as a base service if "Spot Repair" exists in master
             const spotServiceMaster = SERVICES.find(srv => srv.name === 'Spot Repair');
-            if (spotServiceMaster) {
-              newCart.push({ name: spotServiceMaster.name, price: 0 });
-            }
-          } else if (serviceName.length > 0) {
-            // Likely a custom service saved as string
+            if (spotServiceMaster) newCart.push({ name: spotServiceMaster.name, price: 0 });
+          } else {
             newCart.push({ name: serviceName, price: 0 });
           }
         });
         setCart(newCart);
       }
-
-      // Handle DP and Logistics
-      const dpValue = initialData.downPayment || initialData.dpAmount || 0;
-      const paidValue = initialData.amountPaid || dpValue || 0;
-
-      setNominalDP(dpValue);
-      setAmountPaid(paidValue);
-      setBookingStatus(initialData.status?.toLowerCase() || 'pending');
-      setDpRequired(dpValue > 0);
-      setHomeService(!!initialData.homeService);
-      if (initialData.paymentMethod) setPaymentMethod(initialData.paymentMethod);
     }
   }, [initialData]);
 
