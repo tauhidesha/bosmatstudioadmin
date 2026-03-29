@@ -16,6 +16,15 @@ import { format, isSameDay, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { id } from 'date-fns/locale';
 
+const statusConfig = {
+  waiting:     { label: 'WAITING',    bg: 'bg-white/5',   text: 'text-white/40' },
+  pending:     { label: 'PENDING',    bg: 'bg-white/5',   text: 'text-white/40' },
+  in_progress: { label: 'ON GOING',  bg: 'bg-[#676700]', text: 'text-[#e6e67a]' },
+  done:        { label: 'SELESAI',   bg: 'bg-white/10',  text: 'text-white/60' },
+  paid:        { label: 'LUNAS',     bg: 'bg-green-900', text: 'text-green-400' },
+  cancelled:   { label: 'BATAL',     bg: 'bg-red-950',   text: 'text-red-400' },
+};
+
 export default function BookingsPage() {
   const { bookings, loading, updateBookingStatus, deleteBooking, updateBooking } = useBookings();
   const { conversations } = useRealtimeConversations();
@@ -23,6 +32,12 @@ export default function BookingsPage() {
   const [editingBooking, setEditingBooking] = useState<Booking | null>(null);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
+  
+  // Payment Modal States
+  const [paymentModal, setPaymentModal] = useState<Booking | null>(null);
+  const [nominalDP, setNominalDP] = useState<number>(0);
+  const [metodePembayaran, setMetodePembayaran] = useState('Transfer BCA');
+  const [isProcessing, setIsProcessing] = useState(false);
   
   const { setHeaderTitle, setHeaderExtra } = useLayout();
   const { getIdToken } = useAuth();
@@ -67,6 +82,56 @@ export default function BookingsPage() {
   const estimatedRevenue = useMemo(() => {
     return queueBookings.reduce((sum, b) => sum + (Number(b.subtotal) || 500000), 0);
   }, [queueBookings]);
+
+  const handlePayAndInvoice = async () => {
+    if (!paymentModal) return;
+    setIsProcessing(true);
+    try {
+      await updateBookingStatus(paymentModal.id, 'paid');
+
+      // Build items string dengan harga
+      const servicesList = Array.isArray(paymentModal.services)
+        ? paymentModal.services
+        : String(paymentModal.services || '').split(/§|\n/).map(s => s.trim()).filter(Boolean);
+
+      // If split by newline results in only 1 item but it contains commas, 
+      // it might be legacy comma-separated data. 
+      // HOWEVER, we must be careful not to split "Repaint Cover CVT, Arm".
+      // Let's improve the delimiter to be more specific or just trust the new newline format.
+      
+      const pricePerService = servicesList.length > 0
+        ? Math.round((Number(paymentModal.subtotal) || 0) / servicesList.length)
+        : 0;
+
+      const itemsString = servicesList
+        .map(s => `${s.trim()}||${pricePerService}||`)
+        .join('\n');
+
+      await fetch('/api/bookings/invoice', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          documentType: nominalDP >= (Number(paymentModal.subtotal) || 0) ? 'bukti_bayar' : 'invoice',
+          customerName: paymentModal.customerName,
+          customerPhone: paymentModal.customerPhone,
+          motorDetails: paymentModal.vehicleInfo || '-',
+          items: itemsString,
+          totalAmount: Number(paymentModal.subtotal) || 0,
+          amountPaid: nominalDP,
+          paymentMethod: metodePembayaran,
+          bookingDate: paymentModal.bookingDate,
+          notes: paymentModal.notes || '-',
+        }),
+      });
+
+      setPaymentModal(null);
+      setNominalDP(0);
+    } catch (err) {
+      alert('Gagal generate invoice');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -160,11 +225,10 @@ export default function BookingsPage() {
                     </div>
                     <span className={cn(
                       "text-[9px] font-black px-2 py-1 rounded-sm font-headline uppercase tracking-widest",
-                      booking.status === 'in_progress' 
-                        ? "bg-[#FFFF00] text-[#131313]" 
-                        : "bg-white/5 text-white/40"
+                      statusConfig[booking.status as keyof typeof statusConfig]?.bg || 'bg-white/5',
+                      statusConfig[booking.status as keyof typeof statusConfig]?.text || 'text-white/40'
                     )}>
-                      {booking.status === 'in_progress' ? 'ON GOING' : 'WAITING'}
+                      {statusConfig[booking.status as keyof typeof statusConfig]?.label || 'WAITING'}
                     </span>
                   </div>
                   <div className="space-y-2">
@@ -180,6 +244,64 @@ export default function BookingsPage() {
                         {Array.isArray(booking.services) ? booking.services.join(' / ') : booking.services}
                       </p>
                     </div>
+                  </div>
+
+                  {/* Quick Status Bar */}
+                  <div className="flex gap-1 mt-3 pt-3 border-t border-white/5">
+                    {(booking.status === 'waiting' || booking.status === 'pending') && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          updateBookingStatus(booking.id, 'in_progress');
+                        }}
+                        className="flex-1 py-1.5 text-[9px] font-black font-headline uppercase tracking-widest bg-[#676700] text-[#e6e67a] hover:bg-[#FFFF00] hover:text-[#1d1d00] transition-all"
+                      >
+                        ▶ Mulai Proses
+                      </button>
+                    )}
+
+                    {booking.status === 'in_progress' && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          updateBookingStatus(booking.id, 'done');
+                        }}
+                        className="flex-1 py-1.5 text-[9px] font-black font-headline uppercase tracking-widest bg-[#353534] text-white/60 hover:bg-white hover:text-[#131313] transition-all"
+                      >
+                        ✓ Tandai Selesai
+                      </button>
+                    )}
+
+                    {booking.status === 'done' && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setPaymentModal(booking);
+                          setNominalDP(Number(booking.subtotal) || 0);
+                        }}
+                        className="flex-1 py-1.5 text-[9px] font-black font-headline uppercase tracking-widest bg-[#FFFF00] text-[#1d1d00] hover:brightness-110 transition-all"
+                      >
+                        ⚡ Bayar & Invoice
+                      </button>
+                    )}
+
+                    {booking.status === 'paid' && (
+                      <span className="flex-1 py-1.5 text-[9px] font-black font-headline uppercase tracking-widest text-center text-green-400">
+                        ✓ Lunas
+                      </span>
+                    )}
+
+                    {!['done', 'paid', 'cancelled'].includes(booking.status) && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (confirm('Batalkan booking ini?')) updateBookingStatus(booking.id, 'cancelled');
+                        }}
+                        className="px-3 py-1.5 text-[9px] font-black font-headline uppercase text-white/20 hover:text-red-400 transition-colors"
+                      >
+                        ✕
+                      </button>
+                    )}
                   </div>
                 </div>
               ))
@@ -224,6 +346,11 @@ export default function BookingsPage() {
             setShowBookingModal(true);
           }}
           onDeleteBooking={deleteBooking}
+          onUpdateStatus={updateBookingStatus}
+          onOpenPayment={(booking) => {
+            setPaymentModal(booking);
+            setNominalDP(Number(booking.subtotal) || 0);
+          }}
         />
       </div>
 
@@ -250,6 +377,81 @@ export default function BookingsPage() {
           }}
         />
       </Modal>
+
+      {/* Payment Modal */}
+      <Modal
+        isOpen={!!paymentModal}
+        onClose={() => setPaymentModal(null)}
+        size="md"
+        showHeader={false}
+      >
+        <div className="p-8 bg-[#131313] flex flex-col gap-6 font-body">
+          <div>
+            <h3 className="font-headline font-black text-xl uppercase text-[#FFFF00]">⚡ Bayar & Invoice</h3>
+            <p className="text-white/40 text-xs font-headline uppercase tracking-widest mt-1">
+              {paymentModal?.customerName} — {paymentModal?.vehicleInfo}
+            </p>
+          </div>
+
+          {/* Total */}
+          <div className="bg-[#1c1b1b] p-4 flex justify-between items-center rounded-sm">
+            <span className="text-white/40 text-xs font-headline uppercase tracking-widest">Total Tagihan</span>
+            <span className="font-headline font-black text-xl text-white">
+              Rp {Number(paymentModal?.subtotal || 0).toLocaleString('id-ID')}
+            </span>
+          </div>
+
+          {/* Nominal Bayar */}
+          <div className="space-y-1">
+            <label className="text-[10px] font-headline text-white/40 uppercase tracking-widest">Nominal Dibayar</label>
+            <input
+              type="number"
+              value={nominalDP || ''}
+              onChange={e => setNominalDP(Number(e.target.value))}
+              className="w-full bg-[#0e0e0e] border-none focus:ring-0 text-sm py-4 px-4 font-headline text-[#FFFF00] text-right font-mono"
+              placeholder="0"
+            />
+          </div>
+
+          {/* Metode */}
+          <div className="space-y-1">
+            <label className="text-[10px] font-headline text-white/40 uppercase tracking-widest">Metode Pembayaran</label>
+            <select
+              value={metodePembayaran}
+              onChange={e => setMetodePembayaran(e.target.value)}
+              className="w-full bg-[#0e0e0e] border-none focus:ring-0 text-sm py-4 px-4 font-headline text-white"
+            >
+              <option>Tunai</option>
+              <option>Transfer BCA</option>
+              <option>QRIS</option>
+            </select>
+          </div>
+
+          {/* Actions */}
+          <div className="flex gap-3 mt-4">
+            <button
+              onClick={() => setPaymentModal(null)}
+              className="px-6 py-4 text-[10px] font-headline font-black uppercase tracking-widest text-white/40 hover:text-white transition-colors"
+            >
+              Batal
+            </button>
+            <button
+              onClick={handlePayAndInvoice}
+              disabled={isProcessing}
+              className="flex-1 py-4 bg-[#FFFF00] text-[#1d1d00] font-headline font-black text-sm uppercase tracking-widest flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-50"
+            >
+              {isProcessing ? (
+                <div className="animate-spin size-4 border-2 border-[#1d1d00] border-t-transparent rounded-full" />
+              ) : (
+                <span className="material-symbols-outlined text-[18px]">receipt_long</span>
+              )} 
+              {isProcessing ? 'Memproses...' : 'Generate Invoice & Kirim'}
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }
+
+

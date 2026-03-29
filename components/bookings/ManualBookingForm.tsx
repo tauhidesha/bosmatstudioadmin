@@ -9,10 +9,10 @@ import {
   type MotorModel, type ServiceItem,
 } from '@/lib/data/pricing';
 import { cn } from '@/lib/utils';
-import { 
-  X, Search, Check, Bolt, Smartphone, History, Verified, 
-  ChevronDown, PlusCircle, FileText, Wrench, HelpCircle, 
-  Minus, Plus, Trash2, Edit 
+import {
+  X, Search, Check, Bolt, Smartphone, History, Verified,
+  ChevronDown, PlusCircle, FileText, Wrench, HelpCircle,
+  Minus, Plus, Trash2, Edit
 } from 'lucide-react';
 import Image from 'next/image';
 
@@ -54,6 +54,8 @@ export default function ManualBookingForm({
   const [contactPhone, setContactPhone] = useState('');
   const [motorcycleModel, setMotorcycleModel] = useState<MotorModel | null>(null);
   const [platNomor, setPlatNomor] = useState('');
+  const [bookingStatus, setBookingStatus] = useState<string>('pending');
+  const [amountPaid, setAmountPaid] = useState<number>(0);
   const [activeTab, setActiveTab] = useState<'repaint' | 'detailing' | 'coating'>('repaint');
   const [cart, setCart] = useState<CartItem[]>([]);
 
@@ -131,7 +133,7 @@ export default function ManualBookingForm({
     if (initialData) {
       setInvoiceName(initialData.customerName || '');
       setContactPhone(initialData.customerPhone || '');
-      
+
       // Handle vehicle info properly
       if (initialData.vehicleInfo) {
         setPlatNomor(initialData.vehicleInfo?.split('(')[1]?.replace(')', '') || '');
@@ -142,22 +144,26 @@ export default function ManualBookingForm({
 
       // Handle dates (ISO string to YYYY-MM-DD)
       if (initialData.bookingDate) {
-        const dateStr = typeof initialData.bookingDate === 'string' 
-          ? initialData.bookingDate.split('T')[0] 
+        const dateStr = typeof initialData.bookingDate === 'string'
+          ? initialData.bookingDate.split('T')[0]
           : new Date(initialData.bookingDate).toISOString().split('T')[0];
         setEntryDate(dateStr);
       }
-      
+
       if (initialData.bookingTime) setTimeSlot(initialData.bookingTime);
+
+      // Handle Status and Payment History
+      if (initialData.status) setBookingStatus(initialData.status.toLowerCase());
+      if (initialData.amountPaid !== undefined) setAmountPaid(initialData.amountPaid);
 
       // Handle services population
       if (initialData.services) {
         const rawServices = Array.isArray(initialData.services)
           ? initialData.services
-          : (initialData.services?.split(/, | \/ /) || []);
+          : (initialData.services?.split(' § ') || initialData.services?.split('\n') || []);
 
         const newCart: CartItem[] = [];
-        const currentModel = initialData.vehicleInfo 
+        const currentModel = initialData.vehicleInfo
           ? MOTOR_DATABASE.find(m => m.model === initialData.vehicleInfo.split(' (')[0])
           : null;
 
@@ -165,15 +171,15 @@ export default function ManualBookingForm({
           const serviceName = s.trim();
           const found = SERVICES.find(srv => srv.name === serviceName);
           if (found) {
-            newCart.push({ 
-              name: found.name, 
-              price: getServicePrice(found, currentModel || null) 
+            newCart.push({
+              name: found.name,
+              price: getServicePrice(found, currentModel || null)
             });
           } else if (serviceName.includes('Spot Repair')) {
             // Found a Spot Repair string in array or summary
             const match = serviceName.match(/Spot Repair \((\d+) spots\)/);
             if (match) setSpotCount(parseInt(match[1]));
-            
+
             // Add to cart as a base service if "Spot Repair" exists in master
             const spotServiceMaster = SERVICES.find(srv => srv.name === 'Spot Repair');
             if (spotServiceMaster) {
@@ -189,7 +195,11 @@ export default function ManualBookingForm({
 
       // Handle DP and Logistics
       const dpValue = initialData.downPayment || initialData.dpAmount || 0;
+      const paidValue = initialData.amountPaid || dpValue || 0;
+
       setNominalDP(dpValue);
+      setAmountPaid(paidValue);
+      setBookingStatus(initialData.status?.toLowerCase() || 'pending');
       setDpRequired(dpValue > 0);
       setHomeService(!!initialData.homeService);
       if (initialData.paymentMethod) setPaymentMethod(initialData.paymentMethod);
@@ -209,7 +219,7 @@ export default function ManualBookingForm({
   }, [servicesTotal, discountPercent, discountAmount]);
 
   const finalTotal = Math.max(0, servicesTotal - computedDiscount);
-  const remainingBalance = Math.max(0, finalTotal - nominalDP);
+  const remainingBalance = Math.max(0, finalTotal - amountPaid);
 
   // --- ACTIONS ---
   const handleSelectConversation = async (conv: Conversation) => {
@@ -280,7 +290,7 @@ export default function ManualBookingForm({
       const serviceSummary = [
         ...cart.map((i: CartItem) => i.name),
         spotCount > 0 ? `Spot Repair (${spotCount} spots)` : null
-      ].filter(Boolean).join(', ');
+      ].filter(Boolean).join(' § ');
 
       const payload = {
         customerName: invoiceName,
@@ -289,10 +299,13 @@ export default function ManualBookingForm({
         bookingDate: entryDate,
         bookingTime: timeSlot,
         vehicleInfo: `${motorcycleModel.model} (${platNomor || '-'})`,
-        subtotal: finalTotal,
-        dpAmount: dpRequired ? nominalDP : 0,
+        subtotal: servicesTotal,
+        totalAmount: finalTotal,
+        dpAmount: nominalDP,
+        amountPaid: amountPaid,
+        status: bookingStatus,
         homeService,
-        notes: `Layanan: ${serviceSummary} | DP: ${paymentMethod}`,
+        notes: `Layanan: ${serviceSummary.replace(/ § /g, ', ')} | DP: ${paymentMethod}`,
       };
 
       if (isEdit) {
@@ -309,8 +322,8 @@ export default function ManualBookingForm({
       if (sendInvoiceWA) {
         // Prepare items with prices for the template
         const detailedItems = [
-          ...cart.map((i: CartItem) => `${i.name}: ${i.price}`),
-          spotCount > 0 ? `Spot Repair (${spotCount} spots): ${spotCount * spotPrice}` : null
+          ...cart.map((i: CartItem) => `${i.name}||${i.price}||`),
+          spotCount > 0 ? `Spot Repair (${spotCount} spots)||${spotCount * spotPrice}||` : null
         ].filter(Boolean).join('\n');
 
         await fetch('/api/bookings/invoice', {
@@ -323,9 +336,9 @@ export default function ManualBookingForm({
             motorDetails: `${motorcycleModel.model} (${platNomor || '-'})`,
             items: detailedItems,
             totalAmount: finalTotal,
-            amountPaid: nominalDP,
+            amountPaid: amountPaid,
             paymentMethod: paymentMethod,
-            notes: `Layanan: ${serviceSummary}`,
+            notes: `Layanan:\n${serviceSummary.replace(/ § /g, '\n')}`,
             bookingDate: entryDate,
           }),
         });
@@ -380,7 +393,8 @@ export default function ManualBookingForm({
     foundVehicle, setFoundVehicle, isSearching,
     handleSubmit, handleDelete, handleSelectConversation,
     onCancel, servicesTotal, computedDiscount, finalTotal, remainingBalance,
-    allConversations, skipNextSearch, setSkipNextSearch
+    allConversations, skipNextSearch, setSkipNextSearch,
+    bookingStatus, setBookingStatus, amountPaid, setAmountPaid
   };
 
   const isMobile = useMediaQuery('(max-width: 768px)');
@@ -400,7 +414,8 @@ function MobileLayout(props: any) {
     sendInvoiceWA, setSendInvoiceWA, foundVehicle, isSearching,
     handleSubmit, onCancel, servicesTotal, computedDiscount, finalTotal,
     allConversations, isSubmitting, handleSelectConversation,
-    skipNextSearch, setSkipNextSearch
+    skipNextSearch, setSkipNextSearch,
+    bookingStatus, setBookingStatus, amountPaid, setAmountPaid
   } = props;
 
   const isSpotRepairSelected = cart.some((item: CartItem) => item.name === 'Spot Repair');
@@ -415,7 +430,7 @@ function MobileLayout(props: any) {
           </button>
           <div className="flex flex-col">
             <h1 className="font-spartan italic font-bold text-white tracking-tighter leading-none uppercase">
-                {isEdit ? 'EDIT_MISSION' : 'NEW_MISSION'}
+              {isEdit ? 'EDIT_MISSION' : 'NEW_MISSION'}
             </h1>
             <span className="text-[10px] text-neutral-400 font-headline tracking-widest uppercase">booking input interface</span>
           </div>
@@ -441,8 +456,8 @@ function MobileLayout(props: any) {
                     onClick={() => handleSelectConversation(conv)}
                     className={cn(
                       "flex-shrink-0 p-3 flex flex-col gap-1 border transition-all rounded-sm min-w-32",
-                      selectedConversation?.id === conv.id 
-                        ? "bg-[#FFFF00]/10 border-[#FFFF00]/50" 
+                      selectedConversation?.id === conv.id
+                        ? "bg-[#FFFF00]/10 border-[#FFFF00]/50"
                         : "bg-surface-container-low border-white/5"
                     )}
                   >
@@ -452,23 +467,23 @@ function MobileLayout(props: any) {
                 ))}
               </div>
             </div>
-            
+
             <div className="space-y-4 bg-neutral-900/40 p-4 rounded-sm border border-white/5">
               <div className="group">
                 <label className="block text-[10px] font-headline text-slate-500 uppercase mb-1">Invoice name (Display Name)</label>
-                <input 
+                <input
                   value={invoiceName}
                   onChange={e => setInvoiceName(e.target.value)}
-                  className="w-full bg-neutral-900 border-none focus:ring-0 text-sm py-3 px-4 text-white placeholder-neutral-700" 
+                  className="w-full bg-neutral-900 border-none focus:ring-0 text-sm py-3 px-4 text-white placeholder-neutral-700"
                   type="text"
                 />
               </div>
               <div className="group">
                 <label className="block text-[10px] font-headline text-slate-500 uppercase mb-1">Contact Phone</label>
-                <input 
+                <input
                   value={contactPhone}
                   onChange={e => setContactPhone(e.target.value)}
-                  className="w-full bg-neutral-900 border-none focus:ring-0 text-sm py-3 px-4 text-white placeholder-neutral-700 font-mono" 
+                  className="w-full bg-neutral-900 border-none focus:ring-0 text-sm py-3 px-4 text-white placeholder-neutral-700 font-mono"
                   type="tel"
                 />
               </div>
@@ -505,11 +520,11 @@ function MobileLayout(props: any) {
             <div className="space-y-1">
               <label className="block text-[10px] font-headline text-slate-500 uppercase ml-1">Plate Number</label>
               <div className="relative">
-                <input 
+                <input
                   value={platNomor}
                   onChange={e => setPlatNomor(e.target.value.toUpperCase())}
-                  className="w-full bg-neutral-900 border-none focus:ring-1 focus:ring-[#FFFF00]/50 text-xs py-3 px-4 text-white uppercase font-bold tracking-widest" 
-                  type="text" 
+                  className="w-full bg-neutral-900 border-none focus:ring-1 focus:ring-[#FFFF00]/50 text-xs py-3 px-4 text-white uppercase font-bold tracking-widest"
+                  type="text"
                 />
                 <div className="absolute right-2 bottom-[-14px]">
                   <span className="text-[8px] font-headline text-[#FFFF00] bg-black/80 px-1 py-0.5 rounded-sm border border-[#FFFF00]/30 shadow-lg">SMART SEARCH</span>
@@ -517,7 +532,7 @@ function MobileLayout(props: any) {
               </div>
             </div>
           </div>
-          
+
           {foundVehicle && (
             <div className="p-3 bg-[#FFFF00]/5 border border-[#FFFF00]/20 flex items-center justify-between rounded-sm animate-in fade-in slide-in-from-top-2 duration-300">
               <div className="flex items-center gap-3">
@@ -549,10 +564,10 @@ function MobileLayout(props: any) {
             <span className="w-1 h-4 bg-[#FFFF00]"></span>
             <h2 className="font-spartan text-sm uppercase tracking-widest text-white">Service Selection</h2>
           </div>
-          
+
           <div className="flex gap-1 bg-neutral-900/50 p-1 rounded-sm border border-white/5">
             {(['repaint', 'detailing', 'coating'] as const).map(tab => (
-              <button 
+              <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
                 className={cn(
@@ -570,7 +585,7 @@ function MobileLayout(props: any) {
               const selected = cart.some((i: CartItem) => i.name === service.name);
               const price = getServicePrice(service, motorcycleModel);
               return (
-                <div 
+                <div
                   key={service.name}
                   onClick={() => addServiceToCart(service)}
                   className={cn(
@@ -601,17 +616,17 @@ function MobileLayout(props: any) {
                 <p className="text-[10px] font-bold text-neutral-400 uppercase">ADD CUSTOM SERVICE</p>
               </div>
               <div className="flex gap-2">
-                <input 
+                <input
                   value={customServiceName}
                   onChange={e => setCustomServiceName(e.target.value)}
-                  className="flex-1 bg-neutral-900 border-none focus:ring-0 text-xs py-2 px-3 text-white placeholder-neutral-700 italic" 
-                  placeholder="Service Name" 
+                  className="flex-1 bg-neutral-900 border-none focus:ring-0 text-xs py-2 px-3 text-white placeholder-neutral-700 italic"
+                  placeholder="Service Name"
                 />
-                <input 
+                <input
                   value={customServicePrice || ''}
                   onChange={e => setCustomServicePrice(Number(e.target.value))}
-                  className="w-20 bg-neutral-900 border-none focus:ring-0 text-xs py-2 px-3 text-white placeholder-neutral-700 italic text-right font-mono" 
-                  placeholder="Price" 
+                  className="w-20 bg-neutral-900 border-none focus:ring-0 text-xs py-2 px-3 text-white placeholder-neutral-700 italic text-right font-mono"
+                  placeholder="Price"
                 />
                 <button onClick={addCustomService} className="bg-[#FFFF00] text-black px-3 rounded-sm active:scale-95 transition-all">
                   <Plus className="size-4" />
@@ -628,18 +643,18 @@ function MobileLayout(props: any) {
                     <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-tighter italic">SPOT REPAIR / MANUAL ADJUST</p>
                   </div>
                   <div className="flex items-center gap-3 bg-neutral-900 px-2 py-1 rounded-sm border border-white/10">
-                    <button onClick={() => setSpotCount((prev: number) => Math.max(0, prev - 1))} className="text-neutral-500"><Minus size={14}/></button>
+                    <button onClick={() => setSpotCount((prev: number) => Math.max(0, prev - 1))} className="text-neutral-500"><Minus size={14} /></button>
                     <span className="text-xs font-bold text-white font-mono">{spotCount.toString().padStart(2, '0')}</span>
-                    <button onClick={() => setSpotCount((prev: number) => prev + 1)} className="text-[#FFFF00]"><Plus size={14}/></button>
+                    <button onClick={() => setSpotCount((prev: number) => prev + 1)} className="text-[#FFFF00]"><Plus size={14} /></button>
                   </div>
                 </div>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] text-neutral-500 font-headline">IDR</span>
-                  <input 
+                  <input
                     value={spotPrice || ''}
                     onChange={e => setSpotPrice(Number(e.target.value))}
-                    className="w-full bg-neutral-900 border-none focus:ring-0 text-xs py-2 pl-10 pr-4 text-white placeholder-neutral-700 italic" 
-                    placeholder="Price Field" 
+                    className="w-full bg-neutral-900 border-none focus:ring-0 text-xs py-2 pl-10 pr-4 text-white placeholder-neutral-700 italic"
+                    placeholder="Price Field"
                   />
                 </div>
               </div>
@@ -657,10 +672,10 @@ function MobileLayout(props: any) {
             <div className="space-y-1">
               <label className="block text-[9px] font-headline text-neutral-500 uppercase">Percentage (%)</label>
               <div className="relative">
-                <input 
+                <input
                   value={discountPercent || ''}
                   onChange={e => { setDiscountPercent(Number(e.target.value)); setDiscountAmount(0); }}
-                  className="w-full bg-neutral-900 border-none focus:ring-0 text-sm py-2 px-3 text-white text-right font-mono" 
+                  className="w-full bg-neutral-900 border-none focus:ring-0 text-sm py-2 px-3 text-white text-right font-mono"
                 />
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-neutral-500">%</span>
               </div>
@@ -669,10 +684,10 @@ function MobileLayout(props: any) {
               <label className="block text-[9px] font-headline text-neutral-500 uppercase">Fixed Amount (Rp)</label>
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[9px] text-neutral-500 font-headline">IDR</span>
-                <input 
+                <input
                   value={discountAmount || ''}
                   onChange={e => { setDiscountAmount(Number(e.target.value)); setDiscountPercent(0); }}
-                  className="w-full bg-neutral-900 border-none focus:ring-0 text-sm py-2 pl-8 pr-3 text-white text-right font-mono" 
+                  className="w-full bg-neutral-900 border-none focus:ring-0 text-sm py-2 pl-8 pr-3 text-white text-right font-mono"
                 />
               </div>
             </div>
@@ -698,10 +713,10 @@ function MobileLayout(props: any) {
                 <label className="block text-[9px] font-headline text-neutral-500 uppercase">Nominal DP (Rp)</label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[9px] text-neutral-500 font-headline">IDR</span>
-                  <input 
+                  <input
                     value={nominalDP || ''}
                     onChange={e => setNominalDP(Number(e.target.value))}
-                    className="w-full bg-neutral-950 border-none focus:ring-0 text-sm py-2 pl-8 pr-3 text-white text-right font-mono" 
+                    className="w-full bg-neutral-950 border-none focus:ring-0 text-sm py-2 pl-8 pr-3 text-white text-right font-mono"
                     placeholder="0"
                   />
                 </div>
@@ -710,7 +725,7 @@ function MobileLayout(props: any) {
             <div className="space-y-1">
               <label className="block text-[9px] font-headline text-neutral-500 uppercase">Metode Pembayaran</label>
               <div className="relative">
-                <select 
+                <select
                   value={paymentMethod}
                   onChange={e => setPaymentMethod(e.target.value)}
                   className="w-full bg-neutral-950 border-none focus:ring-0 text-sm py-2.5 px-3 text-white appearance-none cursor-pointer font-body"
@@ -723,6 +738,56 @@ function MobileLayout(props: any) {
               </div>
             </div>
           </div>
+
+          {/* Status & Transaction (Mobile) */}
+          {isEdit && (
+            <div className="bg-neutral-900/40 p-5 space-y-4 rounded-sm border border-white/5">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="w-1.5 h-4 bg-[#FFFF00]"></span>
+                <h3 className="font-spartan text-xs font-bold uppercase text-white tracking-widest italic">Status & Transaction</h3>
+              </div>
+
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-2">
+                  {(['pending', 'in_progress', 'done', 'paid'] as const).map(s => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => {
+                        setBookingStatus(s);
+                        if (s === 'paid') setAmountPaid(finalTotal);
+                      }}
+                      className={cn(
+                        "py-2 text-[9px] font-black uppercase border rounded-sm transition-all",
+                        bookingStatus === s
+                          ? "bg-[#FFFF00] text-black border-[#FFFF00]"
+                          : "bg-neutral-950 text-neutral-500 border-white/5"
+                      )}
+                    >
+                      {s.replace('_', ' ')}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="space-y-1">
+                  <label className="block text-[9px] font-headline text-neutral-500 uppercase">Total Paid (Historical)</label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[9px] text-neutral-500 font-headline">IDR</span>
+                    <input
+                      value={amountPaid || ''}
+                      onChange={e => {
+                        const val = Number(e.target.value);
+                        setAmountPaid(val);
+                        if (val >= finalTotal && finalTotal > 0) setBookingStatus('paid');
+                      }}
+                      className="w-full bg-neutral-950 border-none focus:ring-0 text-sm py-2 pl-8 pr-3 text-[#FFFF00] text-right font-mono"
+                      placeholder="0"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="bg-neutral-800/80 p-5 space-y-3 relative overflow-hidden rounded-sm border border-[#FFFF00]/10">
             <div className="flex justify-between items-center text-xs">
@@ -738,8 +803,8 @@ function MobileLayout(props: any) {
               <span className="text-xl font-spartan font-bold text-[#FFFF00] leading-none">{formatRupiah(finalTotal)}</span>
             </div>
             <label className="flex items-center gap-3 pt-4 cursor-pointer group">
-              <input 
-                type="checkbox" 
+              <input
+                type="checkbox"
                 checked={sendInvoiceWA}
                 onChange={e => setSendInvoiceWA(e.target.checked)}
                 className="size-5 rounded-sm border-2 border-[#FFFF00] bg-transparent text-[#FFFF00] focus:ring-0"
@@ -756,7 +821,7 @@ function MobileLayout(props: any) {
           <X className="size-5" />
           <span className="font-spartan font-bold uppercase text-[10px] mt-1">CANCEL</span>
         </button>
-        <button 
+        <button
           onClick={handleSubmit}
           disabled={isSubmitting || cart.length === 0}
           className={cn(
@@ -792,7 +857,8 @@ function DesktopLayout(props: any) {
     sendInvoiceWA, setSendInvoiceWA, foundVehicle, setFoundVehicle, isSearching,
     handleSubmit, handleDelete, handleSelectConversation, onCancel,
     servicesTotal, computedDiscount, finalTotal, remainingBalance, allConversations,
-    skipNextSearch, setSkipNextSearch
+    skipNextSearch, setSkipNextSearch,
+    bookingStatus, setBookingStatus, amountPaid, setAmountPaid
   } = props;
 
   const isSpotRepairSelected = cart.some((item: CartItem) => item.name === 'Spot Repair');
@@ -1263,7 +1329,6 @@ function DesktopLayout(props: any) {
                     ))}
                   </div>
                 </div>
-
                 {dpRequired && (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-1">
@@ -1289,6 +1354,62 @@ function DesktopLayout(props: any) {
                           <option>QRIS</option>
                         </select>
                         <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500 size-4" />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Status & Payment (Edit Mode Only) */}
+                {isEdit && (
+                  <div className="col-span-full mt-6 pt-6 border-t border-white/5 space-y-6">
+                    <div className="flex items-center gap-3">
+                      <span className="w-1.5 h-6 bg-[#FFFF00]"></span>
+                      <h3 className="font-display text-xl font-bold uppercase tracking-tighter text-white italic">Status & Transaction</h3>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                      {/* Status Selection */}
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-headline text-slate-500 uppercase tracking-widest">Active Progress Status</label>
+                        <div className="flex gap-2">
+                          {(['pending', 'in_progress', 'done', 'paid'] as const).map(s => (
+                            <button
+                              key={s}
+                              type="button"
+                              onClick={() => {
+                                setBookingStatus(s);
+                                if (s === 'paid') setAmountPaid(finalTotal);
+                              }}
+                              className={cn(
+                                "flex-1 py-3 text-[9px] font-black uppercase border transition-all rounded-sm",
+                                bookingStatus === s
+                                  ? "bg-[#FFFF00] text-[#1D1D00] border-[#FFFF00]"
+                                  : "bg-[#1c1b1b] text-slate-500 border-white/5"
+                              )}
+                            >
+                              {s.replace('_', ' ')}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Manual Payment Entry */}
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-headline text-slate-500 uppercase tracking-widest">Total Amount Received (Historical)</label>
+                        <div className="relative">
+                          <input
+                            type="number"
+                            value={amountPaid || ''}
+                            onChange={e => {
+                              const val = Number(e.target.value);
+                              setAmountPaid(val);
+                              if (val >= finalTotal && finalTotal > 0) setBookingStatus('paid');
+                            }}
+                            className="w-full bg-[#0e0e0e] border-none focus:ring-0 text-sm py-4 px-4 font-headline font-bold text-[#FFFF00] text-right"
+                            placeholder="IDR 0"
+                          />
+                          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[10px] font-headline text-slate-500">PAID_NOMINAL</span>
+                        </div>
                       </div>
                     </div>
                   </div>
