@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
     // Get customers with their latest messages
     const customers = await prisma.customer.findMany({
       take: limit,
-      orderBy: { updatedAt: 'desc' },
+      orderBy: { lastMessageAt: 'desc' },
       include: {
         messages: {
           orderBy: { createdAt: 'desc' },
@@ -43,8 +43,8 @@ export async function GET(req: NextRequest) {
         const lastMessage = c.messages[0];
         const lastBooking = c.bookings[0];
         
-        // Use whatsappLid if available (LID format), otherwise use phone with @c.us
-        const customerPhone = c.whatsappLid || `${c.phone}@c.us`;
+        // The c.phone already contains the suffix (@c.us or @lid) from DB reset
+        const customerPhone = c.phone;
         
         return {
           id: c.id,

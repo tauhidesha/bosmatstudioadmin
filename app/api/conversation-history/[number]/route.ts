@@ -20,12 +20,17 @@ export async function GET(
     const { searchParams } = new URL(req.url);
     const limit = parseInt(searchParams.get('limit') || '50', 10);
 
-    // Normalize phone number
+    // Normalize numeric part for prefix search
     const normalizedPhone = number.replace(/@c\.us$|@lid$/, '').replace(/\D/g, '');
     
-    // Find customer
-    const customer = await prisma.customer.findUnique({
-      where: { phone: normalizedPhone }
+    // Find customer (handle both with and without suffix from DB reset)
+    const customer = await prisma.customer.findFirst({
+      where: {
+        OR: [
+          { phone: number },
+          { phone: { startsWith: normalizedPhone } }
+        ]
+      }
     });
 
     if (!customer) {
