@@ -19,6 +19,7 @@ const navItems: NavItem[] = [
   { label: 'CRM', href: '/crm', icon: 'groups' },
   { label: 'Follow-ups', href: '/follow-ups', icon: 'history_toggle_off' },
   { label: 'Keuangan', href: '/finance', icon: 'payments' },
+  { label: 'Database', href: '/master-data', icon: 'database' },
   { label: 'Playground', href: '/playground', icon: 'science' },
   { label: 'Pengaturan', href: '/settings', icon: 'settings' },
 ];
