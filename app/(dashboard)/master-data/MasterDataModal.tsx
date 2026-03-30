@@ -16,13 +16,24 @@ interface MasterDataModalProps {
 export default function MasterDataModal({ isOpen, onClose, type, editData, onSave }: MasterDataModalProps) {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState<any>({});
+  const [sizePrices, setSizePrices] = useState<Record<string, string>>({
+    S: '', M: '', L: '', XL: ''
+  });
 
   useEffect(() => {
     if (isOpen) {
       if (editData) {
         setFormData(editData);
+        if (type === 'services' && editData.prices) {
+          const prices: Record<string, string> = { S: '', M: '', L: '', XL: '' };
+          editData.prices.forEach((p: any) => {
+            if (p.size) prices[p.size] = p.price.toString();
+          });
+          setSizePrices(prices);
+        }
       } else {
         // Defaults
+        setSizePrices({ S: '', M: '', L: '', XL: '' });
         if (type === 'services') {
           setFormData({ name: '', category: 'detailing', usesModelPricing: false, estimatedDuration: 0 });
         } else if (type === 'models') {
@@ -38,7 +49,19 @@ export default function MasterDataModal({ isOpen, onClose, type, editData, onSav
     e.preventDefault();
     setLoading(true);
     try {
-      await onSave(formData);
+      const dataToSave = { ...formData };
+      
+      // If service and not model-based, prepare the prices array
+      if (type === 'services' && !formData.usesModelPricing) {
+        dataToSave.prices = Object.entries(sizePrices)
+          .filter(([_, price]) => price !== '')
+          .map(([size, price]) => ({
+            size,
+            price: parseFloat(price)
+          }));
+      }
+
+      await onSave(dataToSave);
       onClose();
     } catch (err) {
       alert('Gagal menyimpan data');
@@ -48,7 +71,7 @@ export default function MasterDataModal({ isOpen, onClose, type, editData, onSav
   };
 
   const renderServiceForm = () => (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div className="space-y-1">
         <label className="text-[10px] font-headline text-white/40 uppercase tracking-widest">Service Name</label>
         <input 
@@ -81,6 +104,7 @@ export default function MasterDataModal({ isOpen, onClose, type, editData, onSav
           />
         </div>
       </div>
+
       <div className="flex items-center gap-3 bg-[#1c1b1b] p-4 rounded-sm border border-white/5">
         <input 
           type="checkbox"
@@ -93,6 +117,33 @@ export default function MasterDataModal({ isOpen, onClose, type, editData, onSav
           <p className="text-[10px] text-white/40">Check if price varies by specific motorcycle model (Repaint Bodi Halus)</p>
         </div>
       </div>
+
+      {!formData.usesModelPricing && (
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <span className="h-px flex-1 bg-white/5"></span>
+            <span className="text-[9px] font-headline font-black text-white/30 uppercase tracking-widest">Size-Based Pricing (S/M/L/XL)</span>
+            <span className="h-px flex-1 bg-white/5"></span>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            {['S', 'M', 'L', 'XL'].map(size => (
+              <div key={size} className="space-y-1">
+                <label className="text-[10px] font-headline text-[#FFFF00] uppercase tracking-widest">Price Size {size}</label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] text-white/20 font-bold">Rp</span>
+                  <input 
+                    type="number"
+                    value={sizePrices[size]} 
+                    onChange={e => setSizePrices({ ...sizePrices, [size]: e.target.value })}
+                    className="w-full bg-[#0e0e0e] border-none text-sm p-3 pl-8 text-white rounded-sm focus:ring-1 focus:ring-[#FFFF00]/30" 
+                    placeholder="0"
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 

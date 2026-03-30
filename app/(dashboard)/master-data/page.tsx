@@ -139,13 +139,18 @@ export default function MasterDataPage() {
                   <th className="px-6 py-4 text-[10px] font-headline font-black text-white/40 uppercase tracking-[0.2em]">Kategori</th>
                   <th className="px-6 py-4 text-[10px] font-headline font-black text-white/40 uppercase tracking-[0.2em]">Model Based</th>
                   <th className="px-6 py-4 text-[10px] font-headline font-black text-white/40 uppercase tracking-[0.2em]">Durasi</th>
-                  <th className="px-6 py-4 text-[10px] font-headline font-black text-white/40 uppercase tracking-[0.2em] text-right">Base Price</th>
+                  <th className="px-6 py-4 text-[10px] font-headline font-black text-white/40 uppercase tracking-[0.2em] text-right">Pricing</th>
                   <th className="px-6 py-4 text-[10px] font-headline font-black text-white/40 uppercase tracking-[0.2em] text-center">Aksi</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
                 {filteredServices.map(svc => {
                   const basePrice = svc.prices.find(p => !p.size && !p.vehicleModelId)?.price || 0;
+                  const sizePrices = svc.prices.filter(p => p.size).sort((a, b) => {
+                    const order = { S: 1, M: 2, L: 3, XL: 4 };
+                    return (order[a.size as keyof typeof order] || 0) - (order[b.size as keyof typeof order] || 0);
+                  });
+
                   return (
                     <tr key={svc.id} className="hover:bg-white/[0.02] transition-colors group">
                       <td className="px-6 py-4">
@@ -170,9 +175,21 @@ export default function MasterDataPage() {
                         {svc.estimatedDuration} min
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <p className="font-headline font-black text-sm text-white tracking-tight">
-                          {svc.usesModelPricing ? 'VARIES' : formatRupiah(basePrice)}
-                        </p>
+                        {svc.usesModelPricing ? (
+                          <p className="font-headline font-black text-sm text-white tracking-tight uppercase">By Model</p>
+                        ) : sizePrices.length > 0 ? (
+                          <div className="flex flex-col items-end gap-0.5">
+                            {sizePrices.map(p => (
+                              <p key={p.id} className="text-[10px] font-mono text-white/60">
+                                <span className="text-[#FFFF00] font-bold">{p.size}:</span> {formatRupiah(p.price)}
+                              </p>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="font-headline font-black text-sm text-white tracking-tight">
+                            {formatRupiah(basePrice)}
+                          </p>
+                        )}
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center justify-center gap-2">
