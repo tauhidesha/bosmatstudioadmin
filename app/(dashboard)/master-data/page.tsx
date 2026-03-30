@@ -317,6 +317,7 @@ export default function MasterDataPage() {
         type={activeTab}
         editData={editingItem}
         onSave={handleSave}
+        services={services}
       />
     </div>
   );

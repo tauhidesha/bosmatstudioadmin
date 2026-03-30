@@ -102,6 +102,14 @@ export function usePricingData() {
     deleteSurcharge: async (id: string) => {
       const res = await fetch(`/api/master-data/surcharges/${id}`, { method: 'DELETE' });
       return res.json();
+    },
+    saveModelPrice: async (data: { serviceId: string, vehicleModelId: string, price: number }) => {
+      const res = await fetch('/api/master-data/prices', {
+        method: 'POST',
+        body: JSON.stringify(data),
+        headers: { 'Content-Type': 'application/json' }
+      });
+      return res.json();
     }
   };
 }

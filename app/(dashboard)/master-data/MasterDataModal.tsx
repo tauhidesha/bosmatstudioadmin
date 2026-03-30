@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Modal from '@/components/shared/Modal';
 import { Service, VehicleModel, Surcharge } from '@/lib/hooks/usePricingData';
 import { cn } from '@/lib/utils';
@@ -11,19 +11,26 @@ interface MasterDataModalProps {
   type: 'services' | 'models' | 'surcharges';
   editData?: any;
   onSave: (data: any) => Promise<any>;
+  services?: Service[]; // Added to provide model-based services context
 }
 
-export default function MasterDataModal({ isOpen, onClose, type, editData, onSave }: MasterDataModalProps) {
+export default function MasterDataModal({ isOpen, onClose, type, editData, onSave, services = [] }: MasterDataModalProps) {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState<any>({});
   const [sizePrices, setSizePrices] = useState<Record<string, string>>({
     S: '', M: '', L: '', XL: ''
   });
+  const [modelPrices, setModelPrices] = useState<Record<string, string>>({});
+
+  const modelBasedServices = useMemo(() => 
+    services.filter(s => s.usesModelPricing), 
+  [services]);
 
   useEffect(() => {
     if (isOpen) {
       if (editData) {
         setFormData(editData);
+        
         if (type === 'services' && editData.prices) {
           const prices: Record<string, string> = { S: '', M: '', L: '', XL: '' };
           editData.prices.forEach((p: any) => {
@@ -31,9 +38,19 @@ export default function MasterDataModal({ isOpen, onClose, type, editData, onSav
           });
           setSizePrices(prices);
         }
+
+        if (type === 'models') {
+          const prices: Record<string, string> = {};
+          modelBasedServices.forEach(svc => {
+            const priceEntry = svc.prices?.find(p => p.vehicleModelId === editData.id);
+            if (priceEntry) prices[svc.id] = priceEntry.price.toString();
+          });
+          setModelPrices(prices);
+        }
       } else {
         // Defaults
         setSizePrices({ S: '', M: '', L: '', XL: '' });
+        setModelPrices({});
         if (type === 'services') {
           setFormData({ name: '', category: 'detailing', usesModelPricing: false, estimatedDuration: 0 });
         } else if (type === 'models') {
@@ -43,7 +60,7 @@ export default function MasterDataModal({ isOpen, onClose, type, editData, onSav
         }
       }
     }
-  }, [isOpen, editData, type]);
+  }, [isOpen, editData, type, modelBasedServices]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,12 +68,22 @@ export default function MasterDataModal({ isOpen, onClose, type, editData, onSav
     try {
       const dataToSave = { ...formData };
       
-      // If service and not model-based, prepare the prices array
+      // Handle size-based prices for services
       if (type === 'services' && !formData.usesModelPricing) {
         dataToSave.prices = Object.entries(sizePrices)
           .filter(([_, price]) => price !== '')
           .map(([size, price]) => ({
             size,
+            price: parseFloat(price)
+          }));
+      }
+
+      // Handle model-based prices for vehicles
+      if (type === 'models') {
+        dataToSave.modelPrices = Object.entries(modelPrices)
+          .filter(([_, price]) => price !== '')
+          .map(([serviceId, price]) => ({
+            serviceId,
             price: parseFloat(price)
           }));
       }
@@ -148,7 +175,7 @@ export default function MasterDataModal({ isOpen, onClose, type, editData, onSav
   );
 
   const renderModelForm = () => (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-1">
           <label className="text-[10px] font-headline text-white/40 uppercase tracking-widest">Brand</label>
@@ -191,6 +218,33 @@ export default function MasterDataModal({ isOpen, onClose, type, editData, onSav
           </select>
         </div>
       </div>
+
+      {modelBasedServices.length > 0 && (
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <span className="h-px flex-1 bg-white/5"></span>
+            <span className="text-[9px] font-headline font-black text-white/30 uppercase tracking-widest">Model-Based Pricing (Repaint)</span>
+            <span className="h-px flex-1 bg-white/5"></span>
+          </div>
+          <div className="space-y-3">
+            {modelBasedServices.map(svc => (
+              <div key={svc.id} className="flex items-center justify-between gap-4 p-3 bg-[#1c1b1b] border border-white/5 rounded-sm">
+                <span className="text-xs font-bold text-white/70 uppercase truncate flex-1">{svc.name}</span>
+                <div className="relative w-40">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] text-white/30 font-bold">Rp</span>
+                  <input 
+                    type="number"
+                    value={modelPrices[svc.id] || ''} 
+                    onChange={e => setModelPrices({ ...modelPrices, [svc.id]: e.target.value })}
+                    className="w-full bg-[#0e0e0e] border-none text-sm p-2.5 pl-8 text-[#FFFF00] font-bold text-right rounded-sm focus:ring-1 focus:ring-[#FFFF00]/30" 
+                    placeholder="0"
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 
