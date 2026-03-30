@@ -196,7 +196,12 @@ export default function ConversationHeader({
             <div className="text-right">
               <p className="text-[10px] text-zinc-500 font-body uppercase tracking-widest">Total Spend</p>
               <p className="text-lg font-headline font-bold text-[#FFFF00] leading-tight">
-                Rp 12.450.000
+                {new Intl.NumberFormat('id-ID', {
+                  style: 'currency',
+                  currency: 'IDR',
+                  minimumFractionDigits: 0,
+                  maximumFractionDigits: 0,
+                }).format(conversation.totalSpending || 0)}
               </p>
             </div>
 

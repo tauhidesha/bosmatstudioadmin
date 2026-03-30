@@ -67,9 +67,18 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const limit = parseInt(searchParams.get('limit') || '50', 10);
     const type = searchParams.get('type');
+    const customerId = searchParams.get('customerId');
+    const days = parseInt(searchParams.get('days') || '0', 10);
 
     const where: any = {};
     if (type) where.type = type.toLowerCase();
+    if (customerId) where.customerId = customerId;
+    
+    if (days > 0) {
+      const dateLimit = new Date();
+      dateLimit.setDate(dateLimit.getDate() - days);
+      where.createdAt = { gte: dateLimit };
+    }
 
     const transactions = await prisma.transaction.findMany({
       where,

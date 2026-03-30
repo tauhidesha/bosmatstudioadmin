@@ -15,7 +15,19 @@ export async function GET(req: NextRequest) {
     const customers = await prisma.customer.findMany({
       take: limit,
       orderBy: { lastMessageAt: 'desc' },
-      include: {
+      select: {
+        id: true,
+        phone: true,
+        name: true,
+        status: true,
+        lastMessage: true,
+        lastMessageAt: true,
+        aiPaused: true,
+        aiPauseReason: true,
+        aiPausedUntil: true,
+        totalSpending: true,
+        profilePicUrl: true,
+        updatedAt: true,
         messages: {
           orderBy: { createdAt: 'desc' },
           take: 1
