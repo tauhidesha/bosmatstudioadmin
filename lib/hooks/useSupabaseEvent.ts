@@ -33,6 +33,8 @@ interface UseSupabaseEventReturn {
   connected: boolean;
 }
 
+let channelCounter = 0;
+
 export function useSupabaseEvent(options: UseSupabaseEventOptions): UseSupabaseEventReturn {
   const { table, schema = 'public', event = '*', filter, enabled = true } = options;
 
@@ -40,21 +42,31 @@ export function useSupabaseEvent(options: UseSupabaseEventOptions): UseSupabaseE
   const [lastPayload, setLastPayload] = useState<RealtimePostgresChangesPayload<any> | null>(null);
   const [connected, setConnected] = useState(false);
   const channelRef = useRef<RealtimeChannel | null>(null);
-  const visibleRef = useRef(true);
 
-  const subscribe = useCallback(() => {
+  // Stable cleanup function
+  const cleanup = useCallback(() => {
     if (channelRef.current) {
       supabase.removeChannel(channelRef.current);
+      channelRef.current = null;
+      setConnected(false);
     }
+  }, []);
 
-    const channelName = `realtime-${table}${filter ? `-${filter}` : ''}`;
+  useEffect(() => {
+    if (!enabled) return;
+
+    // Clean up any previous channel first
+    cleanup();
+
+    // Use unique channel name to prevent collisions (React StrictMode)
+    const uniqueId = ++channelCounter;
+    const channelName = `rt-${table}-${uniqueId}`;
 
     const channelConfig: any = {
       event,
       schema,
       table,
     };
-
     if (filter) {
       channelConfig.filter = filter;
     }
@@ -74,44 +86,25 @@ export function useSupabaseEvent(options: UseSupabaseEventOptions): UseSupabaseE
       });
 
     channelRef.current = channel;
-  }, [table, schema, event, filter]);
 
-  const unsubscribe = useCallback(() => {
-    if (channelRef.current) {
-      supabase.removeChannel(channelRef.current);
-      channelRef.current = null;
-      setConnected(false);
-    }
-  }, []);
-
-  // Visibility-based subscription management
-  useEffect(() => {
-    if (!enabled) return;
-
+    // Visibility handler — pause when tab hidden
     const handleVisibilityChange = () => {
-      const visible = document.visibilityState === 'visible';
-      visibleRef.current = visible;
-
-      if (visible) {
-        // Tab became visible — resubscribe and bump revision to trigger refetch
-        subscribe();
+      if (document.visibilityState === 'visible') {
+        // Tab visible again — bump revision to trigger refetch
         setRevision(prev => prev + 1);
-      } else {
-        // Tab hidden — unsubscribe to save bandwidth
-        unsubscribe();
       }
     };
-
-    // Initial subscription
-    subscribe();
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-      unsubscribe();
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+      }
     };
-  }, [enabled, subscribe, unsubscribe]);
+  }, [enabled, table, schema, event, filter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return { revision, lastPayload, connected };
 }
