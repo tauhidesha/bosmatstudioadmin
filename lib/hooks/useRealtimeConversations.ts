@@ -1,14 +1,14 @@
 /**
- * useRealtimeConversations Hook (Migrated to SQL/Prisma)
- * Manages conversation data from PostgreSQL via Prisma API
+ * useRealtimeConversations Hook (Supabase Realtime)
  * 
- * Requirement 1.1: Fetch and display all conversations from SQL
- * Requirement 1.4: Refresh conversation data every 15 seconds (Polling)
+ * BEFORE: Polled /api/conversations every 15 seconds (~288 MB/day egress)
+ * AFTER:  Subscribes to Customer + DirectMessage changes, fetches only on events (~5 MB/day)
  */
 
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useSupabaseEvent } from './useSupabaseEvent';
 
 export interface Conversation {
   id: string;
@@ -48,9 +48,25 @@ export function useRealtimeConversations(
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const fetchingRef = useRef(false);
 
-  const fetchConversations = async () => {
+  // Subscribe to Customer and DirectMessage changes
+  const { revision: customerRevision } = useSupabaseEvent({
+    table: 'Customer',
+    event: 'UPDATE',
+    enabled,
+  });
+
+  const { revision: messageRevision } = useSupabaseEvent({
+    table: 'DirectMessage',
+    event: 'INSERT',
+    enabled,
+  });
+
+  const fetchConversations = useCallback(async () => {
+    if (fetchingRef.current) return;
+    fetchingRef.current = true;
+
     try {
       const res = await fetch('/api/conversations?limit=100');
       const json = await res.json();
@@ -59,16 +75,15 @@ export function useRealtimeConversations(
         throw new Error(json.error || 'Failed to fetch conversations');
       }
 
-      // Map API data (SQL format) to Hook data
       const mappedData: Conversation[] = json.data.map((item: any) => ({
         id: item.id,
         customerId: item.customerId,
         customerName: item.name,
         customerPhone: item.phone,
-        channel: 'whatsapp', // Default for now
-        lastMessage: item.lastMessage || 'No messagesyet',
+        channel: 'whatsapp',
+        lastMessage: item.lastMessage || 'No messages yet',
         lastMessageTime: new Date(item.lastMessageAt).getTime(),
-        unreadCount: 0, // Not implemented in SQL yet
+        unreadCount: 0,
         label: item.status,
         aiState: {
           enabled: !item.aiPaused,
@@ -83,35 +98,22 @@ export function useRealtimeConversations(
       setConversations(mappedData);
       setError(null);
     } catch (err: any) {
-      console.error('[Hook useRealtimeConversations] Error:', err);
+      console.error('[useRealtimeConversations] Error:', err);
       setError(err instanceof Error ? err : new Error(err.message || 'Unknown error'));
     } finally {
       setLoading(false);
+      fetchingRef.current = false;
     }
-  };
+  }, []);
 
+  // Fetch on mount + whenever Supabase emits a change event
   useEffect(() => {
     if (!enabled) {
       setLoading(false);
       return;
     }
-
-    // Initial fetch
     fetchConversations();
+  }, [enabled, customerRevision, messageRevision, fetchConversations]);
 
-    // Set up polling (Requirement 1.4: 15s)
-    intervalRef.current = setInterval(fetchConversations, 15000);
-
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
-    };
-  }, [enabled]);
-
-  return {
-    conversations,
-    loading,
-    error,
-  };
+  return { conversations, loading, error };
 }

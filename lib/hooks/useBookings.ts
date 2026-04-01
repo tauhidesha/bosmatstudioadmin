@@ -1,13 +1,14 @@
 /**
- * useBookings Hook (Migrated to SQL/Prisma)
- * Manages booking data from PostgreSQL via Prisma API
+ * useBookings Hook (Supabase Realtime)
  * 
- * Requirement 2.1: Fetch and display bookings from SQL
+ * BEFORE: Polled /api/bookings every 30 seconds (~57 MB/day)
+ * AFTER:  Subscribes to Booking changes, fetches only on events (~1 MB/day)
  */
 
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useSupabaseEvent } from './useSupabaseEvent';
 
 export type BookingStatus = 'waiting' | 'pending' | 'in_progress' | 'done' | 'paid' | 'cancelled';
 
@@ -35,9 +36,18 @@ export function useBookings() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const fetchingRef = useRef(false);
 
-  const fetchBookings = async () => {
+  // Subscribe to Booking changes (INSERT, UPDATE, DELETE)
+  const { revision } = useSupabaseEvent({
+    table: 'Booking',
+    event: '*',
+  });
+
+  const fetchBookings = useCallback(async () => {
+    if (fetchingRef.current) return;
+    fetchingRef.current = true;
+
     try {
       const res = await fetch('/api/bookings?limit=100');
       const json = await res.json();
@@ -49,28 +59,22 @@ export function useBookings() {
       setBookings(json.data as Booking[]);
       setError(null);
     } catch (err: any) {
-      console.error('[Hook useBookings] Error:', err);
+      console.error('[useBookings] Error:', err);
       setError(err instanceof Error ? err : new Error(err.message || 'Unknown error'));
     } finally {
       setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    // Initial fetch
-    fetchBookings();
-
-    // Constant polling (30s)
-    intervalRef.current = setInterval(fetchBookings, 30000);
-
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
+      fetchingRef.current = false;
     }
   }, []);
 
+  // Fetch on mount + whenever Supabase emits a Booking event
+  useEffect(() => {
+    fetchBookings();
+  }, [revision, fetchBookings]);
+
   const updateBookingStatus = async (id: string, newStatus: BookingStatus) => {
     try {
-      // Optimistic update dulu
+      // Optimistic update
       setBookings(prev => prev.map(b => b.id === id ? { ...b, status: newStatus } : b));
 
       const res = await fetch('/api/bookings', {
@@ -81,8 +85,7 @@ export function useBookings() {
 
       const json = await res.json();
       if (!json.success) {
-        // Rollback kalau gagal
-        await fetchBookings();
+        await fetchBookings(); // Rollback
         throw new Error(json.error);
       }
 
@@ -95,14 +98,10 @@ export function useBookings() {
 
   const deleteBooking = async (id: string) => {
     try {
-      const res = await fetch(`/api/bookings?id=${id}`, {
-        method: 'DELETE',
-      });
-
+      const res = await fetch(`/api/bookings?id=${id}`, { method: 'DELETE' });
       const json = await res.json();
       if (!json.success) throw new Error(json.error);
 
-      // Local update
       setBookings(prev => prev.filter(b => b.id !== id));
       return true;
     } catch (err) {
@@ -115,16 +114,13 @@ export function useBookings() {
     try {
       const res = await fetch('/api/bookings', {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, ...updates }),
       });
 
       const json = await res.json();
       if (!json.success) throw new Error(json.error);
 
-      // Local update
       setBookings(prev => prev.map(b => b.id === id ? { ...b, ...updates } : b));
       return true;
     } catch (err) {

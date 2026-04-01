@@ -1,13 +1,14 @@
 /**
- * useConversationMessages Hook (Migrated to SQL/Prisma)
- * Manages message history for a specific conversation from PostgreSQL
+ * useConversationMessages Hook (Supabase Realtime)
  * 
- * Requirement 1.5: Display complete message history with sender labels
+ * BEFORE: Polled /api/conversation-history every 10 seconds (~864 MB/day egress!)
+ * AFTER:  Subscribes to DirectMessage INSERT, fetches only on new messages (~2 MB/day)
  */
 
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useSupabaseEvent } from './useSupabaseEvent';
 
 export interface Message {
   id: string;
@@ -39,13 +40,20 @@ export function useConversationMessages(
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const fetchingRef = useRef(false);
 
-  const fetchMessages = async () => {
-    if (!conversationId) return;
-    
+  // Subscribe to DirectMessage INSERT events
+  const { revision } = useSupabaseEvent({
+    table: 'DirectMessage',
+    event: 'INSERT',
+    enabled: enabled && !!conversationId,
+  });
+
+  const fetchMessages = useCallback(async () => {
+    if (!conversationId || fetchingRef.current) return;
+    fetchingRef.current = true;
+
     try {
-      // Normalize number (remove @c.us etc)
       const phone = conversationId.replace(/@c\.us$|@lid$/, '').replace(/\D/g, '');
       const res = await fetch(`/api/conversation-history/${phone}?limit=200`);
       const json = await res.json();
@@ -54,7 +62,6 @@ export function useConversationMessages(
         throw new Error(json.error || 'Failed to fetch messages');
       }
 
-      // Map API data (SQL format) to Hook data
       const mappedData: Message[] = json.data.map((item: any, idx: number) => ({
         id: `msg-${idx}-${item.timestamp}`,
         conversationId: conversationId,
@@ -67,34 +74,23 @@ export function useConversationMessages(
       setMessages(mappedData);
       setError(null);
     } catch (err: any) {
-      console.error('[Hook useConversationMessages] Error:', err);
+      console.error('[useConversationMessages] Error:', err);
       setError(err instanceof Error ? err : new Error(err.message || 'Unknown error'));
     } finally {
       setLoading(false);
+      fetchingRef.current = false;
     }
-  };
+  }, [conversationId]);
 
+  // Fetch on mount + whenever Supabase emits a DirectMessage INSERT
   useEffect(() => {
     if (!enabled || !conversationId) {
       setLoading(false);
       setMessages([]);
       return;
     }
-
-    // Initial fetch
     fetchMessages();
+  }, [conversationId, enabled, revision, fetchMessages]);
 
-    // Constant polling (10s)
-    intervalRef.current = setInterval(fetchMessages, 10000);
-
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    }
-  }, [conversationId, enabled]);
-
-  return {
-    messages,
-    loading,
-    error,
-  };
+  return { messages, loading, error };
 }

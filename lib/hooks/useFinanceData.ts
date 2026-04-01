@@ -1,11 +1,14 @@
 /**
- * useFinanceData Hook (Migrated to SQL/Prisma)
- * Manages financial transaction data from PostgreSQL
+ * useFinanceData Hook (Supabase Realtime)
+ * 
+ * BEFORE: Polled /api/finance every 30 seconds (~86 MB/day)
+ * AFTER:  Subscribes to Transaction changes, fetches only on events (~2 MB/day)
  */
 
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useSupabaseEvent } from './useSupabaseEvent';
 
 export interface Transaction {
   id: string;
@@ -38,9 +41,18 @@ export function useFinanceData(daysLimit = 30, customerId?: string) {
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const fetchingRef = useRef(false);
 
-  const fetchFinanceData = async () => {
+  // Subscribe to Transaction changes
+  const { revision } = useSupabaseEvent({
+    table: 'Transaction',
+    event: '*',
+  });
+
+  const fetchFinanceData = useCallback(async () => {
+    if (fetchingRef.current) return;
+    fetchingRef.current = true;
+
     try {
       const res = await fetch(`/api/finance?limit=500&days=${daysLimit}${customerId ? '&customerId='+customerId : ''}`);
       const json = await res.json();
@@ -68,21 +80,18 @@ export function useFinanceData(daysLimit = 30, customerId?: string) {
       });
       setError(null);
     } catch (err: any) {
-      console.error('[Hook useFinanceData] Error:', err);
+      console.error('[useFinanceData] Error:', err);
       setError(err.message);
     } finally {
       setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchFinanceData();
-    intervalRef.current = setInterval(fetchFinanceData, 30000); // Poll every 30s
-
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
+      fetchingRef.current = false;
     }
   }, [daysLimit, customerId]);
+
+  // Fetch on mount + whenever Supabase emits a Transaction event
+  useEffect(() => {
+    fetchFinanceData();
+  }, [revision, fetchFinanceData]);
 
   return { transactions, summary, loading, error, refresh: fetchFinanceData };
 }
