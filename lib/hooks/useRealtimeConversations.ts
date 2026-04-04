@@ -68,7 +68,7 @@ export function useRealtimeConversations(
     fetchingRef.current = true;
 
     try {
-      const res = await fetch('/api/conversations?limit=100');
+      const res = await fetch(`/api/conversations?limit=100&t=${Date.now()}`, { cache: 'no-store' });
       const json = await res.json();
 
       if (!json.success) {

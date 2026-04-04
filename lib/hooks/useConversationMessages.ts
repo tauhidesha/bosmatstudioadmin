@@ -55,7 +55,7 @@ export function useConversationMessages(
 
     try {
       const phone = conversationId.replace(/@c\.us$|@lid$/, '').replace(/\D/g, '');
-      const res = await fetch(`/api/conversation-history/${phone}?limit=200`);
+      const res = await fetch(`/api/conversation-history/${phone}?limit=200&t=${Date.now()}`, { cache: 'no-store' });
       const json = await res.json();
 
       if (!json.success) {

@@ -8,22 +8,32 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { serviceId, size, vehicleModelId, price } = body;
 
-    const priceEntry = await prisma.servicePrice.upsert({
+    const nullSafeSize = size || null;
+    const nullSafeVehicleModelId = vehicleModelId || null;
+
+    let priceEntry = await prisma.servicePrice.findFirst({
       where: {
-        serviceId_size_vehicleModelId: {
-          serviceId,
-          size: size || null,
-          vehicleModelId: vehicleModelId || null,
-        }
-      },
-      update: { price },
-      create: {
         serviceId,
-        size: size || null,
-        vehicleModelId: vehicleModelId || null,
-        price
+        size: nullSafeSize,
+        vehicleModelId: nullSafeVehicleModelId,
       }
     });
+
+    if (priceEntry) {
+      priceEntry = await prisma.servicePrice.update({
+        where: { id: priceEntry.id },
+        data: { price }
+      });
+    } else {
+      priceEntry = await prisma.servicePrice.create({
+        data: {
+          serviceId,
+          size: nullSafeSize,
+          vehicleModelId: nullSafeVehicleModelId,
+          price
+        }
+      });
+    }
 
     return NextResponse.json({ success: true, price: priceEntry });
   } catch (error: any) {

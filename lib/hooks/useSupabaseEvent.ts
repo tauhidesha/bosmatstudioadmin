@@ -74,7 +74,7 @@ export function useSupabaseEvent(options: UseSupabaseEventOptions): UseSupabaseE
     const channel = supabase
       .channel(channelName)
       .on('postgres_changes', channelConfig, (payload: RealtimePostgresChangesPayload<any>) => {
-        console.log(`[Realtime] ${payload.eventType} on ${table}`, payload.new ? `id=${(payload.new as any).id}` : '');
+        console.log(`[Realtime] ${payload.eventType} on ${table} updated.`);
         setRevision(prev => prev + 1);
         setLastPayload(payload);
       })
