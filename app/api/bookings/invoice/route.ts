@@ -16,15 +16,16 @@ export async function POST(req: NextRequest) {
       bookingDate,
     } = body;
 
-    // Use environment variable if set, otherwise use the ngrok URL for GCP backend
+    const authHeader = req.headers.get('authorization');
     const backendUrl = process.env.BACKEND_API_URL || 'https://unblissful-unverdantly-stan.ngrok-free.dev';
 
-    console.log(`[Invoice] Forwarding generate-invoice request to Backend: ${backendUrl}/generate-invoice`);
+    console.log(`[Invoice] Forwarding generate-invoice request to Backend: ${backendUrl}/generate-invoice (Auth: ${authHeader ? 'Present' : 'Missing'})`);
 
     const response = await fetch(`${backendUrl}/generate-invoice`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        ...(authHeader ? { 'Authorization': authHeader } : {}),
       },
       body: JSON.stringify({
         ...body,

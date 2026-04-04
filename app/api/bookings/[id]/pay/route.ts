@@ -10,6 +10,7 @@ export async function POST(
   try {
     const { id: bookingId } = params;
     const body = await req.json();
+    const authHeader = req.headers.get('authorization');
     const { paymentMethod = 'Transfer BCA', amountPaid, sendInvoice = true } = body;
 
     // Check if booking exists
@@ -36,7 +37,10 @@ export async function POST(
       try {
       await fetch(`${backendUrl}/generate-invoice`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          ...(authHeader ? { 'Authorization': authHeader } : {}),
+        },
         body: JSON.stringify({
           documentType: 'bukti_bayar',
           customerName: booking.customerName || booking.customer?.name,
@@ -69,7 +73,10 @@ export async function POST(
       if (includesRepaint) {
         await fetch(`${backendUrl}/generate-invoice`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            ...(authHeader ? { 'Authorization': authHeader } : {}),
+          },
           body: JSON.stringify({
             documentType: 'garansi_repaint',
             customerName: booking.customerName || booking.customer?.name,
@@ -89,7 +96,10 @@ export async function POST(
       if (includesCoating) {
         await fetch(`${backendUrl}/generate-invoice`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            ...(authHeader ? { 'Authorization': authHeader } : {}),
+          },
           body: JSON.stringify({
             documentType: 'garansi_coating',
             customerName: booking.customerName || booking.customer?.name,
