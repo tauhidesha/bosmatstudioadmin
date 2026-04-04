@@ -56,6 +56,8 @@ export default function ManualBookingForm({
   const [amountPaid, setAmountPaid] = useState<number>(0);
   const [activeTab, setActiveTab] = useState<'repaint' | 'detailing' | 'coating'>('repaint');
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [selectedSurcharges, setSelectedSurcharges] = useState<string[]>([]);
+  const [additionalNotes, setAdditionalNotes] = useState('');
 
   // Custom Service state
   const [customServiceName, setCustomServiceName] = useState('');
@@ -197,6 +199,18 @@ export default function ManualBookingForm({
     }
   }, [initialData, services, vehicleModels, surcharges]);
 
+  // Recalculate cart prices when model or surcharges change
+  useEffect(() => {
+    setCart(prev => prev.map(item => {
+      const serviceMaster = services.find(s => s.name === item.name);
+      if (serviceMaster && item.name !== 'Spot Repair') {
+        const newPrice = calculateServicePrice(serviceMaster, motorcycleModel, surcharges, selectedSurcharges);
+        return { ...item, price: newPrice };
+      }
+      return item;
+    }));
+  }, [motorcycleModel, selectedSurcharges, services, surcharges]);
+
   // --- COMPUTED TOTALS ---
   const servicesTotal = useMemo(() => {
     const baseTotal = cart.reduce((sum: number, item: CartItem) => sum + item.price, 0);
@@ -254,7 +268,7 @@ export default function ManualBookingForm({
   };
 
   const addServiceToCart = (service: Service) => {
-    const price = calculateServicePrice(service, motorcycleModel, surcharges);
+    const price = calculateServicePrice(service, motorcycleModel, surcharges, selectedSurcharges);
     setCart((prev: CartItem[]) => {
       if (prev.find((i: CartItem) => i.name === service.name)) {
         return prev.filter((i: CartItem) => i.name !== service.name);
@@ -296,7 +310,7 @@ export default function ManualBookingForm({
         amountPaid: amountPaid,
         status: bookingStatus,
         homeService,
-        notes: `Layanan: ${serviceSummary.replace(/ § /g, ', ')} | DP: ${paymentMethod}`,
+        notes: `Layanan: ${serviceSummary.replace(/ § /g, ', ')} ${selectedSurcharges.length > 0 ? `| Surcharge: ${selectedSurcharges.join(', ')}` : ''} | DP: ${paymentMethod} \n\nCatatan Tambahan: ${additionalNotes}`,
       };
 
       if (isEdit) {
@@ -386,7 +400,8 @@ export default function ManualBookingForm({
     onCancel, servicesTotal, computedDiscount, finalTotal, remainingBalance,
     allConversations, skipNextSearch, setSkipNextSearch,
     bookingStatus, setBookingStatus, amountPaid, setAmountPaid,
-    services, vehicleModels, surcharges, loadingPricing
+    services, vehicleModels, surcharges, loadingPricing,
+    selectedSurcharges, setSelectedSurcharges, additionalNotes, setAdditionalNotes
   };
 
   const isMobile = useMediaQuery('(max-width: 768px)');
@@ -408,7 +423,8 @@ function MobileLayout(props: any) {
     allConversations, isSubmitting, handleSelectConversation,
     skipNextSearch, setSkipNextSearch,
     bookingStatus, setBookingStatus, amountPaid, setAmountPaid,
-    services, vehicleModels, surcharges, loadingPricing
+    services, vehicleModels, surcharges, loadingPricing,
+    selectedSurcharges, setSelectedSurcharges, additionalNotes, setAdditionalNotes
   } = props;
 
   const isSpotRepairSelected = cart.some((item: CartItem) => item.name === 'Spot Repair');
@@ -602,7 +618,6 @@ function MobileLayout(props: any) {
               );
             })}
 
-            {/* Custom Service */}
             <div className="bg-neutral-900/20 p-4 border border-dashed border-neutral-800 space-y-3 rounded-sm">
               <div className="flex items-center gap-2">
                 <PlusCircle className="text-[#FFFF00] size-4" />
@@ -626,6 +641,36 @@ function MobileLayout(props: any) {
                 </button>
               </div>
             </div>
+
+            {/* Surcharges Section (Mobile) */}
+            {surcharges && surcharges.length > 0 && (
+              <div className="bg-neutral-900/40 p-4 border border-white/5 space-y-3 rounded-sm animate-in fade-in zoom-in-95 duration-200">
+                <div className="flex items-center gap-2">
+                  <Wrench className="text-neutral-500 size-4" />
+                  <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-tighter italic">APPLICABLE SURCHARGES</p>
+                </div>
+                <div className="grid grid-cols-1 gap-2">
+                  {surcharges.map((s: any) => (
+                    <label key={s.id} className="flex items-center gap-3 cursor-pointer p-2 bg-neutral-900 border border-white/5 rounded-sm">
+                      <input
+                        type="checkbox"
+                        checked={selectedSurcharges.includes(s.name)}
+                        onChange={(e) => {
+                          if (e.target.checked) setSelectedSurcharges([...selectedSurcharges, s.name]);
+                          else setSelectedSurcharges(selectedSurcharges.filter((item: string) => item !== s.name));
+                        }}
+                        className="rounded border-white/10 bg-[#0e0e0e] text-[#FFFF00] focus:ring-[#FFFF00] size-4"
+                      />
+                      <div className="flex flex-col">
+                        <span className="text-xs font-bold text-white uppercase">{s.name}</span>
+                        <span className="text-[10px] text-slate-500">{s.isPercentage ? `${s.amount}%` : formatRupiah(s.amount)}</span>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+
 
             {/* Manual Adjust - Only show if Spot Repair is selected */}
             {isSpotRepairSelected && (
@@ -729,6 +774,18 @@ function MobileLayout(props: any) {
                 </select>
                 <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 size-4 pointer-events-none" />
               </div>
+            </div>
+
+            {/* Additional Notes (Mobile) */}
+            <div className="space-y-1 pt-2">
+              <label className="block text-[9px] font-headline text-neutral-500 uppercase">Catatan Tambahan (Warna, dll)</label>
+              <textarea
+                value={additionalNotes}
+                onChange={e => setAdditionalNotes(e.target.value)}
+                className="w-full bg-neutral-950 border-none focus:ring-1 focus:ring-[#FFFF00]/50 text-xs py-3 px-3 text-white placeholder-neutral-700 resize-none rounded-sm"
+                placeholder="Misal: Warna merah candy tone, velg black glossy..."
+                rows={3}
+              />
             </div>
           </div>
 
@@ -874,7 +931,8 @@ function DesktopLayout(props: any) {
     servicesTotal, computedDiscount, finalTotal, remainingBalance, allConversations,
     skipNextSearch, setSkipNextSearch,
     bookingStatus, setBookingStatus, amountPaid, setAmountPaid,
-    services, vehicleModels, surcharges, loadingPricing
+    services, vehicleModels, surcharges, loadingPricing,
+    selectedSurcharges, setSelectedSurcharges, additionalNotes, setAdditionalNotes
   } = props;
 
   const isSpotRepairSelected = cart.some((item: CartItem) => item.name === 'Spot Repair');
@@ -1226,6 +1284,35 @@ function DesktopLayout(props: any) {
               </div>
             </div>
 
+            {/* Surcharges Section (Desktop) */}
+            {surcharges && surcharges.length > 0 && (
+              <div className="p-6 bg-[#1c1b1b] border border-white/5 space-y-4 rounded-sm animate-in fade-in slide-in-from-bottom-2 duration-300">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-[10px] font-headline font-bold uppercase tracking-widest text-[#FFFF00]">Applicable Surcharges</h4>
+                  <span className="text-[9px] font-headline text-slate-500 uppercase">Optional Surcharges for Services</span>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  {surcharges.map((s: any) => (
+                    <label key={s.id} className="flex items-center gap-3 cursor-pointer p-3 bg-[#0e0e0e] rounded-sm hover:border-white/10 border border-white/5 transition-all">
+                      <input
+                        type="checkbox"
+                        checked={selectedSurcharges.includes(s.name)}
+                        onChange={(e) => {
+                          if (e.target.checked) setSelectedSurcharges([...selectedSurcharges, s.name]);
+                          else setSelectedSurcharges(selectedSurcharges.filter((item: string) => item !== s.name));
+                        }}
+                        className="rounded border-white/10 bg-[#1c1b1b] text-[#FFFF00] focus:ring-[#FFFF00] size-4"
+                      />
+                      <div className="flex flex-col">
+                        <span className="text-xs font-bold text-white uppercase">{s.name}</span>
+                        <span className="text-[10px] text-slate-500">{s.isPercentage ? `${s.amount}%` : formatRupiah(s.amount)}</span>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Spot Repair Panel - Only show if Spot Repair is selected */}
             {isSpotRepairSelected && (
               <div className="p-5 bg-[#0e0e0e] border border-dashed border-white/10 flex items-center justify-between rounded-sm animate-in fade-in slide-in-from-bottom-2 duration-300">
@@ -1394,6 +1481,18 @@ function DesktopLayout(props: any) {
                     </div>
                   </div>
                 )}
+
+                {/* Additional Notes (Desktop) */}
+                <div className="space-y-1 pt-4">
+                  <label className="text-[10px] font-headline text-slate-500 uppercase tracking-widest">Catatan Tambahan (Warna, dll)</label>
+                  <textarea
+                    value={additionalNotes}
+                    onChange={e => setAdditionalNotes(e.target.value)}
+                    className="w-full bg-[#0e0e0e] border-none focus:ring-1 focus:ring-[#FFFF00]/50 text-sm py-4 px-4 font-headline text-white placeholder-slate-700 resize-y rounded-sm"
+                    placeholder="Misal: Warna merah candy tone, velg black glossy..."
+                    rows={3}
+                  />
+                </div>
 
                 {/* Status & Payment (Edit Mode Only) */}
                 {isEdit && (
