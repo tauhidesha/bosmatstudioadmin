@@ -393,7 +393,7 @@ export default function ManualBookingForm({
             totalAmount: finalTotal,
             amountPaid: amountPaid,
             paymentMethod: paymentMethod,
-            notes: `Layanan:\n${serviceSummary.replace(/ § /g, '\n')}`,
+            notes: `Layanan:\n${serviceSummary.replace(/ § /g, '\n')}${additionalNotes ? `\n\nCatatan Tambahan:\n${additionalNotes}` : ''}`,
             bookingDate: entryDate,
           }),
         });
