@@ -428,6 +428,8 @@ export default function ManualBookingForm({
         bookingDate: entryDate,
         bookingTime: timeSlot,
         vehicleInfo: `${motorcycleModel.modelName} (${platNomor || '-'})`,
+        motorModel: motorcycleModel.modelName,
+        plateNumber: platNomor,
         subtotal: servicesTotal,
         totalAmount: finalTotal,
         dpAmount: nominalDP,

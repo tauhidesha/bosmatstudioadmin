@@ -351,11 +351,11 @@ export async function PUT(req: NextRequest) {
     if (data.bookingDate && data.bookingTime) {
       updateData.bookingDate = new Date(`${data.bookingDate}T${data.bookingTime}:00`);
     }
-    if (data.vehicleInfo) {
-      const parts = data.vehicleInfo.split(' (');
-      updateData.vehicleModel = parts[0];
-      if (parts[1]) updateData.plateNumber = parts[1].replace(')', '');
-    }
+    const modelToUse = data.motorModel || (data.vehicleInfo ? data.vehicleInfo.split(' (')[0] : null);
+    const plateToUse = data.plateNumber || (data.vehicleInfo && data.vehicleInfo.includes(' (') ? data.vehicleInfo.split(' (')[1].replace(')', '') : null);
+
+    if (modelToUse) updateData.vehicleModel = modelToUse;
+    if (plateToUse) updateData.plateNumber = plateToUse;
     if (data.status) updateData.status = data.status.toUpperCase();
     if (data.amountPaid !== undefined) {
       updateData.amountPaid = data.amountPaid;
