@@ -112,6 +112,18 @@ export default function ManualBookingForm({
               phone: v.customer?.phone || '',
               plate: v.plateNumber || platNomor
             });
+
+            // AUTO-APPLY FOR EDIT: If model is missing/generic, apply immediately
+            if (isEdit && (!motorcycleModel || motorcycleModel.modelName.toLowerCase() === 'motor')) {
+              const model = vehicleModels.find(m => 
+                m.modelName.toLowerCase() === v.modelName.toLowerCase() || 
+                v.modelName.toLowerCase().includes(m.modelName.toLowerCase())
+              );
+              if (model) {
+                console.log('DEBUG: Auto-applied model from fetch:', model.modelName);
+                setMotorcycleModel(model);
+              }
+            }
           } else {
             setFoundVehicle(null);
           }
@@ -219,8 +231,8 @@ export default function ManualBookingForm({
           
           let itemSurcharges: string[] = [];
           
-          // Parse surcharges format: "Service Name [+Surcharge1, +Surcharge2]"
-          const surchargeMatch = serviceLine.match(/(.+) \[\+([^\]]+)\]/);
+          // Parse surcharges format: "Service Name [+Surcharge1, +Surcharge2]" OR "Service Name (+Surcharge)"
+          const surchargeMatch = serviceLine.match(/(.+) \[\+([^\]]+)\]/) || serviceLine.match(/(.+) \(\+([^)]+)\)/);
           if (surchargeMatch) {
             serviceLine = surchargeMatch[1].trim();
             itemSurcharges = surchargeMatch[2].split(',').map(sum => sum.trim().replace(/^\+/, ''));
