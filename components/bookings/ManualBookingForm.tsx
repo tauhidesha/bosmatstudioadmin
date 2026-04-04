@@ -132,26 +132,49 @@ export default function ManualBookingForm({
   // --- INITIAL POPULATION FOR EDIT ---
   useEffect(() => {
     if (initialData) {
+      console.log('DEBUG: ManualBookingForm initialData:', initialData);
       setInvoiceName(initialData.customerName || '');
       setContactPhone(initialData.customerPhone || '');
 
       // Handle vehicle info properly
-      const vehicleSource = initialData.vehicleInfo || initialData.vehicleModel || '';
-      if (vehicleSource) {
-        // More robust extraction of plate number
-        const plateMatch = vehicleSource.match(/\(([^)]+)\)/);
-        const plateFromInfo = plateMatch ? plateMatch[1] : '';
-        const plateFinal = (initialData.plateNumber || plateFromInfo || '').replace(/-/g, '').trim();
-        
-        setPlatNomor(plateFinal);
-        
-        const modelName = vehicleSource.split(' (')[0].trim();
-        const model = vehicleModels.find(m => 
-          m.modelName.toLowerCase() === modelName.toLowerCase() || 
-          m.modelName.toLowerCase().includes(modelName.toLowerCase())
+      const rawModel = initialData.vehicleModel || '';
+      const rawInfo = initialData.vehicleInfo || '';
+      const rawPlate = initialData.plateNumber || '';
+
+      console.log('DEBUG: Matching model for:', { rawModel, rawInfo });
+
+      // 1. Try to find model from vehicleModel field first (cleanest)
+      let foundModel = vehicleModels.find(m => 
+        m.modelName.toLowerCase() === rawModel.toLowerCase()
+      );
+
+      // 2. If not found, try extraction from vehicleInfo "Model (Plate)"
+      if (!foundModel && rawInfo) {
+        const extractedName = rawInfo.split(' (')[0].trim();
+        foundModel = vehicleModels.find(m => 
+          m.modelName.toLowerCase() === extractedName.toLowerCase() ||
+          m.aliases?.some(a => a.toLowerCase() === extractedName.toLowerCase())
         );
-        if (model) setMotorcycleModel(model);
       }
+
+      // 3. Fallback: partial match if still not found
+      if (!foundModel && (rawModel || rawInfo)) {
+        const searchStr = (rawModel || rawInfo).toLowerCase();
+        foundModel = vehicleModels.find(m => 
+          searchStr.includes(m.modelName.toLowerCase()) ||
+          m.aliases?.some(a => searchStr.includes(a.toLowerCase()))
+        );
+      }
+
+      if (foundModel) {
+        console.log('DEBUG: Found model:', foundModel.modelName);
+        setMotorcycleModel(foundModel);
+      }
+
+      // Handle plate number
+      const plateFromInfo = rawInfo.match(/\(([^)]+)\)/)?.[1] || '';
+      const plateFinal = (rawPlate || plateFromInfo || '').replace(/-/g, '').trim();
+      setPlatNomor(plateFinal);
 
       if (initialData.plateNumber) setPlatNomor(initialData.plateNumber.trim());
 
@@ -189,8 +212,6 @@ export default function ManualBookingForm({
 
       if (rawServices.length > 0) {
         const newCart: CartItem[] = [];
-        const modelNameFromSource = vehicleSource.split(' (')[0].trim();
-        const currentModel = vehicleModels.find(m => m.modelName.toLowerCase() === modelNameFromSource.toLowerCase()) || null;
 
         rawServices.forEach((s: string) => {
           let serviceLine = s.trim();
@@ -212,7 +233,7 @@ export default function ManualBookingForm({
             newCart.push({
               id: itemId,
               name: found.name,
-              price: calculateServicePrice(found, currentModel, surcharges, itemSurcharges),
+              price: calculateServicePrice(found, foundModel || null, surcharges, itemSurcharges),
               surcharges: itemSurcharges
             });
           } else if (serviceLine.includes('Spot Repair')) {
@@ -234,7 +255,7 @@ export default function ManualBookingForm({
               newCart.push({
                 id: itemId,
                 name: looseMatch.name,
-                price: calculateServicePrice(looseMatch, currentModel, surcharges, itemSurcharges),
+                price: calculateServicePrice(looseMatch, foundModel || null, surcharges, itemSurcharges),
                 surcharges: itemSurcharges
               });
             } else {
