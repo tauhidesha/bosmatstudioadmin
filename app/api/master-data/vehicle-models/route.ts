@@ -36,7 +36,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { modelName, brand, serviceSize, repaintSize, aliases } = body;
+    const { modelName, brand, serviceSize, repaintSize, aliases, modelPrices } = body;
 
     const model = await prisma.vehicleModel.create({
       data: {
@@ -47,6 +47,20 @@ export async function POST(req: NextRequest) {
         aliases: aliases || [],
       },
     });
+
+    // Handle model-specific prices if provided
+    if (modelPrices && Array.isArray(modelPrices)) {
+      for (const { serviceId, price } of modelPrices) {
+        await prisma.servicePrice.create({
+          data: {
+            serviceId,
+            vehicleModelId: model.id,
+            price,
+            size: null
+          }
+        });
+      }
+    }
 
     return NextResponse.json({ success: true, model });
   } catch (error: any) {

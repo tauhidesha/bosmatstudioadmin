@@ -10,7 +10,7 @@ export async function PUT(
   try {
     const { id } = params;
     const body = await req.json();
-    const { modelName, brand, serviceSize, repaintSize, aliases } = body;
+    const { modelName, brand, serviceSize, repaintSize, aliases, modelPrices } = body;
 
     const model = await prisma.vehicleModel.update({
       where: { id },
@@ -22,6 +22,35 @@ export async function PUT(
         aliases,
       },
     });
+
+    // Handle model-specific prices if provided
+    if (modelPrices && Array.isArray(modelPrices)) {
+      for (const { serviceId, price } of modelPrices) {
+        const existingPrice = await prisma.servicePrice.findFirst({
+          where: {
+            serviceId,
+            vehicleModelId: id,
+            size: null
+          }
+        });
+
+        if (existingPrice) {
+          await prisma.servicePrice.update({
+            where: { id: existingPrice.id },
+            data: { price }
+          });
+        } else {
+          await prisma.servicePrice.create({
+            data: {
+              serviceId,
+              vehicleModelId: id,
+              price,
+              size: null
+            }
+          });
+        }
+      }
+    }
 
     return NextResponse.json({ success: true, model });
   } catch (error: any) {
