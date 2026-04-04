@@ -783,6 +783,28 @@ function MobileLayout(props: any) {
           )}
 
           <div className="bg-neutral-800/80 p-5 space-y-3 relative overflow-hidden rounded-sm border border-[#FFFF00]/10">
+            {cart.length > 0 && (
+              <div className="space-y-2 mb-3 pb-3 border-b border-white/10">
+                {cart.map((item: any, idx: number) => (
+                  <div key={idx} className="flex justify-between items-center text-[10px]">
+                    <div className="flex items-center gap-2">
+                       <button 
+                         onClick={() => addServiceToCart({ name: item.name } as any)} 
+                         className="text-red-500 bg-red-500/10 p-0.5 rounded-sm"
+                       >
+                         <X size={10} />
+                       </button>
+                       <span className="text-neutral-300 font-headline uppercase truncate max-w-[180px]">
+                         {item.name} {item.name === 'Spot Repair' && spotCount > 0 ? `(${spotCount}x)` : ''}
+                       </span>
+                    </div>
+                    <span className="text-neutral-400 font-medium font-mono">
+                      {item.name === 'Spot Repair' ? formatRupiah(spotCount * spotPrice) : formatRupiah(item.price)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
             <div className="flex justify-between items-center text-xs">
               <span className="text-neutral-400 font-headline">Services total</span>
               <span className="text-white font-medium">{formatRupiah(servicesTotal)}</span>
@@ -910,6 +932,29 @@ function DesktopLayout(props: any) {
         <div className="mt-auto bg-[#0e0e0e] p-4 border border-white/5">
           <h4 className="text-[10px] font-headline text-slate-500 uppercase mb-4 tracking-widest">Order Summary</h4>
           <div className="space-y-2">
+            {cart.length > 0 && (
+              <div className="pb-3 mb-2 border-b border-white/5 space-y-1">
+                {cart.map((item: any, idx: number) => (
+                  <div key={idx} className="flex justify-between text-[10px] font-headline items-center">
+                    <div className="flex items-center gap-2">
+                      <button 
+                        onClick={() => addServiceToCart({ name: item.name } as any)}
+                        className="text-red-500 hover:text-red-400 bg-red-500/10 rounded-sm p-0.5 transition-colors"
+                        title="Remove service"
+                      >
+                       <X size={10} />
+                      </button>
+                      <span className="text-slate-400 truncate max-w-[150px] uppercase">
+                        {item.name} {item.name === 'Spot Repair' && spotCount > 0 ? `(${spotCount}x)` : ''}
+                      </span>
+                    </div>
+                    <span className="text-slate-300 font-mono">
+                      {item.name === 'Spot Repair' ? formatRupiah(spotCount * spotPrice) : formatRupiah(item.price)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
             <div className="flex justify-between text-xs font-headline">
               <span className="text-slate-500 uppercase">Services Total</span>
               <span className="text-white">{formatRupiah(servicesTotal)}</span>
