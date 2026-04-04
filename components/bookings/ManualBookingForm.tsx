@@ -131,7 +131,6 @@ export default function ManualBookingForm({
 
   // --- INITIAL POPULATION FOR EDIT ---
   useEffect(() => {
-    console.log('--- ManualBookingForm: initialData ---', initialData);
     if (initialData) {
       setInvoiceName(initialData.customerName || '');
       setContactPhone(initialData.customerPhone || '');
@@ -139,12 +138,21 @@ export default function ManualBookingForm({
       // Handle vehicle info properly
       const vehicleSource = initialData.vehicleInfo || initialData.vehicleModel || '';
       if (vehicleSource) {
-        setPlatNomor(initialData.plateNumber || vehicleSource?.split('(')[1]?.replace(')', '') || '');
-        const modelName = vehicleSource?.split(' (')[0] || vehicleSource;
-        const model = vehicleModels.find(m => m.modelName === modelName);
+        // More robust extraction of plate number
+        const plateMatch = vehicleSource.match(/\(([^)]+)\)/);
+        const plateFromInfo = plateMatch ? plateMatch[1] : '';
+        const plateFinal = (initialData.plateNumber || plateFromInfo || '').replace(/-/g, '').trim();
+        
+        setPlatNomor(plateFinal);
+        
+        const modelName = vehicleSource.split(' (')[0].trim();
+        const model = vehicleModels.find(m => 
+          m.modelName.toLowerCase() === modelName.toLowerCase() || 
+          m.modelName.toLowerCase().includes(modelName.toLowerCase())
+        );
         if (model) setMotorcycleModel(model);
       }
-      
+
       if (initialData.plateNumber) setPlatNomor(initialData.plateNumber.trim());
 
       // Handle dates (ISO string to YYYY-MM-DD)
@@ -163,35 +171,52 @@ export default function ManualBookingForm({
       if (initialData.downPayment !== undefined) setNominalDP(initialData.downPayment);
       if (initialData.paymentMethod) setPaymentMethod(initialData.paymentMethod);
       if (initialData.homeService !== undefined) setHomeService(!!initialData.homeService);
+      
+      // Extract Additional Notes
+      if (initialData.notes) {
+        const notesParts = initialData.notes.split('Catatan Tambahan: ');
+        if (notesParts.length > 1) {
+          setAdditionalNotes(notesParts[1].trim());
+        }
+      }
 
-      // Handle services population
+      // Handle services population with Surcharges
       const rawServices = Array.isArray(initialData.services) 
         ? initialData.services 
         : (typeof initialData.services === 'string' 
-            ? initialData.services.split(' § ').flatMap((s: string) => s.split('\n'))
+            ? initialData.services.split(' § ').flatMap(s => s.split('\n'))
             : []);
 
       if (rawServices.length > 0) {
         const newCart: CartItem[] = [];
-        const modelName = vehicleSource?.split(' (')[0] || vehicleSource;
-        const currentModel = vehicleModels.find(m => m.modelName === modelName) || null;
+        const modelNameFromSource = vehicleSource.split(' (')[0].trim();
+        const currentModel = vehicleModels.find(m => m.modelName.toLowerCase() === modelNameFromSource.toLowerCase()) || null;
 
         rawServices.forEach((s: string) => {
-          const serviceName = s.trim();
-          if (!serviceName) return;
+          let serviceLine = s.trim();
+          if (!serviceLine) return;
           
-          const found = services.find(srv => srv.name === serviceName);
+          let itemSurcharges: string[] = [];
+          
+          // Parse surcharges format: "Service Name [+Surcharge1, +Surcharge2]"
+          const surchargeMatch = serviceLine.match(/(.+) \[\+([^\]]+)\]/);
+          if (surchargeMatch) {
+            serviceLine = surchargeMatch[1].trim();
+            itemSurcharges = surchargeMatch[2].split(',').map(sum => sum.trim().replace(/^\+/, ''));
+          }
+          
+          const found = services.find(srv => srv.name === serviceLine);
           const itemId = Math.random().toString(36).substr(2, 9);
           
           if (found) {
             newCart.push({
               id: itemId,
               name: found.name,
-              price: calculateServicePrice(found, currentModel, surcharges, []),
-              surcharges: []
+              price: calculateServicePrice(found, currentModel, surcharges, itemSurcharges),
+              surcharges: itemSurcharges
             });
-          } else if (serviceName.includes('Spot Repair')) {
-            const match = serviceName.match(/Spot Repair \((\d+) spots\)/);
+          } else if (serviceLine.includes('Spot Repair')) {
+            const match = serviceLine.match(/Spot Repair \((\d+) spots\)/);
             if (match) setSpotCount(parseInt(match[1]));
             const spotServiceMaster = services.find(srv => srv.name === 'Spot Repair');
             if (spotServiceMaster) {
@@ -203,12 +228,23 @@ export default function ManualBookingForm({
               });
             }
           } else {
-            newCart.push({ 
-              id: itemId,
-              name: serviceName, 
-              price: 0,
-              surcharges: []
-            });
+            // Check if it's a known service but name mismatch (case-insensitive)
+            const looseMatch = services.find(srv => srv.name.toLowerCase() === serviceLine.toLowerCase());
+            if (looseMatch) {
+              newCart.push({
+                id: itemId,
+                name: looseMatch.name,
+                price: calculateServicePrice(looseMatch, currentModel, surcharges, itemSurcharges),
+                surcharges: itemSurcharges
+              });
+            } else {
+              newCart.push({ 
+                id: itemId,
+                name: serviceLine, 
+                price: 0,
+                surcharges: itemSurcharges
+              });
+            }
           }
         });
         setCart(newCart);
@@ -343,7 +379,12 @@ export default function ManualBookingForm({
     setIsSubmitting(true);
     try {
       const serviceSummary = [
-        ...cart.map((i: CartItem) => i.name),
+        ...cart.map((i: CartItem) => {
+          if (i.surcharges && i.surcharges.length > 0) {
+            return `${i.name} [+${i.surcharges.join(', ')}]`;
+          }
+          return i.name;
+        }),
         spotCount > 0 ? `Spot Repair (${spotCount} spots)` : null
       ].filter(Boolean).join(' § ');
 
