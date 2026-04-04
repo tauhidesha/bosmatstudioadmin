@@ -36,8 +36,10 @@ interface ManualBookingFormProps {
 }
 
 interface CartItem {
+  id: string; // Unique ID for each item in cart
   name: string;
   price: number;
+  surcharges: string[]; // Independent surcharges per item
 }
 
 export default function ManualBookingForm({
@@ -56,7 +58,6 @@ export default function ManualBookingForm({
   const [amountPaid, setAmountPaid] = useState<number>(0);
   const [activeTab, setActiveTab] = useState<'repaint' | 'detailing' | 'coating'>('repaint');
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [selectedSurcharges, setSelectedSurcharges] = useState<string[]>([]);
   const [additionalNotes, setAdditionalNotes] = useState('');
 
   // Custom Service state
@@ -180,18 +181,34 @@ export default function ManualBookingForm({
           if (!serviceName) return;
           
           const found = services.find(srv => srv.name === serviceName);
+          const itemId = Math.random().toString(36).substr(2, 9);
+          
           if (found) {
             newCart.push({
+              id: itemId,
               name: found.name,
-              price: calculateServicePrice(found, currentModel, surcharges)
+              price: calculateServicePrice(found, currentModel, surcharges, []),
+              surcharges: []
             });
           } else if (serviceName.includes('Spot Repair')) {
             const match = serviceName.match(/Spot Repair \((\d+) spots\)/);
             if (match) setSpotCount(parseInt(match[1]));
             const spotServiceMaster = services.find(srv => srv.name === 'Spot Repair');
-            if (spotServiceMaster) newCart.push({ name: spotServiceMaster.name, price: 0 });
+            if (spotServiceMaster) {
+              newCart.push({ 
+                id: itemId,
+                name: spotServiceMaster.name, 
+                price: 0,
+                surcharges: []
+              });
+            }
           } else {
-            newCart.push({ name: serviceName, price: 0 });
+            newCart.push({ 
+              id: itemId,
+              name: serviceName, 
+              price: 0,
+              surcharges: []
+            });
           }
         });
         setCart(newCart);
@@ -199,17 +216,38 @@ export default function ManualBookingForm({
     }
   }, [initialData, services, vehicleModels, surcharges]);
 
-  // Recalculate cart prices when model or surcharges change
+  // Recalculate cart prices when model or vehicle info changes
   useEffect(() => {
     setCart(prev => prev.map(item => {
       const serviceMaster = services.find(s => s.name === item.name);
       if (serviceMaster && item.name !== 'Spot Repair') {
-        const newPrice = calculateServicePrice(serviceMaster, motorcycleModel, surcharges, selectedSurcharges);
+        const newPrice = calculateServicePrice(serviceMaster, motorcycleModel, surcharges, item.surcharges || []);
         return { ...item, price: newPrice };
       }
       return item;
     }));
-  }, [motorcycleModel, selectedSurcharges, services, surcharges]);
+  }, [motorcycleModel, services, surcharges]);
+
+  // --- ACTIONS ---
+  const toggleSurchargeForItem = (itemId: string, surchargeName: string) => {
+    setCart(prev => prev.map(item => {
+      if (item.id === itemId) {
+        const hasSurcharge = item.surcharges.includes(surchargeName);
+        const newSurcharges = hasSurcharge 
+          ? item.surcharges.filter(s => s !== surchargeName)
+          : [...item.surcharges, surchargeName];
+        
+        // Recalculate price immediately for this item
+        const serviceMaster = services.find(s => s.name === item.name);
+        const newPrice = serviceMaster 
+          ? calculateServicePrice(serviceMaster, motorcycleModel, surcharges, newSurcharges)
+          : item.price;
+
+        return { ...item, surcharges: newSurcharges, price: newPrice };
+      }
+      return item;
+    }));
+  };
 
   // --- COMPUTED TOTALS ---
   const servicesTotal = useMemo(() => {
@@ -268,18 +306,30 @@ export default function ManualBookingForm({
   };
 
   const addServiceToCart = (service: Service) => {
-    const price = calculateServicePrice(service, motorcycleModel, surcharges, selectedSurcharges);
+    const defaultSurcharges: string[] = [];
+    const price = calculateServicePrice(service, motorcycleModel, surcharges, defaultSurcharges);
+    
     setCart((prev: CartItem[]) => {
       if (prev.find((i: CartItem) => i.name === service.name)) {
         return prev.filter((i: CartItem) => i.name !== service.name);
       }
-      return [...prev, { name: service.name, price }];
+      return [...prev, { 
+        id: Math.random().toString(36).substr(2, 9), 
+        name: service.name, 
+        price, 
+        surcharges: defaultSurcharges 
+      }];
     });
   };
 
   const addCustomService = () => {
     if (!customServiceName || customServicePrice <= 0) return;
-    setCart((prev: CartItem[]) => [...prev, { name: customServiceName.toUpperCase(), price: customServicePrice }]);
+    setCart((prev: CartItem[]) => [...prev, { 
+      id: Math.random().toString(36).substr(2, 9),
+      name: customServiceName.toUpperCase(), 
+      price: customServicePrice,
+      surcharges: []
+    }]);
     setCustomServiceName('');
     setCustomServicePrice(0);
   };
@@ -310,7 +360,7 @@ export default function ManualBookingForm({
         amountPaid: amountPaid,
         status: bookingStatus,
         homeService,
-        notes: `Layanan: ${serviceSummary.replace(/ § /g, ', ')} ${selectedSurcharges.length > 0 ? `| Surcharge: ${selectedSurcharges.join(', ')}` : ''} | DP: ${paymentMethod} \n\nCatatan Tambahan: ${additionalNotes}`,
+        notes: `Layanan: ${cart.map(i => `${i.name}${i.surcharges.length > 0 ? ` (+${i.surcharges.join(', ')})` : ''}`).join(', ')} ${spotCount > 0 ? `| Spot Repair (${spotCount} spots)` : ''} | DP: ${paymentMethod} \n\nCatatan Tambahan: ${additionalNotes}`,
       };
 
       if (isEdit) {
@@ -396,12 +446,12 @@ export default function ManualBookingForm({
     isSubmitting, paymentMethod, setPaymentMethod,
     sendInvoiceWA, setSendInvoiceWA,
     foundVehicle, setFoundVehicle, isSearching,
-    handleSubmit, handleDelete, handleSelectConversation,
+    handleSubmit, handleDelete, handleSelectConversation, toggleSurchargeForItem,
     onCancel, servicesTotal, computedDiscount, finalTotal, remainingBalance,
     allConversations, skipNextSearch, setSkipNextSearch,
     bookingStatus, setBookingStatus, amountPaid, setAmountPaid,
     services, vehicleModels, surcharges, loadingPricing,
-    selectedSurcharges, setSelectedSurcharges, additionalNotes, setAdditionalNotes
+    additionalNotes, setAdditionalNotes
   };
 
   const isMobile = useMediaQuery('(max-width: 768px)');
@@ -424,7 +474,7 @@ function MobileLayout(props: any) {
     skipNextSearch, setSkipNextSearch,
     bookingStatus, setBookingStatus, amountPaid, setAmountPaid,
     services, vehicleModels, surcharges, loadingPricing,
-    selectedSurcharges, setSelectedSurcharges, additionalNotes, setAdditionalNotes
+    toggleSurchargeForItem, additionalNotes, setAdditionalNotes
   } = props;
 
   const isSpotRepairSelected = cart.some((item: CartItem) => item.name === 'Spot Repair');
@@ -642,34 +692,52 @@ function MobileLayout(props: any) {
               </div>
             </div>
 
-            {/* Surcharges Section (Mobile) */}
-            {surcharges && surcharges.length > 0 && (
-              <div className="bg-neutral-900/40 p-4 border border-white/5 space-y-3 rounded-sm animate-in fade-in zoom-in-95 duration-200">
-                <div className="flex items-center gap-2">
-                  <Wrench className="text-neutral-500 size-4" />
-                  <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-tighter italic">APPLICABLE SURCHARGES</p>
-                </div>
-                <div className="grid grid-cols-1 gap-2">
-                  {surcharges.map((s: any) => (
-                    <label key={s.id} className="flex items-center gap-3 cursor-pointer p-2 bg-neutral-900 border border-white/5 rounded-sm">
-                      <input
-                        type="checkbox"
-                        checked={selectedSurcharges.includes(s.name)}
-                        onChange={(e) => {
-                          if (e.target.checked) setSelectedSurcharges([...selectedSurcharges, s.name]);
-                          else setSelectedSurcharges(selectedSurcharges.filter((item: string) => item !== s.name));
-                        }}
-                        className="rounded border-white/10 bg-[#0e0e0e] text-[#FFFF00] focus:ring-[#FFFF00] size-4"
-                      />
-                      <div className="flex flex-col">
-                        <span className="text-xs font-bold text-white uppercase">{s.name}</span>
-                        <span className="text-[10px] text-slate-500">{s.isPercentage ? `${s.amount}%` : formatRupiah(s.amount)}</span>
-                      </div>
-                    </label>
-                  ))}
-                </div>
-              </div>
-            )}
+            {/* Cart Items with Per-Item Surcharges (Mobile) */}
+            <div className="space-y-4">
+              {cart.map((item: CartItem) => {
+                const isBodiHalus = item.name.toUpperCase().includes('BODI HALUS');
+                const isVelg = item.name.toUpperCase().includes('VELG');
+                
+                // Only show surcharge section if it's Bodi Halus or Velg
+                if (!isBodiHalus && !isVelg) return null;
+
+                const availableSurcharges = surcharges.filter((s: any) => {
+                  const isChromeOrTwoTone = s.name.toUpperCase().includes('CHROME') || s.name.toUpperCase().includes('TWO TONE');
+                  if (isVelg) return isChromeOrTwoTone;
+                  if (isBodiHalus) return !isChromeOrTwoTone;
+                  return false;
+                });
+
+                if (availableSurcharges.length === 0) return null;
+
+                return (
+                  <div key={item.id} className="bg-neutral-900/40 p-4 border border-white/5 space-y-3 rounded-sm animate-in fade-in zoom-in-95 duration-200">
+                    <div className="flex items-center gap-2">
+                      <Wrench className="text-[#FFFF00] size-4" />
+                      <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-tighter italic">
+                        SURCHARGES FOR: {item.name}
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-1 gap-2">
+                      {availableSurcharges.map((s: any) => (
+                        <label key={s.id} className="flex items-center gap-3 cursor-pointer p-2 bg-neutral-900 border border-white/5 rounded-sm">
+                          <input
+                            type="checkbox"
+                            checked={item.surcharges.includes(s.name)}
+                            onChange={() => toggleSurchargeForItem(item.id, s.name)}
+                            className="rounded border-white/10 bg-[#0e0e0e] text-[#FFFF00] focus:ring-[#FFFF00] size-4"
+                          />
+                          <div className="flex flex-col">
+                            <span className="text-xs font-bold text-white uppercase">{s.name}</span>
+                            <span className="text-[10px] text-slate-500">{s.isPercentage ? `${s.amount}%` : formatRupiah(s.amount)}</span>
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
 
 
             {/* Manual Adjust - Only show if Spot Repair is selected */}
@@ -932,7 +1000,7 @@ function DesktopLayout(props: any) {
     skipNextSearch, setSkipNextSearch,
     bookingStatus, setBookingStatus, amountPaid, setAmountPaid,
     services, vehicleModels, surcharges, loadingPricing,
-    selectedSurcharges, setSelectedSurcharges, additionalNotes, setAdditionalNotes
+    toggleSurchargeForItem, additionalNotes, setAdditionalNotes
   } = props;
 
   const isSpotRepairSelected = cart.some((item: CartItem) => item.name === 'Spot Repair');
@@ -991,26 +1059,59 @@ function DesktopLayout(props: any) {
           <h4 className="text-[10px] font-headline text-slate-500 uppercase mb-4 tracking-widest">Order Summary</h4>
           <div className="space-y-2">
             {cart.length > 0 && (
-              <div className="pb-3 mb-2 border-b border-white/5 space-y-1">
-                {cart.map((item: any, idx: number) => (
-                  <div key={idx} className="flex justify-between text-[10px] font-headline items-center">
-                    <div className="flex items-center gap-2">
-                      <button 
-                        onClick={() => addServiceToCart({ name: item.name } as any)}
-                        className="text-red-500 hover:text-red-400 bg-red-500/10 rounded-sm p-0.5 transition-colors"
-                        title="Remove service"
-                      >
-                       <X size={10} />
-                      </button>
-                      <span className="text-slate-400 truncate max-w-[150px] uppercase">
-                        {item.name} {item.name === 'Spot Repair' && spotCount > 0 ? `(${spotCount}x)` : ''}
-                      </span>
+              <div className="pb-3 mb-2 border-b border-white/5 space-y-3">
+                {cart.map((item: CartItem, idx: number) => {
+                  const isBodiHalus = item.name.toUpperCase().includes('BODI HALUS');
+                  const isVelg = item.name.toUpperCase().includes('VELG');
+                  const availableSurcharges = surcharges.filter((s: any) => {
+                    const isChromeOrTwoTone = s.name.toUpperCase().includes('CHROME') || s.name.toUpperCase().includes('TWO TONE');
+                    if (isVelg) return isChromeOrTwoTone;
+                    if (isBodiHalus) return !isChromeOrTwoTone;
+                    return false;
+                  });
+
+                  return (
+                    <div key={item.id} className="space-y-1">
+                      <div className="flex justify-between text-[10px] font-headline items-center">
+                        <div className="flex items-center gap-2">
+                          <button 
+                            onClick={() => addServiceToCart(services.find(s => s.name === item.name) || { name: item.name } as any)}
+                            className="text-red-500 hover:text-red-400 bg-red-500/10 rounded-sm p-0.5 transition-colors"
+                            title="Remove service"
+                          >
+                           <X size={10} />
+                          </button>
+                          <span className="text-slate-400 truncate max-w-[150px] uppercase">
+                            {item.name} {item.name === 'Spot Repair' && spotCount > 0 ? `(${spotCount}x)` : ''}
+                          </span>
+                        </div>
+                        <span className="text-slate-300 font-mono">
+                          {item.name === 'Spot Repair' ? formatRupiah(spotCount * spotPrice) : formatRupiah(item.price)}
+                        </span>
+                      </div>
+                      
+                      {/* Independent Surcharge select in Desktop Summary */}
+                      {(isBodiHalus || isVelg) && availableSurcharges.length > 0 && (
+                        <div className="flex flex-wrap gap-1 pl-6">
+                          {availableSurcharges.map(s => (
+                            <button
+                              key={s.id}
+                              onClick={() => toggleSurchargeForItem(item.id, s.name)}
+                              className={cn(
+                                "px-1.5 py-0.5 text-[8px] font-headline border rounded-sm transition-all uppercase",
+                                item.surcharges.includes(s.name)
+                                  ? "bg-[#FFFF00]/10 border-[#FFFF00]/50 text-[#FFFF00]"
+                                  : "bg-white/5 border-white/5 text-slate-500 hover:text-white"
+                              )}
+                            >
+                              {s.name}
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                    <span className="text-slate-300 font-mono">
-                      {item.name === 'Spot Repair' ? formatRupiah(spotCount * spotPrice) : formatRupiah(item.price)}
-                    </span>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
             <div className="flex justify-between text-xs font-headline">
@@ -1284,34 +1385,56 @@ function DesktopLayout(props: any) {
               </div>
             </div>
 
-            {/* Surcharges Section (Desktop) */}
-            {surcharges && surcharges.length > 0 && (
-              <div className="p-6 bg-[#1c1b1b] border border-white/5 space-y-4 rounded-sm animate-in fade-in slide-in-from-bottom-2 duration-300">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-[10px] font-headline font-bold uppercase tracking-widest text-[#FFFF00]">Applicable Surcharges</h4>
-                  <span className="text-[9px] font-headline text-slate-500 uppercase">Optional Surcharges for Services</span>
-                </div>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                  {surcharges.map((s: any) => (
-                    <label key={s.id} className="flex items-center gap-3 cursor-pointer p-3 bg-[#0e0e0e] rounded-sm hover:border-white/10 border border-white/5 transition-all">
-                      <input
-                        type="checkbox"
-                        checked={selectedSurcharges.includes(s.name)}
-                        onChange={(e) => {
-                          if (e.target.checked) setSelectedSurcharges([...selectedSurcharges, s.name]);
-                          else setSelectedSurcharges(selectedSurcharges.filter((item: string) => item !== s.name));
-                        }}
-                        className="rounded border-white/10 bg-[#1c1b1b] text-[#FFFF00] focus:ring-[#FFFF00] size-4"
-                      />
-                      <div className="flex flex-col">
-                        <span className="text-xs font-bold text-white uppercase">{s.name}</span>
-                        <span className="text-[10px] text-slate-500">{s.isPercentage ? `${s.amount}%` : formatRupiah(s.amount)}</span>
-                      </div>
-                    </label>
-                  ))}
-                </div>
-              </div>
-            )}
+            {/* Per-Item Surcharge Toggles (Desktop - Main Area) */}
+            <div className="space-y-6">
+              {cart.map((item: CartItem) => {
+                const isBodiHalus = item.name.toUpperCase().includes('BODI HALUS');
+                const isVelg = item.name.toUpperCase().includes('VELG');
+                
+                if (!isBodiHalus && !isVelg) return null;
+
+                const availableSurcharges = surcharges.filter((s: any) => {
+                  const isChromeOrTwoTone = s.name.toUpperCase().includes('CHROME') || s.name.toUpperCase().includes('TWO TONE');
+                  if (isVelg) return isChromeOrTwoTone;
+                  if (isBodiHalus) return !isChromeOrTwoTone;
+                  return false;
+                });
+
+                if (availableSurcharges.length === 0) return null;
+
+                return (
+                  <div key={item.id} className="p-6 bg-[#1c1b1b] border border-white/5 space-y-4 rounded-sm animate-in fade-in slide-in-from-bottom-2 duration-300">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-[10px] font-headline font-bold uppercase tracking-widest text-[#FFFF00]">
+                        Surcharges for: {item.name}
+                      </h4>
+                      <span className="text-[9px] font-headline text-slate-500 uppercase">Per-Item Granular Selection</span>
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                      {availableSurcharges.map((s: any) => (
+                        <label key={s.id} className={cn(
+                          "flex items-center gap-3 cursor-pointer p-3 rounded-sm transition-all border",
+                          item.surcharges.includes(s.name) 
+                            ? "bg-[#FFFF00]/10 border-[#FFFF00]/30" 
+                            : "bg-[#0e0e0e] border-white/5 hover:border-white/10"
+                        )}>
+                          <input
+                            type="checkbox"
+                            checked={item.surcharges.includes(s.name)}
+                            onChange={() => toggleSurchargeForItem(item.id, s.name)}
+                            className="rounded border-white/10 bg-[#1c1b1b] text-[#FFFF00] focus:ring-[#FFFF00] size-4"
+                          />
+                          <div className="flex flex-col">
+                            <span className="text-xs font-bold text-white uppercase">{s.name}</span>
+                            <span className="text-[10px] text-slate-500">{s.isPercentage ? `${s.amount}%` : formatRupiah(s.amount)}</span>
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
 
             {/* Spot Repair Panel - Only show if Spot Repair is selected */}
             {isSpotRepairSelected && (
