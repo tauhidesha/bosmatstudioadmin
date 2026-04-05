@@ -26,6 +26,8 @@ export const metadata: Metadata = {
   description: 'Admin dashboard for Bosmat Repainting & Detailing Studio',
 };
 
+import { AuthProvider } from '@/lib/context/AuthContext';
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -39,7 +41,9 @@ export default function RootLayout({
         fontHeadline.variable,
         fontTechnical.variable
       )}>
-        {children}
+        <AuthProvider>
+          {children}
+        </AuthProvider>
       </body>
     </html>
   );
