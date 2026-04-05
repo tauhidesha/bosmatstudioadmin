@@ -255,7 +255,7 @@ export default function BookingsPage() {
                         onClick={(e) => {
                           e.stopPropagation();
                           setPaymentModal(booking);
-                          setNominalDP(Number(booking.subtotal) || 0);
+                          setNominalDP(Number(booking.totalAmount || booking.subtotal) || 0);
                         }}
                         className="flex-1 py-1.5 text-[9px] font-black font-headline uppercase tracking-widest bg-[#FFFF00] text-[#1d1d00] hover:brightness-110 transition-all"
                       >
@@ -327,7 +327,7 @@ export default function BookingsPage() {
           onUpdateStatus={updateBookingStatus}
           onOpenPayment={(booking) => {
             setPaymentModal(booking);
-            setNominalDP(Number(booking.subtotal) || 0);
+            setNominalDP(Number(booking.totalAmount || booking.subtotal) || 0);
           }}
         />
       </div>
@@ -375,7 +375,7 @@ export default function BookingsPage() {
           <div className="bg-[#1c1b1b] p-4 flex justify-between items-center rounded-sm">
             <span className="text-white/40 text-xs font-headline uppercase tracking-widest">Total Tagihan</span>
             <span className="font-headline font-black text-xl text-white">
-              Rp {Number(paymentModal?.subtotal || 0).toLocaleString('id-ID')}
+              Rp {Number(paymentModal?.totalAmount || paymentModal?.subtotal || 0).toLocaleString('id-ID')}
             </span>
           </div>
 

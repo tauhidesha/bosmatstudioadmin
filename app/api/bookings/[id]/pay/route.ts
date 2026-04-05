@@ -28,8 +28,9 @@ export async function POST(
 
     const dp = booking.downPayment || 0;
     const subtotal = booking.subtotal || 0;
-    const remainingBalance = Math.max(0, subtotal - dp);
-    const finalAmount = amountPaid || remainingBalance;
+    const totalAmount = booking.totalAmount || subtotal;
+    const remainingBalance = Math.max(0, totalAmount - dp);
+    const finalAmount = amountPaid !== undefined ? amountPaid : remainingBalance;
 
     // 1. Send receipt & warranty via Express Backend (if sendInvoice is true)
     if (sendInvoice) {
@@ -47,8 +48,8 @@ export async function POST(
           customerPhone: booking.customerPhone,
           motorDetails: booking.vehicleModel ? `${booking.vehicleModel}${booking.plateNumber ? ' - ' + booking.plateNumber : ''}` : '-',
           items: booking.serviceType,
-          totalAmount: subtotal,
-          amountPaid: subtotal,
+          totalAmount: booking.totalAmount || subtotal,
+          amountPaid: finalAmount,
           paymentMethod,
           notes: booking.notes || '',
           bookingDate: booking.bookingDate.toISOString().split('T')[0],
@@ -83,8 +84,8 @@ export async function POST(
             customerPhone: booking.customerPhone,
             motorDetails: booking.vehicleModel ? `${booking.vehicleModel}${booking.plateNumber ? ' - ' + booking.plateNumber : ''}` : '-',
             items: booking.serviceType,
-            totalAmount: subtotal,
-            amountPaid: subtotal,
+            totalAmount: booking.totalAmount || subtotal,
+            amountPaid: finalAmount,
             paymentMethod,
             notes: booking.notes || '',
             bookingDate: booking.bookingDate.toISOString().split('T')[0],
@@ -106,8 +107,8 @@ export async function POST(
             customerPhone: booking.customerPhone,
             motorDetails: booking.vehicleModel ? `${booking.vehicleModel}${booking.plateNumber ? ' - ' + booking.plateNumber : ''}` : '-',
             items: booking.serviceType,
-            totalAmount: subtotal,
-            amountPaid: subtotal,
+            totalAmount: booking.totalAmount || subtotal,
+            amountPaid: finalAmount,
             paymentMethod,
             notes: booking.notes || '',
             bookingDate: booking.bookingDate.toISOString().split('T')[0],

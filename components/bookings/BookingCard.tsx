@@ -153,7 +153,7 @@ export function BookingCard({ booking, isOverlay }: BookingCardProps) {
             {(booking as any).downPayment > 0 && (
               <div className="flex justify-between text-xs text-slate-500 mb-2">
                 <span>Subtotal</span>
-                <span>Rp {((booking as any).subtotal || 0).toLocaleString()}</span>
+                <span>Rp {((booking as any).totalAmount || (booking as any).subtotal || 0).toLocaleString()}</span>
               </div>
             )}
             {(booking as any).downPayment > 0 && (
@@ -164,7 +164,7 @@ export function BookingCard({ booking, isOverlay }: BookingCardProps) {
             )}
             <p className="text-xs font-bold text-slate-500 mb-1">{(booking as any).downPayment > 0 ? 'Sisa Tagihan:' : 'Total Tagihan:'}</p>
             <p className="text-xl font-black text-slate-800">
-              Rp { (booking as any).subtotal ? Math.max(0, (booking as any).subtotal - ((booking as any).downPayment || 0)).toLocaleString() : '0' }
+              Rp { (booking as any).subtotal ? Math.max(0, ((booking as any).totalAmount || (booking as any).subtotal) - ((booking as any).downPayment || 0)).toLocaleString() : '0' }
             </p>
           </div>
 
