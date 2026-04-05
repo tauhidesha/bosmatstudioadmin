@@ -401,7 +401,7 @@ export async function PUT(req: NextRequest) {
     });
 
     // Also update customer's real phone if provided or if the booking has one
-    const customerRealPhone = (data.realPhone || updateData.realPhone || booking.realPhone);
+    const customerRealPhone = (data.realPhone || updateData.realPhone || (booking as any).realPhone);
     if (customerRealPhone && booking.customerId) {
       await prisma.customer.update({
         where: { id: booking.customerId },

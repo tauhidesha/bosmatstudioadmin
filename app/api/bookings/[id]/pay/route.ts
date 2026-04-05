@@ -34,110 +34,126 @@ export async function POST(
 
     // 1. Send receipt & warranty via Express Backend (if sendInvoice is true)
     if (sendInvoice) {
-      const backendUrl = process.env.BACKEND_API_URL || 'https://unblissful-unverdantly-stan.ngrok-free.dev';
+      const backendUrl = (process.env.BACKEND_API_URL || process.env.NEXT_PUBLIC_API_URL || 'https://unblissful-unverdantly-stan.ngrok-free.dev').trim();
+      console.log(`[Payment] Calling backend for invoice: ${backendUrl}/generate-invoice`);
       try {
-      await fetch(`${backendUrl}/generate-invoice`, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          ...(authHeader ? { 'Authorization': authHeader } : {}),
-        },
-        body: JSON.stringify({
-          documentType: 'bukti_bayar',
-          customerName: booking.customerName || booking.customer?.name,
-          customerPhone: booking.customerPhone,
-          motorDetails: booking.vehicleModel ? `${booking.vehicleModel}${booking.plateNumber ? ' - ' + booking.plateNumber : ''}` : '-',
-          items: booking.serviceType,
-          totalAmount: booking.totalAmount || subtotal,
-          amountPaid: finalAmount,
-          paymentMethod,
-          notes: booking.notes || '',
-          bookingDate: booking.bookingDate.toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' }),
-        }),
-      });
-      console.log(`[Payment] Receipt sent for booking ${bookingId}`);
-
-      const servicesString = booking.serviceType?.toLowerCase() || '';
-      const categoryString = booking.category?.toLowerCase() || '';
-
-      // Check repaint: keyword in serviceType OR category
-      const includesRepaint = servicesString.includes('repaint') 
-                           || categoryString === 'repaint';
-
-      // Check coating: keyword in serviceType, category, or known service names
-      const includesCoating = servicesString.includes('coating')
-                           || servicesString.includes('glossy')
-                           || servicesString.includes('complete service')
-                           || servicesString.includes('nano ceramic')
-                           || categoryString === 'coating';
-
-      if (includesRepaint) {
-        await fetch(`${backendUrl}/generate-invoice`, {
+        const response = await fetch(`${backendUrl}/generate-invoice`, {
           method: 'POST',
           headers: { 
             'Content-Type': 'application/json',
             ...(authHeader ? { 'Authorization': authHeader } : {}),
           },
           body: JSON.stringify({
-            documentType: 'garansi_repaint',
+            documentType: 'bukti_bayar',
             customerName: booking.customerName || booking.customer?.name,
             customerPhone: booking.customerPhone,
             motorDetails: booking.vehicleModel ? `${booking.vehicleModel}${booking.plateNumber ? ' - ' + booking.plateNumber : ''}` : '-',
             items: booking.serviceType,
-            subtotal: Number(booking.subtotal) || 0,
-            totalAmount: Number(booking.totalAmount || booking.subtotal) || 0,
-            discount: (Number(booking.subtotal) || 0) - (Number(booking.totalAmount || booking.subtotal) || 0),
+            totalAmount: booking.totalAmount || subtotal,
             amountPaid: finalAmount,
             paymentMethod,
             notes: booking.notes || '',
             bookingDate: booking.bookingDate.toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' }),
           }),
         });
-        console.log(`[Payment] Warranty Repaint sent for booking ${bookingId}`);
-      }
 
-      if (includesCoating) {
-        await fetch(`${backendUrl}/generate-invoice`, {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            ...(authHeader ? { 'Authorization': authHeader } : {}),
-          },
-          body: JSON.stringify({
-            documentType: 'garansi_coating',
-            customerName: booking.customerName || booking.customer?.name,
-            customerPhone: booking.customerPhone,
-            motorDetails: booking.vehicleModel ? `${booking.vehicleModel}${booking.plateNumber ? ' - ' + booking.plateNumber : ''}` : '-',
-            items: booking.serviceType,
-            subtotal: Number(booking.subtotal) || 0,
-            totalAmount: Number(booking.totalAmount || booking.subtotal) || 0,
-            discount: (Number(booking.subtotal) || 0) - (Number(booking.totalAmount || booking.subtotal) || 0),
-            amountPaid: finalAmount,
-            paymentMethod,
-            notes: booking.notes || '',
-            bookingDate: booking.bookingDate.toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' }),
-          }),
-        });
-        console.log(`[Payment] Warranty Coating sent for booking ${bookingId}`);
+        if (!response.ok) {
+          const errorResp = await response.json().catch(() => ({}));
+          console.error(`[Payment] Backend error ${response.status}:`, errorResp);
+          throw new Error(`Backend error ${response.status}: ${errorResp.error || 'Unknown error'}`);
+        }
 
-        // Create coating maintenance record (6 months later)
-        const maintenanceDate = new Date();
-        maintenanceDate.setMonth(maintenanceDate.getMonth() + 6);
+        console.log(`[Payment] Receipt sent for booking ${bookingId}`);
 
-        await prisma.coatingMaintenance.create({
-          data: {
-            bookingId: bookingId,
-            customerName: booking.customerName || booking.customer?.name || 'Unknown',
-            customerPhone: booking.customerPhone || '',
-            vehicleInfo: booking.vehicleModel ? `${booking.vehicleModel}${booking.plateNumber ? ' - ' + booking.plateNumber : ''}` : '-',
-            maintenanceDate,
-            status: 'pending',
+        const servicesString = booking.serviceType?.toLowerCase() || '';
+        const categoryString = booking.category?.toLowerCase() || '';
+
+        // Check repaint: keyword in serviceType OR category
+        const includesRepaint = servicesString.includes('repaint') 
+                             || categoryString === 'repaint';
+
+        // Check coating: keyword in serviceType, category, or known service names
+        const includesCoating = servicesString.includes('coating')
+                             || servicesString.includes('glossy')
+                             || servicesString.includes('complete service')
+                             || servicesString.includes('nano ceramic')
+                             || categoryString === 'coating';
+
+        if (includesRepaint) {
+          const repaintRes = await fetch(`${backendUrl}/generate-invoice`, {
+            method: 'POST',
+            headers: { 
+              'Content-Type': 'application/json',
+              ...(authHeader ? { 'Authorization': authHeader } : {}),
+            },
+            body: JSON.stringify({
+              documentType: 'garansi_repaint',
+              customerName: booking.customerName || booking.customer?.name,
+              customerPhone: booking.customerPhone,
+              motorDetails: booking.vehicleModel ? `${booking.vehicleModel}${booking.plateNumber ? ' - ' + booking.plateNumber : ''}` : '-',
+              items: booking.serviceType,
+              subtotal: Number(booking.subtotal) || 0,
+              totalAmount: Number(booking.totalAmount || booking.subtotal) || 0,
+              discount: (Number(booking.subtotal) || 0) - (Number(booking.totalAmount || booking.subtotal) || 0),
+              amountPaid: finalAmount,
+              paymentMethod,
+              notes: booking.notes || '',
+              bookingDate: booking.bookingDate.toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' }),
+            }),
+          });
+          if (!repaintRes.ok) console.warn('[Payment] Failed to send repaint warranty');
+          else console.log(`[Payment] Warranty Repaint sent for booking ${bookingId}`);
+        }
+
+        if (includesCoating) {
+          const coatingRes = await fetch(`${backendUrl}/generate-invoice`, {
+            method: 'POST',
+            headers: { 
+              'Content-Type': 'application/json',
+              ...(authHeader ? { 'Authorization': authHeader } : {}),
+            },
+            body: JSON.stringify({
+              documentType: 'garansi_coating',
+              customerName: booking.customerName || booking.customer?.name,
+              customerPhone: booking.customerPhone,
+              motorDetails: booking.vehicleModel ? `${booking.vehicleModel}${booking.plateNumber ? ' - ' + booking.plateNumber : ''}` : '-',
+              items: booking.serviceType,
+              subtotal: Number(booking.subtotal) || 0,
+              totalAmount: Number(booking.totalAmount || booking.subtotal) || 0,
+              discount: (Number(booking.subtotal) || 0) - (Number(booking.totalAmount || booking.subtotal) || 0),
+              amountPaid: finalAmount,
+              paymentMethod,
+              notes: booking.notes || '',
+              bookingDate: booking.bookingDate.toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' }),
+            }),
+          });
+          
+          if (coatingRes.ok) {
+            console.log(`[Payment] Warranty Coating sent for booking ${bookingId}`);
+
+            // Create coating maintenance record (6 months later)
+            const maintenanceDate = new Date();
+            maintenanceDate.setMonth(maintenanceDate.getMonth() + 6);
+
+            await prisma.coatingMaintenance.create({
+              data: {
+                bookingId: bookingId,
+                customerName: booking.customerName || booking.customer?.name || 'Unknown',
+                customerPhone: booking.customerPhone || '',
+                vehicleInfo: booking.vehicleModel ? `${booking.vehicleModel}${booking.plateNumber ? ' - ' + booking.plateNumber : ''}` : '-',
+                maintenanceDate,
+                status: 'pending',
+              }
+            });
+          } else {
+            console.warn('[Payment] Failed to send coating warranty');
           }
-        });
+        }
+      } catch (e: any) {
+        console.error(`[Payment] Critical failure in backend communication: ${e.message}`);
+        return NextResponse.json({ success: false, error: `Backend API failure: ${e.message}` }, { status: 502 });
       }
-      } catch (e) {
-        console.warn(`[Payment] Failed to send document for booking ${bookingId}:`, e);
-      }
+
     } // end if (sendInvoice)
 
     // 2. Update Booking Status to PAID

@@ -86,7 +86,9 @@ export default function ManualBookingForm({
   const [discountAmount, setDiscountAmount] = useState<number>(0);
 
   // Logistics & Billing
-  const [entryDate, setEntryDate] = useState(new Date().toISOString().split('T')[0]);
+  const [entryDate, setEntryDate] = useState(
+    new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta' }).format(new Date())
+  );
   const [timeSlot, setTimeSlot] = useState('10:00');
   const [homeService, setHomeService] = useState(false);
   const [dpRequired, setDpRequired] = useState(true);

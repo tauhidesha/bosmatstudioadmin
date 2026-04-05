@@ -7,6 +7,7 @@ import { Booking } from '@/lib/hooks/useBookings';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 import Modal from '@/components/shared/Modal';
+import { useAuth } from '@/lib/hooks/useAuth';
 
 interface BookingCardProps {
   booking: Booking;
@@ -17,6 +18,7 @@ export function BookingCard({ booking, isOverlay }: BookingCardProps) {
   const [showPayment, setShowPayment] = useState(false);
   const [isPaying, setIsPaying] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('Transfer BCA');
+  const { getIdToken } = useAuth();
 
   const {
     attributes,
@@ -42,9 +44,13 @@ export function BookingCard({ booking, isOverlay }: BookingCardProps) {
     e.preventDefault();
     setIsPaying(true);
     try {
+      const token = await getIdToken();
       const res = await fetch(`/api/bookings/${booking.id}/pay`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
         body: JSON.stringify({ paymentMethod }),
       });
       const data = await res.json();
