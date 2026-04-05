@@ -92,6 +92,7 @@ export default function ManualBookingForm({
 
   // TAMBAHAN BARU: State khusus untuk mencegah tabrakan pencarian
   const [skipNextSearch, setSkipNextSearch] = useState(false);
+  const [showAllChats, setShowAllChats] = useState(false);
 
   // --- SMART SEARCH LOGIC (Untuk ngetik manual) ---
   useEffect(() => {
@@ -603,6 +604,7 @@ export default function ManualBookingForm({
     handleSubmit, handleDelete, handleSelectConversation, toggleSurchargeForItem, setItemNotesForItem,
     onCancel, servicesTotal, computedDiscount, finalTotal, remainingBalance,
     allConversations, skipNextSearch, setSkipNextSearch,
+    showAllChats, setShowAllChats,
     bookingStatus, setBookingStatus, amountPaid, setAmountPaid,
     services, vehicleModels, surcharges, loadingPricing,
     additionalNotes, setAdditionalNotes,
@@ -626,7 +628,7 @@ function MobileLayout(props: any) {
     sendInvoiceWA, setSendInvoiceWA, foundVehicle, isSearching,
     handleSubmit, onCancel, servicesTotal, computedDiscount, finalTotal,
     allConversations, isSubmitting, handleSelectConversation,
-    skipNextSearch, setSkipNextSearch,
+    skipNextSearch, setSkipNextSearch, showAllChats, setShowAllChats,
     bookingStatus, setBookingStatus, amountPaid, setAmountPaid,
     services, vehicleModels, surcharges, loadingPricing,
     toggleSurchargeForItem, setItemNotesForItem, additionalNotes, setAdditionalNotes,
@@ -665,7 +667,7 @@ function MobileLayout(props: any) {
             <div className="relative">
               <label className="block text-[10px] font-headline text-slate-500 uppercase mb-1 ml-1">WhatsApp Quick Select</label>
               <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
-                {allConversations.slice(0, 5).map((conv: Conversation) => (
+                {(showAllChats ? allConversations : allConversations.slice(0, 5)).map((conv: Conversation) => (
                   <button
                     key={conv.id}
                     onClick={() => handleSelectConversation(conv)}
@@ -680,6 +682,13 @@ function MobileLayout(props: any) {
                     <p className="text-[8px] text-slate-500">Active Chat</p>
                   </button>
                 ))}
+                <button
+                  onClick={() => setShowAllChats(!showAllChats)}
+                  className="flex-shrink-0 p-3 flex flex-col items-center justify-center gap-1 border border-dashed border-white/10 text-slate-500 hover:text-white transition-all rounded-sm min-w-16 bg-surface-container-low"
+                >
+                  <Search className="size-4" />
+                  <span className="text-[8px] font-headline uppercase">{showAllChats ? 'Less' : 'More'}</span>
+                </button>
               </div>
             </div>
 
@@ -1193,7 +1202,7 @@ function DesktopLayout(props: any) {
     sendInvoiceWA, setSendInvoiceWA, foundVehicle, setFoundVehicle, isSearching,
     handleSubmit, handleDelete, handleSelectConversation, onCancel,
     servicesTotal, computedDiscount, finalTotal, remainingBalance, allConversations,
-    skipNextSearch, setSkipNextSearch,
+    skipNextSearch, setSkipNextSearch, showAllChats, setShowAllChats,
     bookingStatus, setBookingStatus, amountPaid, setAmountPaid,
     services, vehicleModels, surcharges, loadingPricing,
     toggleSurchargeForItem, setItemNotesForItem, additionalNotes, setAdditionalNotes,
@@ -1218,8 +1227,8 @@ function DesktopLayout(props: any) {
         {/* WhatsApp Connection Section */}
         <section>
           <label className="block text-[10px] font-headline text-slate-500 uppercase tracking-widest mb-3">WhatsApp Connection</label>
-          <div className="space-y-2">
-            {allConversations.slice(0, 3).map((conv: Conversation) => (
+          <div className="space-y-2 max-h-[400px] overflow-y-auto no-scrollbar">
+            {(showAllChats ? allConversations : allConversations.slice(0, 3)).map((conv: Conversation) => (
               <button
                 key={conv.id}
                 onClick={() => handleSelectConversation(conv)}
@@ -1244,10 +1253,14 @@ function DesktopLayout(props: any) {
                 </div>
               </button>
             ))}
-            <button className="w-full flex items-center justify-center gap-2 p-2 border border-dashed border-white/10 text-slate-500 text-[10px] font-headline uppercase hover:text-white transition-colors">
-              <Search className="size-3" />
-              Browse All Chats
-            </button>
+            {allConversations.length > 3 && (
+              <button 
+                onClick={() => setShowAllChats(!showAllChats)}
+                className="w-full flex items-center justify-center gap-2 p-2 border border-dashed border-white/10 text-slate-500 text-[10px] font-headline uppercase hover:text-white transition-colors">
+                <Search className="size-3" />
+                {showAllChats ? 'Show Less' : 'Browse All Chats'}
+              </button>
+            )}
           </div>
         </section>
 
