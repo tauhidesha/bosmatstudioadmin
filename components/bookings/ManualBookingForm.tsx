@@ -62,6 +62,7 @@ export default function ManualBookingForm({
   const [activeTab, setActiveTab] = useState<'repaint' | 'detailing' | 'coating'>('repaint');
   const [cart, setCart] = useState<CartItem[]>([]);
   const [additionalNotes, setAdditionalNotes] = useState('');
+  const [realPhone, setRealPhone] = useState('');
 
   // Custom Service state
   const [customServiceName, setCustomServiceName] = useState('');
@@ -150,6 +151,7 @@ export default function ManualBookingForm({
       console.log('DEBUG: ManualBookingForm initialData:', initialData);
       setInvoiceName(initialData.customerName || '');
       setContactPhone(initialData.customerPhone || '');
+      setRealPhone(initialData.realPhone || '');
 
       // Handle vehicle info properly
       const rawModel = initialData.vehicleModel || '';
@@ -495,6 +497,7 @@ export default function ManualBookingForm({
         amountPaid: amountPaid,
         status: bookingStatus,
         homeService,
+        realPhone,
         notes: `Layanan: ${cart.map((i: CartItem) => {
           const isKnown = services.some(s => s.name === i.name) || i.name === 'Spot Repair';
           const baseName = isKnown ? i.name : `${i.name} [Rp${i.price}]`;
@@ -538,6 +541,7 @@ export default function ManualBookingForm({
             documentType: 'invoice',
             customerName: invoiceName,
             customerPhone: contactPhone,
+            realPhone,
             motorDetails: `${motorcycleModel.modelName} (${platNomor || '-'})`,
             items: detailedItems,
             totalAmount: finalTotal,
@@ -601,7 +605,8 @@ export default function ManualBookingForm({
     allConversations, skipNextSearch, setSkipNextSearch,
     bookingStatus, setBookingStatus, amountPaid, setAmountPaid,
     services, vehicleModels, surcharges, loadingPricing,
-    additionalNotes, setAdditionalNotes
+    additionalNotes, setAdditionalNotes,
+    realPhone, setRealPhone
   };
 
   const isMobile = useMediaQuery('(max-width: 768px)');
@@ -624,7 +629,8 @@ function MobileLayout(props: any) {
     skipNextSearch, setSkipNextSearch,
     bookingStatus, setBookingStatus, amountPaid, setAmountPaid,
     services, vehicleModels, surcharges, loadingPricing,
-    toggleSurchargeForItem, setItemNotesForItem, additionalNotes, setAdditionalNotes
+    toggleSurchargeForItem, setItemNotesForItem, additionalNotes, setAdditionalNotes,
+    realPhone, setRealPhone
   } = props;
 
   const isSpotRepairSelected = cart.some((item: CartItem) => item.name === 'Spot Repair');
@@ -688,12 +694,22 @@ function MobileLayout(props: any) {
                 />
               </div>
               <div className="group">
-                <label className="block text-[10px] font-headline text-slate-500 uppercase mb-1">Contact Phone</label>
+                <label className="block text-[10px] font-headline text-slate-500 uppercase mb-1">Contact Phone (WA ID)</label>
                 <input
                   value={contactPhone}
                   onChange={e => setContactPhone(e.target.value)}
                   className="w-full bg-neutral-900 border-none focus:ring-0 text-sm py-3 px-4 text-white placeholder-neutral-700 font-mono"
                   type="tel"
+                />
+              </div>
+              <div className="group">
+                <label className="block text-[10px] font-headline text-slate-500 uppercase mb-1">No. WA Asli (untuk Invoice)</label>
+                <input
+                  value={realPhone}
+                  onChange={e => setRealPhone(e.target.value)}
+                  className="w-full bg-neutral-900 border-none focus:ring-0 text-sm py-3 px-4 text-white placeholder-neutral-700 font-mono"
+                  type="tel"
+                  placeholder="08xxxxxxxxxx"
                 />
               </div>
             </div>
@@ -1180,7 +1196,8 @@ function DesktopLayout(props: any) {
     skipNextSearch, setSkipNextSearch,
     bookingStatus, setBookingStatus, amountPaid, setAmountPaid,
     services, vehicleModels, surcharges, loadingPricing,
-    toggleSurchargeForItem, setItemNotesForItem, additionalNotes, setAdditionalNotes
+    toggleSurchargeForItem, setItemNotesForItem, additionalNotes, setAdditionalNotes,
+    realPhone, setRealPhone
   } = props;
 
   const isSpotRepairSelected = cart.some((item: CartItem) => item.name === 'Spot Repair');
@@ -1377,7 +1394,7 @@ function DesktopLayout(props: any) {
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-[10px] font-headline text-slate-500 uppercase tracking-widest">Contact Phone (WA)</label>
+                <label className="text-[10px] font-headline text-slate-500 uppercase tracking-widest">Contact Phone (WA ID)</label>
                 <div className="relative">
                   <input
                     value={contactPhone}
@@ -1389,6 +1406,16 @@ function DesktopLayout(props: any) {
                     <Verified className="absolute right-4 top-1/2 -translate-y-1/2 text-[#cccc63] size-4 fill-[#cccc63]/20" />
                   )}
                 </div>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-headline text-slate-500 uppercase tracking-widest">No. WA Asli (untuk Invoice)</label>
+                <input
+                  value={realPhone}
+                  onChange={e => setRealPhone(e.target.value)}
+                  className="w-full bg-[#0e0e0e] border-none focus:ring-0 text-sm py-4 px-4 font-headline text-white placeholder:text-slate-800"
+                  placeholder="08xxxxxxxxxx"
+                  type="tel"
+                />
               </div>
             </div>
           </section>
