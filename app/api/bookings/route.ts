@@ -129,12 +129,12 @@ export async function POST(req: NextRequest) {
     const customer = existingCustomer
       ? await prisma.customer.update({
           where: { id: existingCustomer.id },
-          data: { phoneReal: normalizedPhone }
+          data: { phoneReal: (realPhone || normalizedPhone).replace(/\D/g, '') }
         })
       : await prisma.customer.create({
           data: {
             phone: normalizedPhone,
-            phoneReal: normalizedPhone,
+            phoneReal: (realPhone || normalizedPhone).replace(/\D/g, ''),
             name: customerName,
             status: 'new',
             totalSpending: 0,
@@ -389,6 +389,14 @@ export async function PUT(req: NextRequest) {
       where: { id },
       data: updateData,
     });
+
+    // Also update customer's real phone if provided
+    if (updateData.realPhone && booking.customerId) {
+      await prisma.customer.update({
+        where: { id: booking.customerId },
+        data: { phoneReal: updateData.realPhone.replace(/\D/g, '') }
+      });
+    }
 
     return NextResponse.json({
       success: true,
