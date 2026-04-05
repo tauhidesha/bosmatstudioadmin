@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { headers } from 'next/headers';
 import prisma from '@/lib/prisma';
 
 export const runtime = 'nodejs';
@@ -10,7 +11,14 @@ export async function POST(
   try {
     const { id: bookingId } = params;
     const body = await req.json();
-    const authHeader = req.headers.get('authorization');
+    const headersList = headers();
+    const authHeader = headersList.get('authorization');
+    
+    if (!authHeader) {
+      console.error('[Payment] No Auth Header in Next.js internal API');
+      return NextResponse.json({ error: 'Sesi anda telah berakhir. Silakan login ulang.' }, { status: 401 });
+    }
+
     const { paymentMethod = 'Transfer BCA', amountPaid, sendInvoice = true } = body;
 
     // Check if booking exists

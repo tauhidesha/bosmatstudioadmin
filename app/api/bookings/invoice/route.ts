@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { headers } from 'next/headers';
 
 export async function POST(req: NextRequest) {
   try {
@@ -16,7 +17,13 @@ export async function POST(req: NextRequest) {
       bookingDate,
     } = body;
 
-    const authHeader = req.headers.get('authorization');
+    const headersList = headers();
+    const authHeader = headersList.get('authorization');
+    if (!authHeader) {
+      console.error('[Invoice] Aborting: Missing Authorization header');
+      return NextResponse.json({ error: 'Sesi anda telah berakhir. Silakan login ulang.' }, { status: 401 });
+    }
+
     const backendUrl = (process.env.BACKEND_API_URL || process.env.NEXT_PUBLIC_API_URL || 'https://unblissful-unverdantly-stan.ngrok-free.dev').trim().replace(/\/$/, "");
 
     console.log(`[Invoice] Forwarding generate-invoice request to Backend: ${backendUrl}/generate-invoice (Auth: ${authHeader ? 'Present' : 'Missing'})`);
