@@ -222,6 +222,14 @@ export default function ManualBookingForm({
       if (initialData.paymentMethod) setPaymentMethod(initialData.paymentMethod);
       if (initialData.homeService !== undefined) setHomeService(!!initialData.homeService);
       
+      // Extract Discount
+      if (initialData.subtotal !== undefined && initialData.totalAmount !== undefined) {
+        const diff = initialData.subtotal - initialData.totalAmount;
+        if (diff > 0) {
+          setDiscountAmount(diff);
+        }
+      }
+
       // Extract Additional Notes
       if (initialData.notes) {
         const notesParts = initialData.notes.split('Catatan Tambahan: ');
