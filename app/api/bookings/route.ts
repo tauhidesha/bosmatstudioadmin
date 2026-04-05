@@ -60,6 +60,7 @@ export async function GET(req: NextRequest) {
         paymentMethod: b.paymentMethod,
         homeService: b.homeService,
         notes: b.notes || b.adminNotes,
+        realPhone: b.realPhone || '',
         durationDays: calculateDurationDays(services),
         createdAt: b.createdAt.toISOString(),
       };
@@ -100,7 +101,8 @@ export async function POST(req: NextRequest) {
       homeService, 
       invoiceName, 
       dpAmount,
-      paymentMethod
+      paymentMethod,
+      realPhone
     } = body;
 
     if (!customerName || !customerPhone || !serviceName || !bookingDate || !bookingTime) {
@@ -177,6 +179,7 @@ export async function POST(req: NextRequest) {
         downPayment: downPayment || null,
         homeService: homeService || false,
         paymentMethod,
+        realPhone,
         category: getServiceCategory(serviceName),
       }
     });
@@ -266,7 +269,7 @@ function extractPlateFromText(text: string | null): string | null {
 export async function PATCH(req: NextRequest) {
   try {
     const body = await req.json();
-    const { id, status, notes, adminNotes, bookingDate, serviceType } = body;
+    const { id, status, notes, adminNotes, bookingDate, serviceType, realPhone } = body;
 
     if (!id) {
       return NextResponse.json(
@@ -281,6 +284,7 @@ export async function PATCH(req: NextRequest) {
     if (adminNotes !== undefined) data.adminNotes = adminNotes;
     if (bookingDate) data.bookingDate = new Date(bookingDate);
     if (serviceType) data.serviceType = serviceType;
+    if (realPhone !== undefined) data.realPhone = realPhone;
 
     const booking = await prisma.booking.update({
       where: { id },
@@ -379,6 +383,7 @@ export async function PUT(req: NextRequest) {
     if (data.homeService !== undefined) updateData.homeService = data.homeService;
     if (data.notes !== undefined) updateData.notes = data.notes;
     if (data.paymentMethod) updateData.paymentMethod = data.paymentMethod;
+    if (data.realPhone !== undefined) updateData.realPhone = data.realPhone;
 
     const booking = await prisma.booking.update({
       where: { id },

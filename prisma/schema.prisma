@@ -98,8 +98,9 @@ model Booking {
   
   // Financial Tracking
   totalAmount     Float?
-  amountPaid      Float     @default(0)
-  paymentStatus   String    @default("UNPAID") // UNPAID, PARTIAL, PAID
+  amountPaid       Float     @default(0)
+  paymentStatus    String    @default("UNPAID") // UNPAID, PARTIAL, PAID
+  realPhone        String?
   
   subtotal        Float?
   downPayment     Float?
