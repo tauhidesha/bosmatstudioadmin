@@ -15,6 +15,7 @@ import { useLayout } from '@/context/LayoutContext';
 import { format, isSameDay, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { id } from 'date-fns/locale';
+import { isBookingActiveOnDate } from '@/lib/utils/booking-visibility';
 
 const statusConfig = {
   waiting:     { label: 'WAITING',    bg: 'bg-white/5',   text: 'text-white/40' },
@@ -68,9 +69,8 @@ export default function BookingsPage() {
 
   // Handle estimated revenue and stats calculations...
   const queueBookings = useMemo(() => {
-    const selectedDateStr = format(selectedDate, 'yyyy-MM-dd');
     return bookings
-      .filter(b => b.bookingDate === selectedDateStr && b.status !== 'cancelled')
+      .filter(b => isBookingActiveOnDate(b, selectedDate))
       .sort((a, b) => (a.bookingTime || '00:00') > (b.bookingTime || '00:00') ? 1 : -1);
   }, [bookings, selectedDate]);
 

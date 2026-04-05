@@ -13,54 +13,12 @@ import {
   isSameMonth, 
   addMonths, 
   subMonths,
-  parseISO,
-  addDays,
-  startOfDay,
-  isAfter,
-  isBefore,
-  addHours
+  parseISO
 } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { Edit2, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
-
-// Helper to check if a booking is active on a specific date
-const isBookingActiveOnDate = (booking: Booking, date: Date) => {
-  if (booking.status === 'cancelled') return false;
-  
-  const bookingDay = startOfDay(parseISO(booking.bookingDate));
-  const targetDay = startOfDay(date);
-  const duration = booking.durationDays || 1;
-  const endDay = addDays(bookingDay, duration);
-
-  // 1. If it's the start date, it's "active" if not paid long ago
-  const isStartDay = isSameDay(bookingDay, targetDay);
-  
-  // 2. Check if it's within duration
-  const isWithinDuration = (isAfter(targetDay, bookingDay) || isSameDay(targetDay, bookingDay)) && 
-                           isBefore(targetDay, endDay);
-
-  if (!isWithinDuration) return false;
-
-  // 3. Status-based visibility rules:
-  // - If 'paid': only show for 1 hour after payment (grace period)
-  if (booking.status === 'paid') {
-    const paidTime = booking.updatedAt ? parseISO(booking.updatedAt) : new Date();
-    const expiryTime = addHours(paidTime, 1);
-    
-    // Only show if the target date is today and we are within 1 hour of payment
-    // OR if we are looking at the historical record of the start day (always show on start day)
-    const isToday = isSameDay(new Date(), targetDay);
-    if (isToday && isBefore(new Date(), expiryTime)) return true;
-    if (isStartDay) return true; // Always show paid bookings on their booking date
-    
-    return false;
-  }
-
-  // - If 'done': "biarin masih muncul" (stays for duration)
-  // - If 'pending'/'in_progress': (stays for duration)
-  return true;
-};
+import { isBookingActiveOnDate } from '@/lib/utils/booking-visibility';
 
 interface MobileBookingsViewProps {
   bookings: Booking[];
