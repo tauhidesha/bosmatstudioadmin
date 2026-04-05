@@ -56,8 +56,17 @@ export default function ManualBookingForm({
   const [invoiceName, setInvoiceName] = useState('');
   const [contactPhone, setContactPhone] = useState('');
   const [motorcycleModel, setMotorcycleModel] = useState<VehicleModel | null>(null);
+  const [modelSearchText, setModelSearchText] = useState('');
   const [platNomor, setPlatNomor] = useState('');
   const [bookingStatus, setBookingStatus] = useState<string>('pending');
+
+  useEffect(() => {
+    if (motorcycleModel?.modelName) {
+      setModelSearchText(motorcycleModel.modelName);
+    } else {
+      setModelSearchText('');
+    }
+  }, [motorcycleModel]);
   const [amountPaid, setAmountPaid] = useState<number>(0);
   const [activeTab, setActiveTab] = useState<'repaint' | 'detailing' | 'coating'>('repaint');
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -608,7 +617,8 @@ export default function ManualBookingForm({
     bookingStatus, setBookingStatus, amountPaid, setAmountPaid,
     services, vehicleModels, surcharges, loadingPricing,
     additionalNotes, setAdditionalNotes,
-    realPhone, setRealPhone
+    realPhone, setRealPhone,
+    modelSearchText, setModelSearchText
   };
 
   const isMobile = useMediaQuery('(max-width: 768px)');
@@ -620,6 +630,7 @@ function MobileLayout(props: any) {
   const {
     isEdit, selectedConversation, invoiceName, setInvoiceName,
     contactPhone, setContactPhone, motorcycleModel, setMotorcycleModel,
+    modelSearchText, setModelSearchText,
     platNomor, setPlatNomor, activeTab, setActiveTab, cart, addServiceToCart,
     customServiceName, setCustomServiceName, customServicePrice, setCustomServicePrice,
     addCustomService, spotCount, setSpotCount, spotPrice, setSpotPrice,
@@ -735,19 +746,29 @@ function MobileLayout(props: any) {
             <div className="space-y-1">
               <label className="block text-[10px] font-headline text-slate-500 uppercase ml-1">Motorcycle Model</label>
               <div className="relative">
-                <select
-                  value={motorcycleModel?.modelName || ""}
+                <input
+                  list="motorcycle-models-mobile"
+                  value={modelSearchText}
                   onChange={e => {
-                    const model = vehicleModels.find(m => m.modelName === e.target.value);
+                    setModelSearchText(e.target.value);
+                    const model = vehicleModels.find(m => m.modelName.toLowerCase() === e.target.value.toLowerCase());
                     if (model) setMotorcycleModel(model);
                   }}
-                  className="w-full bg-neutral-900 border-none focus:ring-1 focus:ring-[#FFFF00]/50 text-xs py-3 px-3 text-white appearance-none"
-                >
-                  <option value="">SELECT MODEL</option>
+                  onBlur={() => {
+                    if (!motorcycleModel || motorcycleModel.modelName.toLowerCase() !== modelSearchText.toLowerCase()) {
+                      // If no strict match and we have text, try to find partial match
+                      const model = vehicleModels.find(m => m.modelName.toLowerCase().includes(modelSearchText.toLowerCase()));
+                      if (model) setMotorcycleModel(model);
+                    }
+                  }}
+                  className="w-full bg-neutral-900 border-none focus:ring-1 focus:ring-[#FFFF00]/50 text-xs py-3 px-3 text-white placeholder-neutral-700"
+                  placeholder="Type to search model..."
+                />
+                <datalist id="motorcycle-models-mobile">
                   {vehicleModels.map(m => (
                     <option key={m.id} value={m.modelName}>{m.modelName}</option>
                   ))}
-                </select>
+                </datalist>
                 <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-500 size-3 pointer-events-none" />
               </div>
             </div>
@@ -1193,6 +1214,7 @@ function DesktopLayout(props: any) {
     isEdit, currentStep, setCurrentStep,
     selectedConversation, invoiceName, setInvoiceName,
     contactPhone, setContactPhone, motorcycleModel, setMotorcycleModel,
+    modelSearchText, setModelSearchText,
     platNomor, setPlatNomor, activeTab, setActiveTab, cart, addServiceToCart,
     customServiceName, setCustomServiceName, customServicePrice, setCustomServicePrice,
     addCustomService, spotCount, setSpotCount, spotPrice, setSpotPrice,
@@ -1443,19 +1465,29 @@ function DesktopLayout(props: any) {
               <div className="space-y-1">
                 <label className="text-[10px] font-headline text-slate-500 uppercase tracking-widest">Motorcycle Model</label>
                 <div className="relative">
-                <select
-                  value={motorcycleModel?.modelName || ""}
+                <input
+                  list="motorcycle-models-desktop"
+                  value={modelSearchText}
                   onChange={e => {
-                    const model = vehicleModels.find(m => m.modelName === e.target.value);
+                    setModelSearchText(e.target.value);
+                    const model = vehicleModels.find(m => m.modelName.toLowerCase() === e.target.value.toLowerCase());
                     if (model) setMotorcycleModel(model);
                   }}
-                  className="w-full bg-[#0e0e0e] border-none focus:ring-0 text-sm py-4 px-4 font-headline text-white appearance-none cursor-pointer"
-                >
-                  <option value="">Select Model (Triggers Base Price)</option>
+                  onBlur={() => {
+                    if (!motorcycleModel || motorcycleModel.modelName.toLowerCase() !== modelSearchText.toLowerCase()) {
+                      // If no strict match and we have text, try to find partial match
+                      const model = vehicleModels.find(m => m.modelName.toLowerCase().includes(modelSearchText.toLowerCase()));
+                      if (model) setMotorcycleModel(model);
+                    }
+                  }}
+                  className="w-full bg-[#0e0e0e] border-none focus:ring-0 text-sm py-4 px-4 font-headline text-white placeholder-neutral-700"
+                  placeholder="Type to search model..."
+                />
+                <datalist id="motorcycle-models-desktop">
                   {vehicleModels.map(m => (
                     <option key={m.id} value={m.modelName}>{m.modelName}</option>
                   ))}
-                </select>
+                </datalist>
                 <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500 size-5" />
               </div>
             </div>
