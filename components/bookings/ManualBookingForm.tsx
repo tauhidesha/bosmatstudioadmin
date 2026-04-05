@@ -41,6 +41,7 @@ interface CartItem {
   name: string;
   price: number;
   surcharges: string[]; // Independent surcharges per item
+  itemNotes?: string;
 }
 
 export default function ManualBookingForm({
@@ -241,6 +242,13 @@ export default function ManualBookingForm({
             serviceLine = serviceLine.replace(explicitPriceMatch[0], '').trim();
           }
           
+          let itemNotes = '';
+          const colorMatch = serviceLine.match(/ \(Warna: ([^)]+)\)/);
+          if (colorMatch) {
+            itemNotes = colorMatch[1].trim();
+            serviceLine = serviceLine.replace(colorMatch[0], '').trim();
+          }
+
           // Parse surcharges format: "Service Name [+Surcharge1, +Surcharge2]" OR "Service Name (+Surcharge)"
           const surchargeMatch = serviceLine.match(/(.+) \[\+([^\]]+)\]/) || serviceLine.match(/(.+) \(\+([^)]+)\)/);
           if (surchargeMatch) {
@@ -256,7 +264,8 @@ export default function ManualBookingForm({
               id: itemId,
               name: found.name,
               price: calculateServicePrice(found, foundModel || null, surcharges, itemSurcharges),
-              surcharges: itemSurcharges
+              surcharges: itemSurcharges,
+              itemNotes
             });
           } else if (serviceLine.includes('Spot Repair')) {
             const match = serviceLine.match(/Spot Repair \((\d+) spots\)/);
@@ -281,7 +290,8 @@ export default function ManualBookingForm({
                 id: itemId,
                 name: looseMatch.name,
                 price: calculateServicePrice(looseMatch, foundModel || null, surcharges, itemSurcharges),
-                surcharges: itemSurcharges
+                surcharges: itemSurcharges,
+                itemNotes
               });
             } else {
               newCart.push({ 
@@ -289,6 +299,7 @@ export default function ManualBookingForm({
                 name: serviceLine, 
                 price: explicitCustomPrice || 0,
                 surcharges: itemSurcharges,
+                itemNotes,
                 isCustom: explicitCustomPrice === 0
               });
             }
@@ -357,6 +368,10 @@ export default function ManualBookingForm({
       }
       return item;
     }));
+  };
+
+  const setItemNotesForItem = (itemId: string, notes: string) => {
+    setCart(prev => prev.map(item => item.id === itemId ? { ...item, itemNotes: notes } : item));
   };
 
   // --- COMPUTED TOTALS ---
@@ -457,10 +472,10 @@ export default function ManualBookingForm({
           const isKnown = services.some(s => s.name === i.name) || i.name === 'Spot Repair';
           const baseName = isKnown ? i.name : `${i.name} [Rp${i.price}]`;
           
-          if (i.surcharges && i.surcharges.length > 0) {
-            return `${baseName} [+${i.surcharges.join(', ')}]`;
-          }
-          return baseName;
+          let result = baseName;
+          if (i.surcharges && i.surcharges.length > 0) result = `${result} [+${i.surcharges.join(', ')}]`;
+          if (i.itemNotes) result = `${result} (Warna: ${i.itemNotes})`;
+          return result;
         }),
         spotCount > 0 ? `Spot Repair (${spotCount} spots)` : null
       ].filter(Boolean).join(' § ');
@@ -480,10 +495,13 @@ export default function ManualBookingForm({
         amountPaid: amountPaid,
         status: bookingStatus,
         homeService,
-        notes: `Layanan: ${cart.map(i => {
+        notes: `Layanan: ${cart.map((i: CartItem) => {
           const isKnown = services.some(s => s.name === i.name) || i.name === 'Spot Repair';
           const baseName = isKnown ? i.name : `${i.name} [Rp${i.price}]`;
-          return `${baseName}${i.surcharges.length > 0 ? ` (+${i.surcharges.join(', ')})` : ''}`;
+          let result = baseName;
+          if (i.surcharges.length > 0) result += ` (+${i.surcharges.join(', ')})`;
+          if (i.itemNotes) result += ` (Warna: ${i.itemNotes})`;
+          return result;
         }).join(', ')} ${spotCount > 0 ? `| Spot Repair (${spotCount} spots)` : ''} | DP: ${paymentMethod} \n\nCatatan Tambahan: ${additionalNotes}`,
       };
 
@@ -505,7 +523,7 @@ export default function ManualBookingForm({
       if (sendInvoiceWA) {
         // Prepare items with prices for the template
         const detailedItems = [
-          ...cart.map((i: CartItem) => `${i.name}||${i.price}||`),
+          ...cart.map((i: CartItem) => `${i.name}||${i.price}||${i.itemNotes ? `Catatan Warna: ${i.itemNotes}` : ''}`),
           spotCount > 0 ? `Spot Repair (${spotCount} spots)||${spotCount * spotPrice}||` : null
         ].filter(Boolean).join('\n');
 
@@ -578,7 +596,7 @@ export default function ManualBookingForm({
     isSubmitting, paymentMethod, setPaymentMethod,
     sendInvoiceWA, setSendInvoiceWA,
     foundVehicle, setFoundVehicle, isSearching,
-    handleSubmit, handleDelete, handleSelectConversation, toggleSurchargeForItem,
+    handleSubmit, handleDelete, handleSelectConversation, toggleSurchargeForItem, setItemNotesForItem,
     onCancel, servicesTotal, computedDiscount, finalTotal, remainingBalance,
     allConversations, skipNextSearch, setSkipNextSearch,
     bookingStatus, setBookingStatus, amountPaid, setAmountPaid,
@@ -606,7 +624,7 @@ function MobileLayout(props: any) {
     skipNextSearch, setSkipNextSearch,
     bookingStatus, setBookingStatus, amountPaid, setAmountPaid,
     services, vehicleModels, surcharges, loadingPricing,
-    toggleSurchargeForItem, additionalNotes, setAdditionalNotes
+    toggleSurchargeForItem, setItemNotesForItem, additionalNotes, setAdditionalNotes
   } = props;
 
   const isSpotRepairSelected = cart.some((item: CartItem) => item.name === 'Spot Repair');
@@ -844,17 +862,16 @@ function MobileLayout(props: any) {
                   return false;
                 });
 
-                if (availableSurcharges.length === 0) return null;
-
                 return (
                   <div key={item.id} className="bg-neutral-900/40 p-4 border border-white/5 space-y-3 rounded-sm animate-in fade-in zoom-in-95 duration-200">
                     <div className="flex items-center gap-2">
                       <Wrench className="text-[#FFFF00] size-4" />
                       <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-tighter italic">
-                        SURCHARGES FOR: {item.name}
+                        SETTINGS FOR: {item.name}
                       </p>
                     </div>
-                    <div className="grid grid-cols-1 gap-2">
+                    {availableSurcharges.length > 0 && (
+                    <div className="grid grid-cols-1 gap-2 pb-3 mb-1 border-b border-white/5">
                       {availableSurcharges.map((s: any) => (
                         <label key={s.id} className="flex items-center gap-3 cursor-pointer p-2 bg-neutral-900 border border-white/5 rounded-sm">
                           <input
@@ -869,6 +886,17 @@ function MobileLayout(props: any) {
                           </div>
                         </label>
                       ))}
+                    </div>
+                    )}
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-headline text-neutral-500 uppercase">Catatan Warna / Detail</label>
+                      <input
+                        type="text"
+                        value={item.itemNotes || ''}
+                        onChange={(e) => setItemNotesForItem(item.id, e.target.value)}
+                        placeholder="Misal: Warna merah candy tone..."
+                        className="w-full bg-[#0e0e0e] border-none focus:ring-1 focus:ring-[#FFFF00]/50 text-xs py-2 px-3 text-white placeholder-neutral-700 rounded-sm"
+                      />
                     </div>
                   </div>
                 );
@@ -1151,7 +1179,7 @@ function DesktopLayout(props: any) {
     skipNextSearch, setSkipNextSearch,
     bookingStatus, setBookingStatus, amountPaid, setAmountPaid,
     services, vehicleModels, surcharges, loadingPricing,
-    toggleSurchargeForItem, additionalNotes, setAdditionalNotes
+    toggleSurchargeForItem, setItemNotesForItem, additionalNotes, setAdditionalNotes
   } = props;
 
   const isSpotRepairSelected = cart.some((item: CartItem) => item.name === 'Spot Repair');
@@ -1554,17 +1582,17 @@ function DesktopLayout(props: any) {
                   return false;
                 });
 
-                if (availableSurcharges.length === 0) return null;
-
                 return (
                   <div key={item.id} className="p-6 bg-[#1c1b1b] border border-white/5 space-y-4 rounded-sm animate-in fade-in slide-in-from-bottom-2 duration-300">
                     <div className="flex items-center justify-between">
                       <h4 className="text-[10px] font-headline font-bold uppercase tracking-widest text-[#FFFF00]">
-                        Surcharges for: {item.name}
+                        SETTINGS FOR: {item.name}
                       </h4>
-                      <span className="text-[9px] font-headline text-slate-500 uppercase">Per-Item Granular Selection</span>
+                      <span className="text-[9px] font-headline text-slate-500 uppercase">Per-Item Selection</span>
                     </div>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    
+                    {availableSurcharges.length > 0 && (
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4 pb-4 mb-2 border-b border-white/5">
                       {availableSurcharges.map((s: any) => (
                         <label key={s.id} className={cn(
                           "flex items-center gap-3 cursor-pointer p-3 rounded-sm transition-all border",
@@ -1584,6 +1612,18 @@ function DesktopLayout(props: any) {
                           </div>
                         </label>
                       ))}
+                    </div>
+                    )}
+                    
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-headline text-slate-500 uppercase">Catatan Warna / Detail</label>
+                      <input
+                        type="text"
+                        value={item.itemNotes || ''}
+                        onChange={(e) => setItemNotesForItem(item.id, e.target.value)}
+                        placeholder="Misal: Warna merah candy tone, velg black glossy..."
+                        className="w-full bg-[#0e0e0e] border border-white/5 focus:ring-1 focus:ring-[#FFFF00]/50 text-xs py-2.5 px-3 text-white placeholder-slate-700 rounded-sm"
+                      />
                     </div>
                   </div>
                 );
