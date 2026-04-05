@@ -225,13 +225,21 @@ export default function ManualBookingForm({
             : []);
 
       if (rawServices.length > 0) {
-        const newCart: CartItem[] = [];
+        const newCart: any[] = [];
+        let parsedSpotCount = 0;
 
         rawServices.forEach((s: string) => {
           let serviceLine = s.trim();
           if (!serviceLine) return;
           
           let itemSurcharges: string[] = [];
+          
+          let explicitCustomPrice = 0;
+          const explicitPriceMatch = serviceLine.match(/ \[Rp(\d+)\]/);
+          if (explicitPriceMatch) {
+            explicitCustomPrice = parseInt(explicitPriceMatch[1]);
+            serviceLine = serviceLine.replace(explicitPriceMatch[0], '').trim();
+          }
           
           // Parse surcharges format: "Service Name [+Surcharge1, +Surcharge2]" OR "Service Name (+Surcharge)"
           const surchargeMatch = serviceLine.match(/(.+) \[\+([^\]]+)\]/) || serviceLine.match(/(.+) \(\+([^)]+)\)/);
@@ -252,7 +260,10 @@ export default function ManualBookingForm({
             });
           } else if (serviceLine.includes('Spot Repair')) {
             const match = serviceLine.match(/Spot Repair \((\d+) spots\)/);
-            if (match) setSpotCount(parseInt(match[1]));
+            if (match) {
+              parsedSpotCount = parseInt(match[1]);
+              setSpotCount(parsedSpotCount);
+            }
             const spotServiceMaster = services.find(srv => srv.name === 'Spot Repair');
             if (spotServiceMaster) {
               newCart.push({ 
@@ -276,13 +287,41 @@ export default function ManualBookingForm({
               newCart.push({ 
                 id: itemId,
                 name: serviceLine, 
-                price: 0,
-                surcharges: itemSurcharges
+                price: explicitCustomPrice || 0,
+                surcharges: itemSurcharges,
+                isCustom: explicitCustomPrice === 0
               });
             }
           }
         });
-        setCart(newCart);
+
+        // Deduce custom service price from the initial subtotal
+        if (initialData.subtotal !== undefined) {
+          let knownTotal = parsedSpotCount * 100000; // Base spot price is 100k
+          const customItems = newCart.filter(i => i.isCustom);
+          
+          newCart.forEach(item => {
+            if (!item.isCustom && item.name !== 'Spot Repair') {
+              knownTotal += (item.price || 0);
+            }
+          });
+
+          const difference = Math.max(0, initialData.subtotal - knownTotal);
+          
+          // Distribute remaining cost to the custom item (assume the first one takes the whole price difference for simplicity)
+          if (customItems.length > 0 && difference > 0) {
+            const firstCustom = newCart.find(i => i.isCustom);
+            if (firstCustom) firstCustom.price = difference;
+          }
+        }
+
+        // Clean up temporary property
+        const finalCart: CartItem[] = newCart.map(i => {
+          const { isCustom, ...rest } = i;
+          return rest as CartItem;
+        });
+
+        setCart(finalCart);
       }
     }
   }, [initialData, services, vehicleModels, surcharges]);
@@ -415,10 +454,13 @@ export default function ManualBookingForm({
     try {
       const serviceSummary = [
         ...cart.map((i: CartItem) => {
+          const isKnown = services.some(s => s.name === i.name) || i.name === 'Spot Repair';
+          const baseName = isKnown ? i.name : `${i.name} [Rp${i.price}]`;
+          
           if (i.surcharges && i.surcharges.length > 0) {
-            return `${i.name} [+${i.surcharges.join(', ')}]`;
+            return `${baseName} [+${i.surcharges.join(', ')}]`;
           }
-          return i.name;
+          return baseName;
         }),
         spotCount > 0 ? `Spot Repair (${spotCount} spots)` : null
       ].filter(Boolean).join(' § ');
@@ -438,7 +480,11 @@ export default function ManualBookingForm({
         amountPaid: amountPaid,
         status: bookingStatus,
         homeService,
-        notes: `Layanan: ${cart.map(i => `${i.name}${i.surcharges.length > 0 ? ` (+${i.surcharges.join(', ')})` : ''}`).join(', ')} ${spotCount > 0 ? `| Spot Repair (${spotCount} spots)` : ''} | DP: ${paymentMethod} \n\nCatatan Tambahan: ${additionalNotes}`,
+        notes: `Layanan: ${cart.map(i => {
+          const isKnown = services.some(s => s.name === i.name) || i.name === 'Spot Repair';
+          const baseName = isKnown ? i.name : `${i.name} [Rp${i.price}]`;
+          return `${baseName}${i.surcharges.length > 0 ? ` (+${i.surcharges.join(', ')})` : ''}`;
+        }).join(', ')} ${spotCount > 0 ? `| Spot Repair (${spotCount} spots)` : ''} | DP: ${paymentMethod} \n\nCatatan Tambahan: ${additionalNotes}`,
       };
 
       if (isEdit) {
@@ -767,8 +813,12 @@ function MobileLayout(props: any) {
                   placeholder="Service Name"
                 />
                 <input
-                  value={customServicePrice || ''}
-                  onChange={e => setCustomServicePrice(Number(e.target.value))}
+                  type="text"
+                  value={customServicePrice > 0 ? customServicePrice.toLocaleString('id-ID') : ''}
+                  onChange={e => {
+                    const val = e.target.value.replace(/\./g, '').replace(/[^0-9]/g, '');
+                    setCustomServicePrice(val ? Number(val) : 0);
+                  }}
                   className="w-20 bg-neutral-900 border-none focus:ring-0 text-xs py-2 px-3 text-white placeholder-neutral-700 italic text-right font-mono"
                   placeholder="Price"
                 />
@@ -843,8 +893,12 @@ function MobileLayout(props: any) {
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] text-neutral-500 font-headline">IDR</span>
                   <input
-                    value={spotPrice || ''}
-                    onChange={e => setSpotPrice(Number(e.target.value))}
+                    type="text"
+                    value={spotPrice > 0 ? spotPrice.toLocaleString('id-ID') : ''}
+                    onChange={e => {
+                      const val = e.target.value.replace(/\./g, '').replace(/[^0-9]/g, '');
+                      setSpotPrice(val ? Number(val) : 0);
+                    }}
                     className="w-full bg-neutral-900 border-none focus:ring-0 text-xs py-2 pl-10 pr-4 text-white placeholder-neutral-700 italic"
                     placeholder="Price Field"
                   />
@@ -877,8 +931,13 @@ function MobileLayout(props: any) {
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[9px] text-neutral-500 font-headline">IDR</span>
                 <input
-                  value={discountAmount || ''}
-                  onChange={e => { setDiscountAmount(Number(e.target.value)); setDiscountPercent(0); }}
+                  type="text"
+                  value={discountAmount > 0 ? discountAmount.toLocaleString('id-ID') : ''}
+                  onChange={e => {
+                    const val = e.target.value.replace(/\./g, '').replace(/[^0-9]/g, '');
+                    setDiscountAmount(val ? Number(val) : 0);
+                    setDiscountPercent(0);
+                  }}
                   className="w-full bg-neutral-900 border-none focus:ring-0 text-sm py-2 pl-8 pr-3 text-white text-right font-mono"
                 />
               </div>
@@ -906,8 +965,12 @@ function MobileLayout(props: any) {
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[9px] text-neutral-500 font-headline">IDR</span>
                   <input
-                    value={nominalDP || ''}
-                    onChange={e => setNominalDP(Number(e.target.value))}
+                    type="text"
+                    value={nominalDP > 0 ? nominalDP.toLocaleString('id-ID') : ''}
+                    onChange={e => {
+                      const val = e.target.value.replace(/\./g, '').replace(/[^0-9]/g, '');
+                      setNominalDP(val ? Number(val) : 0);
+                    }}
                     className="w-full bg-neutral-950 border-none focus:ring-0 text-sm py-2 pl-8 pr-3 text-white text-right font-mono"
                     placeholder="0"
                   />
@@ -978,9 +1041,11 @@ function MobileLayout(props: any) {
                   <div className="relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[9px] text-neutral-500 font-headline">IDR</span>
                     <input
-                      value={amountPaid || ''}
+                      type="text"
+                      value={amountPaid > 0 ? amountPaid.toLocaleString('id-ID') : ''}
                       onChange={e => {
-                        const val = Number(e.target.value);
+                        const valStr = e.target.value.replace(/\./g, '').replace(/[^0-9]/g, '');
+                        const val = valStr ? Number(valStr) : 0;
                         setAmountPaid(val);
                         if (val >= finalTotal && finalTotal > 0) setBookingStatus('paid');
                       }}
@@ -1454,9 +1519,12 @@ function DesktopLayout(props: any) {
                   <div className="relative">
                     <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[10px] font-headline text-slate-500">IDR</span>
                     <input
-                      type="number"
-                      value={customServicePrice || ''}
-                      onChange={e => setCustomServicePrice(Number(e.target.value))}
+                      type="text"
+                      value={customServicePrice > 0 ? customServicePrice.toLocaleString('id-ID') : ''}
+                      onChange={e => {
+                        const val = e.target.value.replace(/\./g, '').replace(/[^0-9]/g, '');
+                        setCustomServicePrice(val ? Number(val) : 0);
+                      }}
                       className="w-32 bg-[#0e0e0e] border-none focus:ring-0 text-xs py-3 pl-10 pr-4 font-headline text-white text-right"
                       placeholder="0"
                     />
@@ -1538,9 +1606,12 @@ function DesktopLayout(props: any) {
                     placeholder="Spot Count"
                   />
                   <input
-                    type="number"
-                    value={spotPrice || ''}
-                    onChange={e => setSpotPrice(Number(e.target.value))}
+                    type="text"
+                    value={spotPrice > 0 ? spotPrice.toLocaleString('id-ID') : ''}
+                    onChange={e => {
+                      const val = e.target.value.replace(/\./g, '').replace(/[^0-9]/g, '');
+                      setSpotPrice(val ? Number(val) : 0);
+                    }}
                     className="w-32 bg-[#1c1b1b] border-none focus:ring-0 text-[10px] font-headline text-center py-2 text-[#FFFF00]"
                     placeholder="Custom Price"
                   />
@@ -1577,10 +1648,11 @@ function DesktopLayout(props: any) {
                 <label className="text-[10px] font-headline text-slate-500 uppercase tracking-widest">Discount Amount (Rp)</label>
                 <div className="relative">
                   <input
-                    type="number"
-                    value={discountAmount || ''}
+                    type="text"
+                    value={discountAmount > 0 ? discountAmount.toLocaleString('id-ID') : ''}
                     onChange={e => {
-                      setDiscountAmount(Number(e.target.value));
+                      const val = e.target.value.replace(/\./g, '').replace(/[^0-9]/g, '');
+                      setDiscountAmount(val ? Number(val) : 0);
                       setDiscountPercent(0);
                     }}
                     className="w-full bg-[#0e0e0e] border-none focus:ring-0 text-sm py-4 px-4 font-headline text-white text-right"
@@ -1666,9 +1738,12 @@ function DesktopLayout(props: any) {
                     <div className="space-y-1">
                       <label className="text-[10px] font-headline text-slate-500 uppercase tracking-widest">Nominal DP</label>
                       <input
-                        type="number"
-                        value={nominalDP || ''}
-                        onChange={e => setNominalDP(Number(e.target.value))}
+                        type="text"
+                        value={nominalDP > 0 ? nominalDP.toLocaleString('id-ID') : ''}
+                        onChange={e => {
+                          const val = e.target.value.replace(/\./g, '').replace(/[^0-9]/g, '');
+                          setNominalDP(val ? Number(val) : 0);
+                        }}
                         className="w-full bg-[#0e0e0e] border-none focus:ring-0 text-sm py-4 px-4 font-headline font-bold text-[#FFFF00] text-right"
                         placeholder="IDR 0"
                       />
@@ -1742,10 +1817,11 @@ function DesktopLayout(props: any) {
                         <label className="text-[10px] font-headline text-slate-500 uppercase tracking-widest">Total Amount Received (Historical)</label>
                         <div className="relative">
                           <input
-                            type="number"
-                            value={amountPaid || ''}
+                            type="text"
+                            value={amountPaid > 0 ? amountPaid.toLocaleString('id-ID') : ''}
                             onChange={e => {
-                              const val = Number(e.target.value);
+                              const valStr = e.target.value.replace(/\./g, '').replace(/[^0-9]/g, '');
+                              const val = valStr ? Number(valStr) : 0;
                               setAmountPaid(val);
                               if (val >= finalTotal && finalTotal > 0) setBookingStatus('paid');
                             }}
