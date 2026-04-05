@@ -122,6 +122,9 @@ export async function POST(
           });
           if (!repaintRes.ok) console.warn('[Payment] Failed to send repaint warranty');
           else console.log(`[Payment] Warranty Repaint sent for booking ${bookingId}`);
+          
+          // Small delay before next generation
+          await new Promise(resolve => setTimeout(resolve, 1000));
         }
 
         if (includesCoating) {
