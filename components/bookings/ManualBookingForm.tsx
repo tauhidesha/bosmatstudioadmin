@@ -851,9 +851,10 @@ function MobileLayout(props: any) {
               {cart.map((item: CartItem) => {
                 const isBodiHalus = item.name.toUpperCase().includes('BODI HALUS');
                 const isVelg = item.name.toUpperCase().includes('VELG');
+                const isCvtArm = item.name.toUpperCase().includes('CVT') || item.name.toUpperCase().includes('ARM');
                 
-                // Only show surcharge section if it's Bodi Halus or Velg
-                if (!isBodiHalus && !isVelg) return null;
+                // Only show surcharge section if it's Bodi Halus, Velg or CVT/Arm
+                if (!isBodiHalus && !isVelg && !isCvtArm) return null;
 
                 const availableSurcharges = surcharges.filter((s: any) => {
                   const isChromeOrTwoTone = s.name.toUpperCase().includes('CHROME') || s.name.toUpperCase().includes('TWO TONE');
@@ -1234,7 +1235,7 @@ function DesktopLayout(props: any) {
         </section>
 
         {/* Total Summary Panel */}
-        <div className="mt-auto bg-[#0e0e0e] p-4 border border-white/5">
+                <div className="mt-auto bg-[#0e0e0e] p-4 border border-white/5">
           <h4 className="text-[10px] font-headline text-slate-500 uppercase mb-4 tracking-widest">Order Summary</h4>
           <div className="space-y-2">
             {cart.length > 0 && (
@@ -1242,6 +1243,7 @@ function DesktopLayout(props: any) {
                 {cart.map((item: CartItem, idx: number) => {
                   const isBodiHalus = item.name.toUpperCase().includes('BODI HALUS');
                   const isVelg = item.name.toUpperCase().includes('VELG');
+                  const isCvtArm = item.name.toUpperCase().includes('CVT') || item.name.toUpperCase().includes('ARM');
                   const availableSurcharges = surcharges.filter((s: any) => {
                     const isChromeOrTwoTone = s.name.toUpperCase().includes('CHROME') || s.name.toUpperCase().includes('TWO TONE');
                     if (isVelg) return isChromeOrTwoTone;
@@ -1270,7 +1272,7 @@ function DesktopLayout(props: any) {
                       </div>
                       
                       {/* Independent Surcharge select in Desktop Summary */}
-                      {(isBodiHalus || isVelg) && availableSurcharges.length > 0 && (
+                      {(isBodiHalus || isVelg || isCvtArm) && availableSurcharges.length > 0 && (
                         <div className="flex flex-wrap gap-1 pl-6">
                           {availableSurcharges.map(s => (
                             <button
@@ -1572,8 +1574,9 @@ function DesktopLayout(props: any) {
               {cart.map((item: CartItem) => {
                 const isBodiHalus = item.name.toUpperCase().includes('BODI HALUS');
                 const isVelg = item.name.toUpperCase().includes('VELG');
-                
-                if (!isBodiHalus && !isVelg) return null;
+                const isCvtArm = item.name.toUpperCase().includes('CVT') || item.name.toUpperCase().includes('ARM');
+
+                if (!isBodiHalus && !isVelg && !isCvtArm) return null;
 
                 const availableSurcharges = surcharges.filter((s: any) => {
                   const isChromeOrTwoTone = s.name.toUpperCase().includes('CHROME') || s.name.toUpperCase().includes('TWO TONE');
