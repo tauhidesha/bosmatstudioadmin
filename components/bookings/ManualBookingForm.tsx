@@ -12,6 +12,7 @@ import {
   Minus, Plus, Trash2, Edit
 } from 'lucide-react';
 import Image from 'next/image';
+import { useAuth } from '@/lib/hooks/useAuth';
 
 function useMediaQuery(query: string) {
   const [matches, setMatches] = useState(false);
@@ -46,6 +47,7 @@ export default function ManualBookingForm({
   apiClient, allConversations, onSuccess, onCancel, initialData, onDelete, onUpdate
 }: ManualBookingFormProps) {
   const { services, vehicleModels, surcharges, loading: loadingPricing } = usePricingData();
+  const { getIdToken } = useAuth();
   const isEdit = !!initialData;
   // --- FORM STATE ---
   const [currentStep, setCurrentStep] = useState(1);
@@ -442,9 +444,13 @@ export default function ManualBookingForm({
       if (isEdit) {
         if (onUpdate) await onUpdate(initialData.id, payload);
       } else {
+        const token = await getIdToken();
         const res = await fetch('/api/bookings', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+          },
           body: JSON.stringify(payload),
         });
         if (!res.ok) throw new Error('Gagal membuat booking');
@@ -457,9 +463,13 @@ export default function ManualBookingForm({
           spotCount > 0 ? `Spot Repair (${spotCount} spots)||${spotCount * spotPrice}||` : null
         ].filter(Boolean).join('\n');
 
+        const token = await getIdToken();
         await fetch('/api/bookings/invoice', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+          },
           body: JSON.stringify({
             documentType: 'invoice',
             customerName: invoiceName,

@@ -9,6 +9,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSupabaseEvent } from './useSupabaseEvent';
+import { useAuth } from './useAuth';
 
 export type BookingStatus = 'waiting' | 'pending' | 'in_progress' | 'done' | 'paid' | 'cancelled';
 
@@ -36,6 +37,7 @@ export function useBookings() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  const { getIdToken } = useAuth();
   const fetchingRef = useRef(false);
 
   // Subscribe to Booking changes (INSERT, UPDATE, DELETE)
@@ -49,7 +51,10 @@ export function useBookings() {
     fetchingRef.current = true;
 
     try {
-      const res = await fetch('/api/bookings?limit=100');
+      const token = await getIdToken();
+      const res = await fetch('/api/bookings?limit=100', {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+      });
       const json = await res.json();
       
       if (!json.success) {
@@ -77,9 +82,13 @@ export function useBookings() {
       // Optimistic update
       setBookings(prev => prev.map(b => b.id === id ? { ...b, status: newStatus } : b));
 
+      const token = await getIdToken();
       const res = await fetch('/api/bookings', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
         body: JSON.stringify({ id, status: newStatus }),
       });
 
@@ -98,7 +107,11 @@ export function useBookings() {
 
   const deleteBooking = async (id: string) => {
     try {
-      const res = await fetch(`/api/bookings?id=${id}`, { method: 'DELETE' });
+      const token = await getIdToken();
+      const res = await fetch(`/api/bookings?id=${id}`, { 
+        method: 'DELETE',
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+      });
       const json = await res.json();
       if (!json.success) throw new Error(json.error);
 
@@ -112,9 +125,13 @@ export function useBookings() {
 
   const updateBooking = async (id: string, updates: Partial<Booking>) => {
     try {
+      const token = await getIdToken();
       const res = await fetch('/api/bookings', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
         body: JSON.stringify({ id, ...updates }),
       });
 
