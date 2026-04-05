@@ -223,11 +223,13 @@ export default function ManualBookingForm({
       if (initialData.homeService !== undefined) setHomeService(!!initialData.homeService);
       
       // Extract Discount
-      if (initialData.subtotal !== undefined && initialData.totalAmount !== undefined) {
-        const diff = initialData.subtotal - initialData.totalAmount;
-        if (diff > 0) {
-          setDiscountAmount(diff);
-        }
+      const sub = Number(initialData.subtotal) || 0;
+      const tot = Number(initialData.totalAmount);
+      // Only set discount if totalAmount explicitly exists and is less than subtotal
+      if (sub > 0 && !isNaN(tot) && tot < sub) {
+        setDiscountAmount(sub - tot);
+      } else {
+        setDiscountAmount(0);
       }
 
       // Extract Additional Notes

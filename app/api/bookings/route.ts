@@ -59,8 +59,8 @@ export async function GET(req: NextRequest) {
         paymentStatus: b.paymentStatus || 'UNPAID',
         paymentMethod: b.paymentMethod,
         homeService: b.homeService,
-        notes: b.notes || b.adminNotes,
-        realPhone: b.realPhone || '',
+        notes: b.notes || (b as any).adminNotes,
+        realPhone: (b as any).realPhone || '',
         durationDays: calculateDurationDays(services),
         createdAt: b.createdAt.toISOString(),
       };
@@ -175,13 +175,13 @@ export async function POST(req: NextRequest) {
         status: status?.toUpperCase() || 'PENDING',
         notes,
         subtotal: subtotal || 0,
-        totalAmount: totalAmount || subtotal || 0,
+        totalAmount: (totalAmount !== undefined && totalAmount !== null) ? totalAmount : (subtotal || 0),
         downPayment: downPayment || null,
         homeService: homeService || false,
         paymentMethod,
-        realPhone,
+        realPhone: realPhone || '',
         category: getServiceCategory(serviceName),
-      }
+      } as any
     });
 
     // Create down payment transaction if provided
@@ -347,6 +347,14 @@ export async function PUT(req: NextRequest) {
       );
     }
 
+    const existingBooking = await prisma.booking.findUnique({
+      where: { id }
+    });
+
+    if (!existingBooking) {
+      return NextResponse.json({ success: false, error: "Booking tidak ditemukan" }, { status: 404 });
+    }
+
     // Transfom frontend payload to DB field names if necessary
     const updateData: any = {};
     if (data.customerName) updateData.customerName = data.customerName;
@@ -367,7 +375,7 @@ export async function PUT(req: NextRequest) {
     if (data.amountPaid !== undefined) {
       updateData.amountPaid = data.amountPaid;
       // Auto-update paymentStatus
-      const finalTotal = data.totalAmount || 0;
+      const finalTotal = data.totalAmount !== undefined ? data.totalAmount : (existingBooking.totalAmount || existingBooking.subtotal || 0);
       if (data.amountPaid >= finalTotal && finalTotal > 0) {
         updateData.paymentStatus = 'PAID';
       } else if (data.amountPaid > 0) {

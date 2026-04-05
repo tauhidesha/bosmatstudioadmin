@@ -82,7 +82,7 @@ export default function BookingsPage() {
   }, [queueBookings]);
 
   const estimatedRevenue = useMemo(() => {
-    return queueBookings.reduce((sum, b) => sum + (Number(b.subtotal) || 500000), 0);
+    return queueBookings.reduce((sum, b) => sum + (Number(b.totalAmount !== null ? b.totalAmount : b.subtotal) || 500000), 0);
   }, [queueBookings]);
 
   const handlePayAndInvoice = async () => {
