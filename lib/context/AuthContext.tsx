@@ -20,10 +20,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
-    const unsubscribe = onAuthChange((authUser) => {
+    const unsubscribe = onAuthChange(async (authUser) => {
       setUser(authUser);
       setLoading(false);
       setError(null);
+
+      // Manage __session cookie for Next.js middleware and API routes
+      if (authUser) {
+        const token = await authUser.getIdToken();
+        // Set cookie (valid for 1 hour, standard Firebase token length)
+        document.cookie = `__session=${token}; path=/; max-age=3600; SameSite=Lax; Secure`;
+        console.log('[Auth] __session cookie updated');
+      } else {
+        // Clear cookie
+        document.cookie = '__session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax; Secure';
+        console.log('[Auth] __session cookie cleared');
+      }
     });
 
     return () => unsubscribe();

@@ -12,10 +12,19 @@ export async function POST(
     const { id: bookingId } = params;
     const body = await req.json();
     const headersList = headers();
-    const authHeader = headersList.get('authorization');
+    let authHeader = headersList.get('authorization');
     
+    // Fallback to __session cookie if Authorization header is missing
     if (!authHeader) {
-      console.error('[Payment] No Auth Header in Next.js internal API');
+      const sessionCookie = headersList.get('cookie')?.split(';').find(c => c.trim().startsWith('__session='))?.split('=')[1];
+      if (sessionCookie) {
+        authHeader = `Bearer ${sessionCookie}`;
+        console.log('[Payment] Using session cookie as fallback auth');
+      }
+    }
+
+    if (!authHeader) {
+      console.error('[Payment] No Auth Header or Cookie in Next.js internal API');
       return NextResponse.json({ error: 'Sesi anda telah berakhir. Silakan login ulang.' }, { status: 401 });
     }
 
