@@ -68,8 +68,9 @@ export default function BookingsPage() {
 
   // Handle estimated revenue and stats calculations...
   const queueBookings = useMemo(() => {
+    const selectedDateStr = format(selectedDate, 'yyyy-MM-dd');
     return bookings
-      .filter(b => isSameDay(parseISO(b.bookingDate), selectedDate) && b.status !== 'cancelled')
+      .filter(b => b.bookingDate === selectedDateStr && b.status !== 'cancelled')
       .sort((a, b) => (a.bookingTime || '00:00') > (b.bookingTime || '00:00') ? 1 : -1);
   }, [bookings, selectedDate]);
 

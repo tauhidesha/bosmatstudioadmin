@@ -113,7 +113,7 @@ export async function POST(req: NextRequest) {
     }
 
     const normalizedPhone = customerPhone.replace(/\D/g, '');
-    const bookingDateTime = new Date(`${bookingDate}T${bookingTime}:00`);
+    const bookingDateTime = new Date(`${bookingDate}T${bookingTime}:00+07:00`);
     const downPayment = dpAmount || 0;
 
     const modelToUse = motorModel || (vehicleInfo ? extractModelFromText(vehicleInfo) : null);
@@ -356,7 +356,7 @@ export async function PUT(req: NextRequest) {
       updateData.category = getServiceCategory(data.serviceName);
     }
     if (data.bookingDate && data.bookingTime) {
-      updateData.bookingDate = new Date(`${data.bookingDate}T${data.bookingTime}:00`);
+      updateData.bookingDate = new Date(`${data.bookingDate}T${data.bookingTime}:00+07:00`);
     }
     const modelToUse = data.motorModel || (data.vehicleInfo ? data.vehicleInfo.split(' (')[0] : null);
     const plateToUse = data.plateNumber || (data.vehicleInfo && data.vehicleInfo.includes(' (') ? data.vehicleInfo.split(' (')[1].replace(')', '') : null);

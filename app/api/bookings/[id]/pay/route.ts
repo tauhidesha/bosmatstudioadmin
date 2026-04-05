@@ -52,7 +52,7 @@ export async function POST(
           amountPaid: finalAmount,
           paymentMethod,
           notes: booking.notes || '',
-          bookingDate: booking.bookingDate.toISOString().split('T')[0],
+          bookingDate: booking.bookingDate.toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' }),
         }),
       });
       console.log(`[Payment] Receipt sent for booking ${bookingId}`);
@@ -88,7 +88,7 @@ export async function POST(
             amountPaid: finalAmount,
             paymentMethod,
             notes: booking.notes || '',
-            bookingDate: booking.bookingDate.toISOString().split('T')[0],
+            bookingDate: booking.bookingDate.toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' }),
           }),
         });
         console.log(`[Payment] Warranty Repaint sent for booking ${bookingId}`);
@@ -111,7 +111,7 @@ export async function POST(
             amountPaid: finalAmount,
             paymentMethod,
             notes: booking.notes || '',
-            bookingDate: booking.bookingDate.toISOString().split('T')[0],
+            bookingDate: booking.bookingDate.toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' }),
           }),
         });
         console.log(`[Payment] Warranty Coating sent for booking ${bookingId}`);
