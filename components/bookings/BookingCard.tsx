@@ -43,13 +43,23 @@ export function BookingCard({ booking, isOverlay }: BookingCardProps) {
   const handlePay = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsPaying(true);
+    console.log(`[Payment] Process started for booking: ${booking.id}`);
     try {
       const token = await getIdToken();
+      console.log(`[Payment] Local Token Present: ${!!token}`);
+      
+      if (!token) {
+        console.error('[Payment] No auth token available!');
+        alert('Sesi anda telah berakhir atau tidak valid. Silakan login ulang.');
+        setIsPaying(false);
+        return;
+      }
+
       const res = await fetch(`/api/bookings/${booking.id}/pay`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({ paymentMethod }),
       });

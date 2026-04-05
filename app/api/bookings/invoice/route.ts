@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
     } = body;
 
     const authHeader = req.headers.get('authorization');
-    const backendUrl = process.env.BACKEND_API_URL || 'https://unblissful-unverdantly-stan.ngrok-free.dev';
+    const backendUrl = (process.env.BACKEND_API_URL || process.env.NEXT_PUBLIC_API_URL || 'https://unblissful-unverdantly-stan.ngrok-free.dev').trim().replace(/\/$/, "");
 
     console.log(`[Invoice] Forwarding generate-invoice request to Backend: ${backendUrl}/generate-invoice (Auth: ${authHeader ? 'Present' : 'Missing'})`);
 

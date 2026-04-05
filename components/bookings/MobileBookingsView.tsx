@@ -13,11 +13,54 @@ import {
   isSameMonth, 
   addMonths, 
   subMonths,
-  parseISO 
+  parseISO,
+  addDays,
+  startOfDay,
+  isAfter,
+  isBefore,
+  addHours
 } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { Edit2, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
+
+// Helper to check if a booking is active on a specific date
+const isBookingActiveOnDate = (booking: Booking, date: Date) => {
+  if (booking.status === 'cancelled') return false;
+  
+  const bookingDay = startOfDay(parseISO(booking.bookingDate));
+  const targetDay = startOfDay(date);
+  const duration = booking.durationDays || 1;
+  const endDay = addDays(bookingDay, duration);
+
+  // 1. If it's the start date, it's "active" if not paid long ago
+  const isStartDay = isSameDay(bookingDay, targetDay);
+  
+  // 2. Check if it's within duration
+  const isWithinDuration = (isAfter(targetDay, bookingDay) || isSameDay(targetDay, bookingDay)) && 
+                           isBefore(targetDay, endDay);
+
+  if (!isWithinDuration) return false;
+
+  // 3. Status-based visibility rules:
+  // - If 'paid': only show for 1 hour after payment (grace period)
+  if (booking.status === 'paid') {
+    const paidTime = booking.updatedAt ? parseISO(booking.updatedAt) : new Date();
+    const expiryTime = addHours(paidTime, 1);
+    
+    // Only show if the target date is today and we are within 1 hour of payment
+    // OR if we are looking at the historical record of the start day (always show on start day)
+    const isToday = isSameDay(new Date(), targetDay);
+    if (isToday && isBefore(new Date(), expiryTime)) return true;
+    if (isStartDay) return true; // Always show paid bookings on their booking date
+    
+    return false;
+  }
+
+  // - If 'done': "biarin masih muncul" (stays for duration)
+  // - If 'pending'/'in_progress': (stays for duration)
+  return true;
+};
 
 interface MobileBookingsViewProps {
   bookings: Booking[];
@@ -54,12 +97,12 @@ export default function MobileBookingsView({
 
   const queueBookings = useMemo(() => {
     return bookings
-      .filter(b => isSameDay(parseISO(b.bookingDate), selectedDate) && b.status !== 'cancelled')
+      .filter(b => isBookingActiveOnDate(b, selectedDate))
       .sort((a, b) => (a.bookingTime || '00:00') > (b.bookingTime || '00:00') ? 1 : -1);
   }, [bookings, selectedDate]);
 
   const hasBookingOnDay = useCallback((date: Date) => {
-    return bookings.some(b => isSameDay(parseISO(b.bookingDate), date) && b.status !== 'cancelled');
+    return bookings.some(b => isBookingActiveOnDate(b, date));
   }, [bookings]);
 
   return (

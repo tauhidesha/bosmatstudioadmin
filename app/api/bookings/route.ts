@@ -63,6 +63,7 @@ export async function GET(req: NextRequest) {
         realPhone: (b as any).realPhone || '',
         durationDays: calculateDurationDays(services),
         createdAt: b.createdAt.toISOString(),
+        updatedAt: b.updatedAt.toISOString(),
       };
     });
 

@@ -31,6 +31,8 @@ export interface Booking {
   downPayment?: number;
   paymentMethod?: string;
   durationDays?: number;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export function useBookings() {
