@@ -112,7 +112,6 @@ export function useRealtimeConversations(
       setLoading(false);
       return;
     }
-    fetchingRef.current = false;
     fetchConversations();
   }, [enabled, customerRevision, messageRevision, fetchConversations]);
 
