@@ -86,7 +86,12 @@ export default function InvoicePreviewModal({
           <div className="flex items-center gap-2">
             <FileText className="size-4 text-[#FFFF00]" />
             <h3 className="font-spartan text-sm uppercase tracking-widest text-white">
-              Preview {invoiceData.documentType === 'tanda_terima' ? 'Receipt' : invoiceData.documentType === 'bukti_bayar' ? 'Payment' : 'Invoice'}
+              Preview {
+                invoiceData.documentType === 'tanda_terima' ? 'Receipt' : 
+                invoiceData.documentType === 'bukti_bayar' ? 'Payment' : 
+                invoiceData.documentType === 'garansi_repaint' || invoiceData.documentType === 'garansi_coating' ? 'Warranty' :
+                'Invoice'
+              }
             </h3>
           </div>
           <button onClick={onClose} className="text-neutral-400 hover:text-white transition-colors">
