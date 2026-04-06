@@ -181,7 +181,6 @@ function generateInvoiceHTML(data: any): string {
 
   <div class="totals-section" style="display:grid; grid-template-columns:7fr 5fr; gap:32px; margin-top:40px">
     <div>
-      ${notesHtml}
       <div style="padding:24px; border:1px solid #484831; background:#1c1b1b">
         <p class="text-yellow" style="font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.15em; margin-bottom:16px">Informasi Pembayaran</p>
         <div style="display:flex; align-items:center; gap:16px">
