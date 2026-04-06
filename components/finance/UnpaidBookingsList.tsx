@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { formatRupiah } from '@/lib/data/pricing';
 import { cn } from '@/lib/utils';
 import { CheckCircle2, AlertCircle, Loader2, ExternalLink } from 'lucide-react';
@@ -36,12 +36,27 @@ export default function UnpaidBookingsList() {
   const [payingId, setPayingId] = useState<string | null>(null);
   const router = useRouter();
   const { revision } = useSupabaseEvent({ table: 'Booking', event: '*' });
+  const lastFetchRef = useRef(0);
 
   useEffect(() => {
     fetchUnpaidBookings();
   }, [revision]);
 
+  // Polling fallback every 10 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchUnpaidBookings();
+    }, 10000);
+
+    return () => clearInterval(interval);
+  }, []);
+
   const fetchUnpaidBookings = async () => {
+    // Debounce: skip if fetched within last 500ms
+    const now = Date.now();
+    if (now - lastFetchRef.current < 500) return;
+    lastFetchRef.current = now;
+    
     try {
       const res = await fetch('/api/finance/unpaid-bookings', { cache: 'no-store' });
       const json = await res.json();
