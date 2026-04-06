@@ -85,7 +85,9 @@ export default function InvoicePreviewModal({
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
           <div className="flex items-center gap-2">
             <FileText className="size-4 text-[#FFFF00]" />
-            <h3 className="font-spartan text-sm uppercase tracking-widest text-white">Preview Invoice</h3>
+            <h3 className="font-spartan text-sm uppercase tracking-widest text-white">
+              Preview {invoiceData.documentType === 'tanda_terima' ? 'Receipt' : invoiceData.documentType === 'bukti_bayar' ? 'Payment' : 'Invoice'}
+            </h3>
           </div>
           <button onClick={onClose} className="text-neutral-400 hover:text-white transition-colors">
             <X className="size-5" />
@@ -117,7 +119,7 @@ export default function InvoicePreviewModal({
             <iframe
               srcDoc={html}
               className="w-full h-[70vh] bg-[#131313] border border-white/5"
-              title="Invoice Preview"
+              title={`Preview ${invoiceData.documentType === 'tanda_terima' ? 'Receipt' : invoiceData.documentType === 'bukti_bayar' ? 'Payment' : 'Invoice'}`}
             />
           )}
         </div>

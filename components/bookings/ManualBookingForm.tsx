@@ -98,6 +98,7 @@ export default function ManualBookingForm({
   const [paymentMethod, setPaymentMethod] = useState('Transfer BCA');
   const [sendInvoiceWA, setSendInvoiceWA] = useState(false);
   const [showInvoicePreview, setShowInvoicePreview] = useState(false);
+  const [docType, setDocType] = useState<string>('invoice');
   const [isSavingDraft, setIsSavingDraft] = useState(false);
 
   // Load draft from localStorage on mount (only for new bookings)
@@ -701,6 +702,7 @@ export default function ManualBookingForm({
     allConversations, skipNextSearch, setSkipNextSearch,
     showAllChats, setShowAllChats,
     bookingStatus, setBookingStatus, amountPaid, setAmountPaid,
+    docType, setDocType,
     services, vehicleModels, surcharges, loadingPricing,
     additionalNotes, setAdditionalNotes,
     realPhone, setRealPhone,
@@ -724,6 +726,7 @@ function MobileLayout(props: any) {
     discountPercent, setDiscountPercent, discountAmount, setDiscountAmount,
     dpRequired, setDpRequired, nominalDP, setNominalDP, paymentMethod, setPaymentMethod,
     sendInvoiceWA, setSendInvoiceWA, showInvoicePreview, setShowInvoicePreview,
+    docType, setDocType,
     isSavingDraft, handleSaveDraft,
     foundVehicle, isSearching,
     handleSubmit, onCancel, servicesTotal, computedDiscount, finalTotal,
@@ -1301,15 +1304,29 @@ function MobileLayout(props: any) {
               <FileText className="size-3" />
               Preview Invoice
             </button>
-            <label className="flex items-center gap-3 pt-2 cursor-pointer group">
-              <input
-                type="checkbox"
-                checked={sendInvoiceWA}
-                onChange={e => setSendInvoiceWA(e.target.checked)}
-                className="size-5 rounded-sm border-2 border-[#FFFF00] bg-transparent text-[#FFFF00] focus:ring-0"
-              />
-              <span className="text-[10px] text-neutral-300 font-headline uppercase leading-none">Kirim invoice ke WhatsApp pelanggan</span>
-            </label>
+            <div className="space-y-3 pt-2 border-t border-white/5">
+              <label className="flex items-center gap-3 cursor-pointer group">
+                <input
+                  type="checkbox"
+                  checked={sendInvoiceWA}
+                  onChange={e => setSendInvoiceWA(e.target.checked)}
+                  className="size-5 rounded-sm border-2 border-[#FFFF00] bg-transparent text-[#FFFF00] focus:ring-0"
+                />
+                <span className="text-[10px] text-neutral-300 font-headline uppercase leading-none">Kirim ke WhatsApp pelanggan</span>
+              </label>
+
+              <select
+                value={docType}
+                onChange={e => setDocType(e.target.value)}
+                className="w-full bg-[#1c1b1b] border border-white/10 text-[#FFFF00] text-[10px] font-bold uppercase tracking-widest px-3 py-3 rounded-sm outline-none transition-all cursor-pointer"
+              >
+                <option value="invoice">Invoice</option>
+                <option value="tanda_terima">Receipt (Masuk)</option>
+                <option value="bukti_bayar">Payment (Lunas)</option>
+                <option value="garansi_repaint">Garansi Repaint</option>
+                <option value="garansi_coating">Garansi Coating</option>
+              </select>
+            </div>
           </div>
         </section>
       </main>
@@ -1372,6 +1389,7 @@ function MobileLayout(props: any) {
           bookingDate: entryDate,
           downPayment: nominalDP,
           realPhone,
+          documentType: docType,
         }}
         onSend={async () => {
           const token = await getIdToken();
@@ -1394,7 +1412,7 @@ function MobileLayout(props: any) {
               ...(token ? { 'Authorization': `Bearer ${token}` } : {})
             },
             body: JSON.stringify({
-              documentType: 'invoice',
+              documentType: docType,
               customerName: invoiceName,
               customerPhone: contactPhone,
               realPhone,
@@ -1434,6 +1452,7 @@ function DesktopLayout(props: any) {
     servicesTotal, computedDiscount, finalTotal, remainingBalance, allConversations,
     skipNextSearch, setSkipNextSearch, showAllChats, setShowAllChats,
     bookingStatus, setBookingStatus, amountPaid, setAmountPaid,
+    docType, setDocType,
     services, vehicleModels, surcharges, loadingPricing,
     toggleSurchargeForItem, setItemNotesForItem, additionalNotes, setAdditionalNotes,
     realPhone, setRealPhone
@@ -2186,7 +2205,7 @@ function DesktopLayout(props: any) {
 
         {/* Fixed Footer: Submit Actions */}
         <div className="p-6 bg-[#1c1b1b] border-t border-white/5 flex items-center justify-between min-h-[100px] flex-shrink-0 z-30">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-6">
             <label className="flex items-center gap-3 cursor-pointer group">
               <div className="relative flex items-center">
                 <input
@@ -2198,9 +2217,21 @@ function DesktopLayout(props: any) {
                 <Check className="absolute opacity-0 peer-checked:opacity-100 text-[#1D1D00] size-3.5 font-black pointer-events-none left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2" />
               </div>
               <span className="text-[11px] font-headline font-bold text-slate-500 uppercase tracking-widest group-hover:text-white transition-colors">
-                Kirim invoice ke WhatsApp pelanggan
+                Kirim dokumen ke WhatsApp
               </span>
             </label>
+
+            <select
+              value={docType}
+              onChange={e => setDocType(e.target.value)}
+              className="bg-[#0e0e0e] border border-white/10 text-[#FFFF00] text-[10px] font-bold uppercase tracking-widest px-3 py-2 rounded-sm focus:ring-1 focus:ring-[#FFFF00]/50 outline-none transition-all cursor-pointer"
+            >
+              <option value="invoice">Invoice</option>
+              <option value="tanda_terima">Receipt (Masuk)</option>
+              <option value="bukti_bayar">Payment (Lunas)</option>
+              <option value="garansi_repaint">Garansi Repaint</option>
+              <option value="garansi_coating">Garansi Coating</option>
+            </select>
           </div>
           <div className="flex gap-4 w-full md:w-auto">
             <button
