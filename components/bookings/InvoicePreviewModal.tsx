@@ -124,7 +124,12 @@ export default function InvoicePreviewModal({
             <iframe
               srcDoc={html}
               className="w-full h-[70vh] bg-[#131313] border border-white/5"
-              title={`Preview ${invoiceData.documentType === 'tanda_terima' ? 'Receipt' : invoiceData.documentType === 'bukti_bayar' ? 'Payment' : 'Invoice'}`}
+              title={`Preview ${
+                invoiceData.documentType === 'tanda_terima' ? 'Receipt' : 
+                invoiceData.documentType === 'bukti_bayar' ? 'Payment' : 
+                invoiceData.documentType === 'garansi_repaint' || invoiceData.documentType === 'garansi_coating' ? 'Warranty' :
+                'Invoice'
+              }`}
             />
           )}
         </div>
