@@ -1276,7 +1276,7 @@ function MobileLayout(props: any) {
                   documentType: 'invoice',
                   customerName: invoiceName,
                   customerPhone: contactPhone,
-                  motorDetails: `${motorcycleModel.modelName} (${platNomor || '-'})`,
+                  motorDetails: `${motorcycleModel?.modelName || 'Motor'} (${platNomor || '-'})`,
                   items: detailedItems,
                   totalAmount: finalTotal,
                   amountPaid: amountPaid,
@@ -2183,6 +2183,41 @@ function DesktopLayout(props: any) {
               {isSavingDraft ? 'Saving...' : 'Save Draft'}
             </button>
             <button
+              onClick={() => {
+                const detailedItems = [
+                  ...cart.map((i: CartItem) => `${i.name}||${i.price}||${i.itemNotes ? `Catatan Warna: ${i.itemNotes}` : ''}`),
+                  spotCount > 0 ? `Spot Repair (${spotCount} spots)||${spotCount * spotPrice}||` : null
+                ].filter(Boolean).join('\n');
+                const serviceSummary = cart.map((i: CartItem) => {
+                  const isKnown = services.some(s => s.name === i.name) || i.name === 'Spot Repair';
+                  const baseName = isKnown ? i.name : `${i.name} [Rp${i.price}]`;
+                  let result = baseName;
+                  if (i.surcharges.length > 0) result += ` (+${i.surcharges.join(', ')})`;
+                  if (i.itemNotes) result += ` (Warna: ${i.itemNotes})`;
+                  return result;
+                }).join('\n');
+                // @ts-ignore
+                window.__invoicePreviewData = {
+                  documentType: 'invoice',
+                  customerName: invoiceName,
+                  customerPhone: contactPhone,
+                  motorDetails: `${motorcycleModel?.modelName || 'Motor'} (${platNomor || '-'})`,
+                  items: detailedItems,
+                  totalAmount: finalTotal,
+                  amountPaid: amountPaid,
+                  paymentMethod: paymentMethod,
+                  notes: `Layanan:\n${serviceSummary}${additionalNotes ? `\n\nCatatan Tambahan:\n${additionalNotes}` : ''}`,
+                  bookingDate: entryDate,
+                  realPhone,
+                };
+                setShowInvoicePreview(true);
+              }}
+              className="hidden md:flex px-6 py-4 font-headline text-[10px] font-bold uppercase tracking-widest text-[#FFFF00] border border-[#FFFF00]/30 hover:bg-[#FFFF00]/10 transition-colors items-center gap-2"
+            >
+              <FileText className="size-4" />
+              Preview Invoice
+            </button>
+            <button
               onClick={handleSubmit}
               disabled={isSubmitting || cart.length === 0}
               className={cn(
@@ -2200,6 +2235,67 @@ function DesktopLayout(props: any) {
           </div>
         </div>
       </div>
+      <InvoicePreviewModal
+        isOpen={showInvoicePreview}
+        onClose={() => setShowInvoicePreview(false)}
+        invoiceData={{
+          customerName: invoiceName,
+          customerPhone: contactPhone,
+          motorDetails: `${motorcycleModel?.modelName || 'Motor'} (${platNomor || '-'})`,
+          items: [
+            ...cart.map((i: CartItem) => `${i.name}||${i.price}||${i.itemNotes ? `Catatan Warna: ${i.itemNotes}` : ''}`),
+            spotCount > 0 ? `Spot Repair (${spotCount} spots)||${spotCount * spotPrice}||` : null
+          ].filter(Boolean).join('\n'),
+          totalAmount: finalTotal,
+          amountPaid: amountPaid,
+          paymentMethod: paymentMethod,
+          notes: `Layanan:\n${cart.map((i: CartItem) => {
+            const isKnown = services.some(s => s.name === i.name) || i.name === 'Spot Repair';
+            const baseName = isKnown ? i.name : `${i.name} [Rp${i.price}]`;
+            let result = baseName;
+            if (i.surcharges.length > 0) result += ` (+${i.surcharges.join(', ')})`;
+            if (i.itemNotes) result += ` (Warna: ${i.itemNotes})`;
+            return result;
+          }).join('\n')}${additionalNotes ? `\n\nCatatan Tambahan:\n${additionalNotes}` : ''}`,
+          bookingDate: entryDate,
+          realPhone,
+        }}
+        onSend={async () => {
+          const token = await getIdToken();
+          const detailedItems = [
+            ...cart.map((i: CartItem) => `${i.name}||${i.price}||${i.itemNotes ? `Catatan Warna: ${i.itemNotes}` : ''}`),
+            spotCount > 0 ? `Spot Repair (${spotCount} spots)||${spotCount * spotPrice}||` : null
+          ].filter(Boolean).join('\n');
+          const serviceSummary = cart.map((i: CartItem) => {
+            const isKnown = services.some(s => s.name === i.name) || i.name === 'Spot Repair';
+            const baseName = isKnown ? i.name : `${i.name} [Rp${i.price}]`;
+            let result = baseName;
+            if (i.surcharges.length > 0) result += ` (+${i.surcharges.join(', ')})`;
+            if (i.itemNotes) result += ` (Warna: ${i.itemNotes})`;
+            return result;
+          }).join('\n');
+          await fetch('/api/bookings/invoice', {
+            method: 'POST',
+            headers: { 
+              'Content-Type': 'application/json',
+              ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+            },
+            body: JSON.stringify({
+              documentType: 'invoice',
+              customerName: invoiceName,
+              customerPhone: contactPhone,
+              realPhone,
+              motorDetails: `${motorcycleModel?.modelName || 'Motor'} (${platNomor || '-'})`,
+              items: detailedItems,
+              totalAmount: finalTotal,
+              amountPaid: amountPaid,
+              paymentMethod: paymentMethod,
+              notes: `Layanan:\n${serviceSummary}${additionalNotes ? `\n\nCatatan Tambahan:\n${additionalNotes}` : ''}`,
+              bookingDate: entryDate,
+            }),
+          });
+        }}
+      />
     </div>
   );
 }
