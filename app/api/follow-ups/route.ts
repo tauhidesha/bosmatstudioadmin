@@ -8,6 +8,11 @@ export const dynamic = 'force-dynamic';
 // Returns follow-up queue based on customer classification and last contact
 export async function GET() {
   try {
+    const cleanServiceText = (text: string) => {
+      if (!text) return '';
+      return text.split(' § ').map(item => item.split('||')[0]).join(', ');
+    };
+
     // Get customers that need follow-up based on:
     // 1. Ghosted (no response after initial contact)
     // 2. Due for follow-up (based on followUpStrategy)
@@ -87,7 +92,7 @@ export async function GET() {
         priority,
         lastBooking: lastBooking ? {
           id: lastBooking.id,
-          serviceType: lastBooking.serviceType,
+          serviceType: cleanServiceText(lastBooking.serviceType || ''),
           bookingDate: lastBooking.bookingDate.toISOString(),
           vehicle: lastBooking.vehicleModel ? `${lastBooking.vehicleModel}${lastBooking.plateNumber ? ' ' + lastBooking.plateNumber : ''}` : null
         } : null,

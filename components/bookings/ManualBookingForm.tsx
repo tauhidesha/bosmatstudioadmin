@@ -493,15 +493,14 @@ export default function ManualBookingForm({
     try {
       const serviceSummary = [
         ...cart.map((i: CartItem) => {
-          const isKnown = services.some(s => s.name === i.name) || i.name === 'Spot Repair';
-          const baseName = isKnown ? i.name : `${i.name} [Rp${i.price}]`;
-          
-          let result = baseName;
-          if (i.surcharges && i.surcharges.length > 0) result = `${result} [+${i.surcharges.join(', ')}]`;
-          if (i.itemNotes) result = `${result} (Warna: ${i.itemNotes})`;
-          return result;
+          let nameWithSurcharges = i.name;
+          if (i.surcharges && i.surcharges.length > 0) {
+            nameWithSurcharges = `${i.name} (+${i.surcharges.join(', ')})`;
+          }
+          // Format: Name (Surcharges)||Price||Notes
+          return `${nameWithSurcharges}||${i.price}||${i.itemNotes ? `Warna: ${i.itemNotes}` : ''}`;
         }),
-        spotCount > 0 ? `Spot Repair (${spotCount} spots)` : null
+        spotCount > 0 ? `Spot Repair (${spotCount} spots)||${spotCount * spotPrice}||` : null
       ].filter(Boolean).join(' § ');
 
       const payload = {

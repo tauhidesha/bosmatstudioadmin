@@ -12,6 +12,11 @@ export async function GET(
   try {
     const customerId = params.id;
 
+    const cleanServiceText = (text: string) => {
+      if (!text) return '';
+      return text.split(' § ').map(item => item.split('||')[0]).join(', ');
+    };
+
     const customer = await prisma.customer.findUnique({
       where: { id: customerId },
       include: {
@@ -50,6 +55,24 @@ export async function GET(
         customerContext: true
       } as any
     });
+
+    if (customer && (customer as any).bookings) {
+      (customer as any).bookings = (customer as any).bookings.map((b: any) => ({
+        ...b,
+        serviceType: cleanServiceText(b.serviceType || '')
+      }));
+    }
+
+    if (customer && (customer as any).vehicles) {
+      (customer as any).vehicles.forEach((v: any) => {
+        if (v.bookings) {
+          v.bookings = v.bookings.map((b: any) => ({
+            ...b,
+            serviceType: cleanServiceText(b.serviceType || '')
+          }));
+        }
+      });
+    }
 
     if (!customer) {
       return NextResponse.json(
@@ -99,7 +122,7 @@ export async function GET(
           startDate: repaintDate.toISOString(),
           status: now < expiryDate ? 'ACTIVE' : 'EXPIRED',
           expiryDate: expiryDate.toISOString(),
-          serviceType: latestRepaint.serviceType
+          serviceType: cleanServiceText(latestRepaint.serviceType || '')
         });
       }
 
@@ -151,7 +174,7 @@ export async function GET(
           status: status,
           expiryDate: expiryDate.toISOString(),
           nextMaintenance: status === 'ACTIVE' ? nextMaint.toISOString() : null,
-          serviceType: mainCoating.serviceType
+          serviceType: cleanServiceText(mainCoating.serviceType || '')
         });
       }
     });

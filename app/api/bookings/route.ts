@@ -40,15 +40,22 @@ export async function GET(req: NextRequest) {
     });
 
     const transformedBookings = bookings.map(b => {
+      const cleanServiceText = (text: string) => {
+        if (!text) return '';
+        return text.split(' § ').map(item => item.split('||')[0]).join(', ');
+      };
+
       const services = b.serviceType 
-        ? (b.serviceType.includes(' § ') ? b.serviceType.split(' § ') : b.serviceType.split(/, | \/ |\n/))
+        ? b.serviceType.split(' § ').map(item => item.split('||')[0])
         : [];
+
       return {
         id: b.id,
         customerName: b.customerName || b.customer?.name,
         customerPhone: b.customerPhone || b.customer?.phone,
         vehicleInfo: b.vehicleModel ? `${b.vehicleModel}${b.plateNumber ? ' (' + b.plateNumber + ')' : ''}` : b.vehicle?.modelName,
         services,
+        serviceName: cleanServiceText(b.serviceType || ''),
         bookingDate: b.bookingDate.toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' }),
         bookingTime: b.bookingDate.toLocaleTimeString('en-GB', { timeZone: 'Asia/Jakarta', hour12: false }).slice(0, 5),
         status: b.status.toLowerCase(),
@@ -219,7 +226,7 @@ export async function POST(req: NextRequest) {
         customerPhone: booking.customerPhone,
         vehicleInfo: finalVehicleModel,
         plateNumber: finalPlateNumber,
-        services: [booking.serviceType],
+        services: booking.serviceType ? booking.serviceType.split(' § ').map(s => s.split('||')[0]) : [],
         bookingDate: booking.bookingDate.toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' }),
         bookingTime: booking.bookingDate.toLocaleTimeString('en-GB', { timeZone: 'Asia/Jakarta', hour12: false }).slice(0, 5),
         status: 'pending',
