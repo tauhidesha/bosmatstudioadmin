@@ -9,7 +9,6 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import type { SortField, SortOrder } from './CrmFilters';
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -44,21 +43,22 @@ export interface Customer {
 // ── AI Label Config ────────────────────────────────────────────────────────
 
 const LABEL_CONFIG: Record<string, { emoji: string; bg: string; text: string }> = {
-  loyal:          { emoji: '👑', bg: 'bg-amber-100 text-amber-800 border-amber-200',   text: 'Loyal' },
-  existing:       { emoji: '✅', bg: 'bg-emerald-100 text-emerald-800 border-emerald-200', text: 'Aktif' },
-  hot_lead:       { emoji: '🔥', bg: 'bg-orange-100 text-orange-800 border-orange-200',  text: 'Hot' },
-  warm_lead:      { emoji: '🌤️',  bg: 'bg-yellow-100 text-yellow-800 border-yellow-200', text: 'Warm' },
-  window_shopper: { emoji: '👀', bg: 'bg-slate-100 text-slate-600 border-slate-200',    text: 'Looker' },
-  churned:        { emoji: '⚠️', bg: 'bg-red-100 text-red-700 border-red-200',          text: 'Churn' },
-  dormant_lead:   { emoji: '😴', bg: 'bg-red-100 text-red-700 border-red-200',          text: 'Dormant' },
+  loyal:          { emoji: '👑', bg: 'bg-[#323200] text-[#FFFF00] border-[#FFFF00]/30',   text: 'Loyal' },
+  existing:       { emoji: '✅', bg: 'bg-emerald-950 text-emerald-400 border-emerald-900', text: 'Aktif' },
+  hot_lead:       { emoji: '🔥', bg: 'bg-orange-950 text-orange-400 border-orange-900',  text: 'Hot' },
+  warm_lead:      { emoji: '🌤️',  bg: 'bg-yellow-950 text-yellow-400 border-yellow-900', text: 'Warm' },
+  window_shopper: { emoji: '👀', bg: 'bg-slate-800 text-slate-300 border-slate-700',    text: 'Looker' },
+  churned:        { emoji: '⚠️', bg: 'bg-red-950 text-red-500 border-red-900',          text: 'Churn' },
+  dormant_lead:   { emoji: '😴', bg: 'bg-red-950 text-red-500 border-red-900',          text: 'Dormant' },
 };
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 function formatDate(dateStr: string | null) {
   if (!dateStr) return '-';
-  return new Date(dateStr).toLocaleDateString('id-ID', {
-    day: 'numeric', month: 'short', year: 'numeric',
+  const date = new Date(dateStr);
+  return date.toLocaleDateString('id-ID', {
+    day: '2-digit', month: 'short', year: 'numeric',
   });
 }
 
@@ -90,13 +90,13 @@ function SortableHead({ field, label, currentSort, currentOrder, onSort, classNa
 
   return (
     <TableHead
-      className={`cursor-pointer select-none hover:bg-slate-100 transition-colors group ${className ?? ''}`}
+      className={`cursor-pointer select-none hover:bg-[#201f1f] hover:text-white transition-colors group ${className ?? ''}`}
       onClick={handleClick}
     >
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-1.5 uppercase text-[10px] font-bold tracking-widest text-slate-400 group-hover:text-white">
         {label}
-        <span className={`material-symbols-outlined text-sm transition-opacity
-          ${isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-40'}`}
+        <span className={`material-symbols-outlined text-[10px] transition-opacity
+          ${isActive ? 'opacity-100 text-[#FFFF00]' : 'opacity-0 group-hover:opacity-40'}`}
         >
           {isActive && currentOrder === 'asc' ? 'arrow_upward' : 'arrow_downward'}
         </span>
@@ -118,10 +118,10 @@ interface CustomerTableProps {
 
 function SkeletonRow() {
   return (
-    <TableRow>
+    <TableRow className="border-b border-[#2A2A2A] hover:bg-transparent">
       {[...Array(6)].map((_, i) => (
-        <TableCell key={i}>
-          <div className="h-4 bg-slate-100 rounded animate-pulse w-3/4" />
+        <TableCell key={i} className="py-4">
+          <div className="h-3 bg-[#2A2A2A] rounded-sm animate-pulse w-3/4" />
         </TableCell>
       ))}
     </TableRow>
@@ -137,39 +137,39 @@ export function CustomerTable({
   onSort,
 }: CustomerTableProps) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+    <div className="border border-[#2A2A2A] bg-[#1C1B1B] overflow-hidden">
       <Table>
-        <TableHeader className="bg-slate-50">
-          <TableRow>
-            <TableHead>Pelanggan</TableHead>
-            <TableHead>No. HP</TableHead>
-            <TableHead>Motor / Plat</TableHead>
-            <TableHead className="hidden md:table-cell">AI Label</TableHead>
+        <TableHeader className="bg-[#131313] border-b border-[#2A2A2A]">
+          <TableRow className="border-b-0 hover:bg-transparent">
+            <TableHead className="uppercase text-[10px] font-bold tracking-widest text-slate-400">Pelanggan</TableHead>
+            <TableHead className="uppercase text-[10px] font-bold tracking-widest text-slate-400">No. HP</TableHead>
+            <TableHead className="uppercase text-[10px] font-bold tracking-widest text-slate-400">Motor / Plat</TableHead>
+            <TableHead className="hidden md:table-cell uppercase text-[10px] font-bold tracking-widest text-slate-400">AI Label</TableHead>
             {onSort ? (
               <SortableHead
                 field="lastService"
-                label="Terakhir Servis"
+                label="Last Service"
                 currentSort={sortField}
                 currentOrder={sortOrder}
                 onSort={onSort}
                 className="hidden lg:table-cell"
               />
             ) : (
-              <TableHead className="hidden lg:table-cell">Terakhir Servis</TableHead>
+              <TableHead className="hidden lg:table-cell uppercase text-[10px] font-bold tracking-widest text-slate-400">Last Service</TableHead>
             )}
             {onSort ? (
               <SortableHead
                 field="totalSpending"
-                label="Total Transaksi"
+                label="Total Revenue"
                 currentSort={sortField}
                 currentOrder={sortOrder}
                 onSort={onSort}
-                className="text-right"
+                className="text-right justify-end flex"
               />
             ) : (
-              <TableHead className="text-right">Total Transaksi</TableHead>
+              <TableHead className="text-right uppercase text-[10px] font-bold tracking-widest text-slate-400">Total Revenue</TableHead>
             )}
-            <TableHead>Status</TableHead>
+            <TableHead className="uppercase text-[10px] font-bold tracking-widest text-slate-400">Status</TableHead>
           </TableRow>
         </TableHeader>
 
@@ -177,12 +177,12 @@ export function CustomerTable({
           {loading ? (
             [...Array(6)].map((_, i) => <SkeletonRow key={i} />)
           ) : customers.length === 0 ? (
-            <TableRow>
-              <TableCell colSpan={7} className="text-center py-16 text-slate-400">
-                <span className="material-symbols-outlined text-4xl block mb-2 opacity-30">
+            <TableRow className="hover:bg-transparent">
+              <TableCell colSpan={7} className="text-center py-20 text-slate-500">
+                <span className="material-symbols-outlined text-3xl block mb-2 opacity-30">
                   person_search
                 </span>
-                Tidak ada pelanggan ditemukan
+                <span className="text-[10px] uppercase font-bold tracking-widest">Tidak ada record data</span>
               </TableCell>
             </TableRow>
           ) : (
@@ -192,60 +192,43 @@ export function CustomerTable({
               return (
                 <TableRow
                   key={customer.id}
-                  className="cursor-pointer hover:bg-slate-50 transition-colors"
+                  className="cursor-pointer border-b border-[#2A2A2A] hover:bg-[#201f1f] transition-colors"
                   onClick={() => onRowClick(customer)}
                 >
                   {/* Name */}
-                  <TableCell className="font-medium">
-                    <div className="flex items-center gap-3">
-                      <Avatar className="h-8 w-8 flex-shrink-0">
-                        <AvatarFallback className="bg-teal-100 text-teal-700 text-xs font-black">
-                          {customer.name.substring(0, 2).toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <div className="font-semibold text-slate-800 text-sm">
-                          {customer.name}
-                        </div>
-                        {(customer.bookingCount ?? 0) > 0 && (
-                          <div className="text-[10px] text-slate-400">
-                            {customer.bookingCount} booking
-                          </div>
-                        )}
-                      </div>
+                  <TableCell className="py-4">
+                    <div className="font-bold text-white text-sm">
+                      {customer.name}
                     </div>
+                    {(customer.bookingCount ?? 0) > 0 && (
+                      <div className="text-[9px] uppercase tracking-wider font-bold text-[#FFFF00] mt-1">
+                        {customer.bookingCount} Booking
+                      </div>
+                    )}
                   </TableCell>
 
                   {/* Phone */}
-                  <TableCell className="text-slate-500 font-mono text-xs">
+                  <TableCell className="text-slate-400 font-technical text-[11px]">
                     {customer.phone}
                   </TableCell>
 
                   {/* Vehicles */}
                   <TableCell>
-                    <div className="flex flex-wrap gap-1">
+                    <div className="flex flex-col gap-1.5 align-baseline">
                       {customer.vehicles.length > 0 ? (
                         customer.vehicles.map((v) => (
-                          <Badge
+                          <div
                             key={v.id}
-                            variant="outline"
-                            className="text-[10px] font-normal"
-                            title={`${v.serviceCount}× servis`}
+                            className="text-[10px] text-slate-300 font-medium"
                           >
-                            {v.plateNumber ? (
-                              <>
-                                <span className="font-mono font-semibold">{v.plateNumber}</span>
-                                {v.modelName && (
-                                  <span className="ml-1 text-slate-400">({v.modelName})</span>
-                                )}
-                              </>
-                            ) : (
-                              v.modelName
-                            )}
-                          </Badge>
+                            <span className="text-white bg-[#2A2A2A] px-1.5 py-0.5 rounded-sm mr-2 font-technical tracking-wide text-[9px]">
+                              {v.plateNumber || 'NOPLAT'}
+                            </span>
+                            {v.modelName || <span className="opacity-50">Unknown</span>}
+                          </div>
                         ))
                       ) : (
-                        <span className="text-slate-400 text-xs">-</span>
+                        <span className="text-slate-600 text-xs">-</span>
                       )}
                     </div>
                   </TableCell>
@@ -253,39 +236,33 @@ export function CustomerTable({
                   {/* AI Label */}
                   <TableCell className="hidden md:table-cell">
                     {labelCfg ? (
-                      <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border ${labelCfg.bg}`}>
+                      <span className={`inline-flex items-center gap-1.5 text-[9px] font-bold px-2 py-1 rounded-sm border ${labelCfg.bg}`}>
                         <span>{labelCfg.emoji}</span>
-                        <span className="uppercase tracking-wide">{labelCfg.text}</span>
+                        <span className="uppercase tracking-widest">{labelCfg.text}</span>
                         {customer.aiConfidence && customer.aiConfidence > 0 && (
-                          <span className="opacity-50">{Math.round(customer.aiConfidence * 100)}%</span>
+                          <span className="opacity-50 ml-0.5">{Math.round(customer.aiConfidence * 100)}%</span>
                         )}
                       </span>
                     ) : (
-                      <span className="text-slate-300 text-xs">—</span>
+                      <span className="text-slate-600 text-xs">—</span>
                     )}
                   </TableCell>
 
                   {/* Last Service */}
-                  <TableCell className="text-slate-500 text-sm hidden lg:table-cell">
+                  <TableCell className="text-slate-400 font-technical text-[11px] hidden lg:table-cell">
                     {formatDate(customer.lastService)}
                   </TableCell>
 
                   {/* Total Spending */}
-                  <TableCell className="text-right font-bold text-slate-700">
+                  <TableCell className="text-right font-headline font-black text-white text-sm">
                     {formatCurrency(customer.totalSpending)}
                   </TableCell>
 
                   {/* Status */}
                   <TableCell>
-                    <Badge
-                      variant={
-                        customer.status === 'active' ? 'default' :
-                        customer.status === 'new' ? 'secondary' : 'destructive'
-                      }
-                      className="text-xs capitalize"
-                    >
-                      {customer.status}
-                    </Badge>
+                    {customer.status === 'active' && <span className="text-[10px] px-2 py-1 bg-emerald-950 text-emerald-400 border border-emerald-900 rounded-sm font-bold uppercase tracking-widest">Active</span>}
+                    {customer.status === 'new' && <span className="text-[10px] px-2 py-1 bg-sky-950 text-sky-400 border border-sky-900 rounded-sm font-bold uppercase tracking-widest">New</span>}
+                    {customer.status === 'churned' && <span className="text-[10px] px-2 py-1 bg-red-950 text-red-500 border border-red-900 rounded-sm font-bold uppercase tracking-widest">Churn</span>}
                   </TableCell>
                 </TableRow>
               );

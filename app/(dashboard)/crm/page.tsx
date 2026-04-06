@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { CustomerTable, Customer } from '@/components/crm/CustomerTable';
 import { CustomerDetailSheet } from '@/components/crm/CustomerDetailSheet';
 import { CrmStats } from '@/components/crm/CrmStats';
@@ -38,26 +38,21 @@ function useDebounce<T>(value: T, delay: number): T {
 // ── Page ───────────────────────────────────────────────────────────────────
 
 export default function CRMPage() {
-  // Data state
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [stats, setStats] = useState<StatsData>({ total: 0, active: 0, new: 0, churned: 0, totalRevenue: 0 });
   const [segments, setSegments] = useState<SegmentsData>({ vip: [], atRisk: [], new: [] });
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
 
-  // Loading state per section
   const [loadingStats, setLoadingStats] = useState(true);
   const [loadingSegments, setLoadingSegments] = useState(true);
   const [loadingCustomers, setLoadingCustomers] = useState(true);
 
-  // Filter + sort state
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [sortField, setSortField] = useState<SortField>('updatedAt');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
 
   const debouncedSearch = useDebounce(search, 350);
-
-  // ── Fetchers ─────────────────────────────────────────────────────────────
 
   const fetchStats = useCallback(async () => {
     setLoadingStats(true);
@@ -105,18 +100,14 @@ export default function CRMPage() {
     }
   }, [debouncedSearch, statusFilter, sortField, sortOrder]);
 
-  // Initial load — parallel
   useEffect(() => {
     fetchStats();
     fetchSegments();
   }, [fetchStats, fetchSegments]);
 
-  // Re-fetch customers when filters change
   useEffect(() => {
     fetchCustomers();
   }, [fetchCustomers]);
-
-  // ── Handlers ─────────────────────────────────────────────────────────────
 
   const handleSort = useCallback((field: SortField, order: SortOrder) => {
     setSortField(field);
@@ -124,7 +115,6 @@ export default function CRMPage() {
   }, []);
 
   const handleSegmentCustomerClick = useCallback((c: SegmentCustomer) => {
-    // Map SegmentCustomer → Customer (minimal shape for detail sheet)
     setSelectedCustomer({
       id: c.id,
       name: c.name,
@@ -142,47 +132,40 @@ export default function CRMPage() {
     });
   }, []);
 
-  // ── Render ────────────────────────────────────────────────────────────────
-
   return (
-    <div className="flex flex-col h-full w-full bg-slate-50 p-6 overflow-auto">
+    <div className="flex flex-col h-full w-full bg-[#131313] p-6 overflow-auto text-[#e5e2e1]">
 
       {/* Page Header */}
       <div className="mb-6 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black text-slate-800 tracking-tight">
-            Customer Relationship
+          <h1 className="text-xl font-headline font-black text-white tracking-widest uppercase py-2">
+            CRM <span className="text-[#FFFF00]">Overview</span>
           </h1>
-          <p className="text-sm text-slate-500 mt-1">
-            Kelola pelanggan, segmentasi AI, dan riwayat servis.
-          </p>
         </div>
 
         {/* Refresh Button */}
         <button
           onClick={() => { fetchStats(); fetchSegments(); fetchCustomers(); }}
           disabled={loadingCustomers || loadingStats}
-          className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest
-            px-4 py-2.5 rounded-lg border border-slate-200 bg-white text-slate-500
-            hover:bg-slate-50 hover:text-slate-700 transition-all active:scale-95
+          className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest
+            px-4 py-2 border border-[#2A2A2A] bg-[#1C1B1B] text-slate-300
+            hover:border-[#FFFF00] hover:text-[#FFFF00] transition-colors active:scale-95
             disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          <span className={`material-symbols-outlined text-base ${loadingCustomers ? 'animate-spin' : ''}`}>
+          <span className={`material-symbols-outlined text-sm ${loadingCustomers ? 'animate-spin' : ''}`}>
             refresh
           </span>
-          Refresh
+          Sync
         </button>
       </div>
 
-      {/* ① Stats Bar */}
       <CrmStats stats={stats} loading={loadingStats} />
 
-      {/* ② Segment Tabs: VIP / At Risk / Baru */}
-      <div className="mb-2">
-        <div className="flex items-center gap-2 mb-3">
-          <span className="material-symbols-outlined text-slate-400 text-base">auto_awesome</span>
-          <h2 className="text-xs font-bold uppercase tracking-widest text-slate-500">
-            Segmentasi AI
+      <div className="mb-8">
+        <div className="flex items-center gap-2 mb-3 px-1">
+          <span className="material-symbols-outlined text-[#FFFF00] text-sm">auto_awesome</span>
+          <h2 className="text-[10px] font-bold uppercase tracking-widest text-[#FFFF00]">
+            AI Segment Insight
           </h2>
         </div>
         <CustomerSegmentTabs
@@ -192,16 +175,14 @@ export default function CRMPage() {
         />
       </div>
 
-      {/* ③ All Customers Table */}
       <div>
-        <div className="flex items-center gap-2 mb-3">
-          <span className="material-symbols-outlined text-slate-400 text-base">table_rows</span>
-          <h2 className="text-xs font-bold uppercase tracking-widest text-slate-500">
-            Semua Pelanggan
+        <div className="flex items-center gap-2 mb-3 px-1">
+          <span className="material-symbols-outlined text-slate-400 text-sm">table_rows</span>
+          <h2 className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+            Database
           </h2>
         </div>
 
-        {/* Filter Bar */}
         <CrmFilters
           search={search}
           onSearchChange={setSearch}
@@ -214,7 +195,6 @@ export default function CRMPage() {
           loading={loadingCustomers}
         />
 
-        {/* Table */}
         <CustomerTable
           customers={customers}
           onRowClick={setSelectedCustomer}
@@ -225,7 +205,6 @@ export default function CRMPage() {
         />
       </div>
 
-      {/* Customer Detail Sheet */}
       <CustomerDetailSheet
         customer={selectedCustomer}
         open={!!selectedCustomer}

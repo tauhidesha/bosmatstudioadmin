@@ -11,14 +11,12 @@ import { Customer, Vehicle } from "./CustomerTable";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Info, 
   History, 
   ShieldCheck, 
   Calendar, 
-  CheckCircle2, 
   AlertCircle, 
   Clock,
   Bike
@@ -98,7 +96,6 @@ export function CustomerDetailSheet({ customer, open, onOpenChange }: Props) {
       }
     } catch (error) {
       console.error('Error fetching customer detail:', error);
-      // Fallback to basic customer data
       setCustomerDetail(customer as unknown as CustomerDetail);
     } finally {
       setLoading(false);
@@ -108,7 +105,7 @@ export function CustomerDetailSheet({ customer, open, onOpenChange }: Props) {
   const formatDate = (dateStr: string | null) => {
     if (!dateStr) return '-';
     const date = new Date(dateStr);
-    return date.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+    return date.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
   };
 
   if (!customer) return null;
@@ -117,273 +114,274 @@ export function CustomerDetailSheet({ customer, open, onOpenChange }: Props) {
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-[400px] sm:w-[540px] overflow-y-auto bg-slate-50">
-        <SheetHeader className="mb-6 bg-white p-6 -mx-6 -mt-6 border-b">
+      <SheetContent className="w-[400px] sm:w-[540px] overflow-y-auto bg-[#131313] border-l border-[#2A2A2A] text-white p-0">
+        <SheetHeader className="mb-6 bg-[#1C1B1B] p-6 border-b border-[#2A2A2A]">
           <div className="flex items-center gap-4">
-            <Avatar className="h-16 w-16">
-              <AvatarFallback className="text-xl bg-teal-100 text-teal-700">
+            <Avatar className="h-16 w-16 rounded-sm">
+              <AvatarFallback className="text-xl bg-[#FFFF00] text-black font-black rounded-sm border border-[#FFFF00]">
                 {displayCustomer.name.substring(0,2).toUpperCase()}
               </AvatarFallback>
             </Avatar>
             <div>
-              <SheetTitle className="text-2xl font-black text-slate-800">{displayCustomer.name}</SheetTitle>
-              <SheetDescription className="text-base text-slate-500 font-mono">
+              <SheetTitle className="text-2xl font-black text-white">{displayCustomer.name}</SheetTitle>
+              <SheetDescription className="text-sm font-technical text-slate-400">
                 {displayCustomer.phone}
               </SheetDescription>
             </div>
           </div>
         </SheetHeader>
 
-        <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 mb-6 bg-slate-100/80 p-1">
-            <TabsTrigger value="overview" className="gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm">
-              <Info className="h-4 w-4" />
-              Info
-            </TabsTrigger>
-            <TabsTrigger value="history" className="gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm">
-              <History className="h-4 w-4" />
-              Riwayat
-            </TabsTrigger>
-            <TabsTrigger value="warranty" className="gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm">
-              <ShieldCheck className="h-4 w-4" />
-              Garansi
-            </TabsTrigger>
-          </TabsList>
+        <div className="px-6 pb-6">
+          <Tabs defaultValue="overview" className="w-full">
+            <TabsList className="grid w-full grid-cols-3 mb-6 bg-[#1C1B1B] p-1 border border-[#2A2A2A] rounded-sm h-auto">
+              <TabsTrigger 
+                value="overview" 
+                className="gap-2 py-2 text-[10px] font-bold uppercase tracking-widest text-slate-400 data-[state=active]:bg-[#2A2A2A] data-[state=active]:text-white rounded-sm transition-colors"
+               >
+                <Info className="h-4 w-4" />
+                Info
+              </TabsTrigger>
+              <TabsTrigger 
+                value="history" 
+                className="gap-2 py-2 text-[10px] font-bold uppercase tracking-widest text-slate-400 data-[state=active]:bg-[#2A2A2A] data-[state=active]:text-white rounded-sm transition-colors"
+               >
+                <History className="h-4 w-4" />
+                Riwayat
+              </TabsTrigger>
+              <TabsTrigger 
+                value="warranty" 
+                className="gap-2 py-2 text-[10px] font-bold uppercase tracking-widest text-slate-400 data-[state=active]:bg-[#2A2A2A] data-[state=active]:text-white rounded-sm transition-colors"
+               >
+                <ShieldCheck className="h-4 w-4" />
+                Garansi
+              </TabsTrigger>
+            </TabsList>
 
-          {/* OVERVIEW TAB */}
-          <TabsContent value="overview" className="mt-0 space-y-6">
-            <div className="grid grid-cols-2 gap-4">
-              <Card className="shadow-sm border-slate-200">
-                <CardHeader className="py-3 px-4 bg-slate-50/50">
-                  <CardTitle className="text-[10px] uppercase font-bold tracking-widest text-slate-500">Total Transaksi</CardTitle>
-                </CardHeader>
-                <CardContent className="p-4 pt-2">
-                  <div className="text-xl font-black text-slate-800">
+            {/* OVERVIEW TAB */}
+            <TabsContent value="overview" className="mt-0 space-y-4 outline-none">
+              <div className="grid grid-cols-2 gap-4">
+                {/* Total Spending */}
+                <div className="bg-[#1C1B1B] border border-[#2A2A2A] p-4 flex flex-col gap-2 rounded-sm">
+                  <div className="text-[10px] uppercase font-bold tracking-widest text-slate-400">Total Revenue</div>
+                  <div className="text-xl font-headline font-black text-[#FFFF00]">
                     Rp {(displayCustomer.totalSpending || 0).toLocaleString('id-ID')}
                   </div>
-                </CardContent>
-              </Card>
-              <Card className="shadow-sm border-slate-200">
-                <CardHeader className="py-3 px-4 bg-slate-50/50">
-                  <CardTitle className="text-[10px] uppercase font-bold tracking-widest text-slate-500">Status CRM</CardTitle>
-                </CardHeader>
-                <CardContent className="p-4 pt-2 flex items-center">
-                  <Badge 
-                    variant={
-                      displayCustomer.status === 'active' ? 'default' : 
-                      displayCustomer.status === 'new' ? 'secondary' : 'destructive'
-                    } 
-                    className="text-xs font-bold"
-                  >
-                    {displayCustomer.status?.toUpperCase() || 'NEW'}
-                  </Badge>
-                </CardContent>
-              </Card>
-            </div>
-
-            <Card className="shadow-sm border-slate-200 overflow-hidden">
-              <div className="p-4 bg-white">
-                <h3 className="font-bold mb-4 text-slate-800 flex items-center justify-between">
-                  <span className="flex items-center gap-2">
-                    <Bike className="h-4 w-4 text-teal-600" />
-                    Daftar Kendaraan
-                  </span>
-                  <span className="text-[10px] font-bold bg-slate-100 px-2 py-0.5 rounded text-slate-500">
-                    {displayCustomer.vehicles?.length || 0} MOTOR
-                  </span>
-                </h3>
+                </div>
                 
-                {loading ? (
-                  <div className="space-y-3">
-                    {[1,2].map(i => <div key={i} className="h-20 bg-slate-100 animate-pulse rounded-lg" />)}
-                  </div>
-                ) : displayCustomer.vehicles && displayCustomer.vehicles.length > 0 ? (
-                  <div className="space-y-3">
-                    {displayCustomer.vehicles.map((vehicle) => (
-                      <div key={vehicle.id} className="p-3 bg-slate-50 rounded-lg border border-slate-200/50 hover:border-teal-200 transition-colors">
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <div className="font-bold text-slate-800 leading-tight">
-                              {vehicle.modelName}
-                            </div>
-                            <div className="flex gap-2 mt-1 items-center">
-                              {vehicle.plateNumber && (
-                                <span className="font-mono text-[10px] font-bold bg-slate-200 text-slate-700 px-1.5 py-0.5 rounded">
-                                  {vehicle.plateNumber}
-                                </span>
-                              )}
-                              {vehicle.color && (
-                                <span className="text-[10px] text-slate-500 font-medium">
-                                  {vehicle.color.toUpperCase()}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                          <Badge variant="outline" className="text-[10px] bg-white">
-                            {vehicle.serviceCount}x Servis
-                          </Badge>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-sm text-slate-400 text-center py-6 border-2 border-dashed rounded-lg">
-                    Kosong
-                  </div>
-                )}
+                {/* Status */}
+                <div className="bg-[#1C1B1B] border border-[#2A2A2A] p-4 flex flex-col gap-2 rounded-sm items-start justify-center">
+                  <div className="text-[10px] uppercase font-bold tracking-widest text-slate-400">Status DB</div>
+                  {displayCustomer.status === 'active' && <span className="text-[10px] px-2 py-1 bg-emerald-950 text-emerald-400 border border-emerald-900 rounded-sm font-bold uppercase tracking-widest">Active</span>}
+                  {displayCustomer.status === 'new' && <span className="text-[10px] px-2 py-1 bg-sky-950 text-sky-400 border border-sky-900 rounded-sm font-bold uppercase tracking-widest">New</span>}
+                  {displayCustomer.status === 'churned' && <span className="text-[10px] px-2 py-1 bg-red-950 text-red-500 border border-red-900 rounded-sm font-bold uppercase tracking-widest">Churn</span>}
+                </div>
               </div>
-            </Card>
 
-            <Card className="shadow-sm border-slate-200">
-              <div className="p-4">
-                 <h3 className="font-bold mb-3 text-slate-800 flex items-center gap-2">
-                   <Clock className="h-4 w-4 text-amber-500" />
+              {/* Vehicle List */}
+              <div className="bg-[#1C1B1B] border border-[#2A2A2A] rounded-sm overflow-hidden">
+                <div className="p-4 flex items-center justify-between border-b border-[#2A2A2A]">
+                  <h3 className="font-bold text-white flex items-center gap-2 text-sm uppercase tracking-widest">
+                    <Bike className="h-4 w-4 text-[#FFFF00]" />
+                    Daftar Kendaraan
+                  </h3>
+                  <span className="text-[10px] font-bold bg-[#2A2A2A] text-slate-300 px-2 py-1 rounded-sm">
+                    {displayCustomer.vehicles?.length || 0} UNIT
+                  </span>
+                </div>
+                
+                <div className="p-4">
+                  {loading ? (
+                    <div className="space-y-3">
+                      {[1,2].map(i => <div key={i} className="h-16 bg-[#2A2A2A] animate-pulse rounded-sm" />)}
+                    </div>
+                  ) : displayCustomer.vehicles && displayCustomer.vehicles.length > 0 ? (
+                    <div className="space-y-3">
+                      {displayCustomer.vehicles.map((vehicle) => (
+                        <div key={vehicle.id} className="p-3 bg-[#131313] border border-[#2A2A2A] rounded-sm hover:border-[#FFFF00] transition-colors">
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <div className="font-bold text-white text-sm">
+                                {vehicle.modelName}
+                              </div>
+                              <div className="flex gap-2 mt-1.5 items-center">
+                                {vehicle.plateNumber && (
+                                  <span className="font-technical text-[10px] font-bold bg-[#2A2A2A] text-slate-300 px-1.5 py-0.5 rounded-sm">
+                                    {vehicle.plateNumber}
+                                  </span>
+                                )}
+                                {vehicle.color && (
+                                  <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">
+                                    {vehicle.color}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <span className="text-[10px] border border-[#2A2A2A] bg-[#1C1B1B] text-slate-400 px-2 py-1 px-1 rounded-sm font-bold">
+                              {vehicle.serviceCount}x Servis
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-[10px] text-slate-500 text-center py-6 border border-dashed border-[#2A2A2A] rounded-sm uppercase tracking-widest font-bold">
+                      TIDAK ADA KENDARAAN
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Important Info */}
+              <div className="bg-[#1C1B1B] border border-[#2A2A2A] rounded-sm p-4">
+                 <h3 className="font-bold mb-4 text-white flex items-center gap-2 text-sm uppercase tracking-widest">
+                   <Clock className="h-4 w-4 text-[#FFFF00]" />
                    Info Terakhir
                  </h3>
-                 <div className="text-sm space-y-2">
-                    <div className="flex justify-between items-center py-2 border-b border-slate-100">
-                      <span className="text-slate-500">Servis Terakhir</span>
-                      <span className="font-bold text-slate-700">{formatDate(displayCustomer.lastService)}</span>
+                 <div className="text-sm space-y-0 text-slate-300">
+                    <div className="flex justify-between items-center py-3 border-b border-[#2A2A2A]">
+                      <span className="text-slate-400 text-xs font-bold uppercase tracking-widest">Servis Terakhir</span>
+                      <span className="font-technical font-bold text-white">{formatDate(displayCustomer.lastService)}</span>
                     </div>
-                    {(displayCustomer as any).warranties && (displayCustomer as any).warranties.some((w: any) => w.status === 'ACTIVE') && (
-                      <div className="flex justify-between items-center py-2">
-                        <span className="text-slate-500">Garansi Aktif</span>
-                        <Badge className="bg-emerald-500">YA</Badge>
+                    {((displayCustomer as any).warranties || []).some((w: any) => w.status === 'ACTIVE') && (
+                      <div className="flex justify-between items-center py-3">
+                        <span className="text-slate-400 text-xs font-bold uppercase tracking-widest">Garansi Aktif</span>
+                        <span className="text-[10px] px-2 py-1 bg-emerald-950 text-emerald-400 border border-emerald-900 rounded-sm font-bold uppercase tracking-widest">
+                          ADA
+                        </span>
                       </div>
                     )}
                  </div>
               </div>
-            </Card>
-          </TabsContent>
+            </TabsContent>
 
-          {/* HISTORY TAB */}
-          <TabsContent value="history" className="mt-0 space-y-4">
-             <ScrollArea className="h-[500px] pr-4 -mr-4">
-                <div className="relative pl-6 space-y-6 before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-[2px] before:bg-slate-200">
-                  {loading ? (
-                    [1,2,3,4].map(i => <div key={i} className="h-24 bg-slate-100 animate-pulse rounded-lg" />)
-                  ) : customerDetail?.bookings && customerDetail.bookings.length > 0 ? (
-                    customerDetail.bookings.map((booking, idx) => (
-                      <div key={booking.id} className="relative">
-                        <div className={`absolute -left-[23px] top-1 w-4 h-4 rounded-full border-2 border-white shadow-sm ${
-                          booking.status === 'COMPLETED' ? 'bg-emerald-500' : 
-                          booking.status === 'CANCELLED' ? 'bg-slate-300' : 'bg-amber-500'
-                        }`} />
-                        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-                          <div className="flex justify-between items-start mb-1">
-                            <span className="text-xs font-bold text-slate-400 uppercase tracking-tight">
-                              {formatDate(booking.bookingDate)}
-                            </span>
-                            <Badge variant="outline" className="text-[10px] scale-90 origin-right">
-                              {booking.status}
-                            </Badge>
-                          </div>
-                          <div className="font-bold text-slate-800 mb-1">{booking.serviceType}</div>
-                          <div className="text-xs text-slate-500 flex items-center gap-1">
-                             <Bike className="h-3 w-3" />
-                             {booking.vehicleModel} ({booking.plateNumber || '-'})
-                          </div>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="text-center py-20 text-slate-400">
-                      Belum ada riwayat servis
-                    </div>
-                  )}
-                </div>
-             </ScrollArea>
-          </TabsContent>
-
-          {/* WARRANTY TAB */}
-          <TabsContent value="warranty" className="mt-0 space-y-4">
-            {loading ? (
-              <div className="h-40 bg-slate-100 animate-pulse rounded-lg" />
-            ) : customerDetail?.warranties && customerDetail.warranties.length > 0 ? (
-              <div className="space-y-4">
-                {customerDetail.warranties.map((warranty) => (
-                  <Card key={warranty.id} className={`overflow-hidden border-l-4 ${
-                    warranty.status === 'ACTIVE' ? 'border-l-emerald-500' : 
-                    warranty.status === 'VOID' ? 'border-l-red-500' : 'border-l-slate-400'
-                  }`}>
-                    <CardHeader className="py-3 px-4 bg-slate-50/50 flex flex-row items-center justify-between">
-                      <div>
-                        <CardTitle className="text-sm font-bold flex items-center gap-2">
-                           {warranty.type === 'Coating' ? <ShieldCheck className="h-4 w-4 text-blue-600" /> : <Clock className="h-4 w-4 text-amber-500" />}
-                           Garansi {warranty.type}
-                        </CardTitle>
-                        <div className="text-[10px] text-slate-500 font-mono mt-1">
-                          {warranty.vehicle} • {warranty.plateNumber}
-                        </div>
-                      </div>
-                      <Badge className={
-                        warranty.status === 'ACTIVE' ? 'bg-emerald-500' : 
-                        warranty.status === 'VOID' ? 'bg-red-500' : 'bg-slate-400'
-                      }>
-                        {warranty.status}
-                      </Badge>
-                    </CardHeader>
-                    <CardContent className="p-4 text-sm space-y-3">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <div className="text-[10px] text-slate-400 font-bold uppercase">Tgl Mulai</div>
-                          <div className="font-semibold text-slate-700">{formatDate(warranty.startDate)}</div>
-                        </div>
-                        <div>
-                          <div className="text-[10px] text-slate-400 font-bold uppercase">Berakhir</div>
-                          <div className="font-semibold text-slate-700">{formatDate(warranty.expiryDate)}</div>
-                        </div>
-                      </div>
-
-                      {warranty.type === 'Coating' && (
-                        <div className="pt-3 border-t border-slate-100">
-                          <div className="flex justify-between items-center mb-2">
-                            <span className="text-xs text-slate-500 flex items-center gap-1 font-bold">
-                              <Calendar className="h-3 w-3" /> JADWAL MAINTENANCE
-                            </span>
-                            <span className="text-[10px] text-slate-400 font-mono">Tiap 3 Bulan</span>
-                          </div>
-                          
-                          <div className="flex items-center gap-2 mb-2">
-                             <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                                <div className={`h-full ${warranty.status === 'ACTIVE' ? 'bg-emerald-400' : 'bg-slate-300'}`} style={{ width: '75%' }} />
-                             </div>
-                             <span className="text-[10px] font-bold text-slate-500">75%</span>
-                          </div>
-
-                          <div className="grid grid-cols-2 gap-2 mt-2">
-                             <div className="bg-slate-50 p-2 rounded border border-slate-100">
-                                <div className="text-[9px] text-slate-400 font-bold uppercase">Terakhir</div>
-                                <div className="text-xs font-bold text-slate-600">{formatDate(warranty.lastMaintenance || null)}</div>
-                             </div>
-                             <div className={`p-2 rounded border ${warranty.status === 'VOID' ? 'bg-red-50 border-red-100' : 'bg-slate-50 border-slate-100'}`}>
-                                <div className="text-[9px] text-slate-400 font-bold uppercase">Next Maint</div>
-                                <div className={`text-xs font-bold ${warranty.status === 'VOID' ? 'text-red-600' : 'text-slate-600'}`}>
-                                   {warranty.status === 'VOID' ? 'VOID (Hangus)' : formatDate(warranty.nextMaintenance || null)}
-                                </div>
-                             </div>
-                          </div>
-                          
-                          {warranty.status === 'VOID' && (
-                            <div className="mt-3 p-2 bg-red-50 text-red-700 text-[10px] rounded border border-red-100 flex gap-2 items-start">
-                               <AlertCircle className="h-4 w-4 shrink-0" />
-                               <span>Garansi hangus karena melewati batas maintenance 3 bulan. Silakan hubungi admin untuk aktivasi kembali (syarat & ketentuan berlaku).</span>
+            {/* HISTORY TAB */}
+            <TabsContent value="history" className="mt-0 outline-none">
+               <ScrollArea className="h-[500px] pr-4 -mr-4">
+                  <div className="relative pl-6 space-y-6 before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-[1px] before:bg-[#2A2A2A]">
+                    {loading ? (
+                      [1,2,3,4].map(i => <div key={i} className="h-24 bg-[#2A2A2A] animate-pulse rounded-sm" />)
+                    ) : customerDetail?.bookings && customerDetail.bookings.length > 0 ? (
+                      customerDetail.bookings.map((booking, idx) => (
+                        <div key={booking.id} className="relative">
+                          <div className={`absolute -left-[20px] top-1 w-3 h-3 rounded-full border-2 border-[#131313] ${
+                            booking.status === 'COMPLETED' ? 'bg-emerald-500' : 
+                            booking.status === 'CANCELLED' ? 'bg-slate-500' : 'bg-[#FFFF00]'
+                          }`} />
+                          <div className="bg-[#1C1B1B] p-4 rounded-sm border border-[#2A2A2A] hover:border-[#FFFF00] transition-colors">
+                            <div className="flex justify-between items-start mb-2">
+                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                                {formatDate(booking.bookingDate)}
+                              </span>
+                              <span className={`text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-sm border ${
+                                booking.status === 'COMPLETED' ? 'bg-emerald-950 text-emerald-400 border-emerald-900' :
+                                booking.status === 'CANCELLED' ? 'bg-slate-900 text-slate-400 border-slate-800' :
+                                'bg-[#323200] text-[#FFFF00] border-[#FFFF00]/30'
+                              }`}>
+                                {booking.status}
+                              </span>
                             </div>
-                          )}
+                            <div className="font-bold text-white text-sm mb-1.5">{booking.serviceType}</div>
+                            <div className="text-[11px] text-slate-400 flex items-center gap-1.5 font-technical">
+                               <Bike className="h-3 w-3" />
+                               {booking.vehicleModel} ({booking.plateNumber || '-'})
+                            </div>
+                          </div>
                         </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-20 text-slate-400 bg-white rounded-xl border-2 border-dashed">
-                <ShieldCheck className="h-10 w-10 mx-auto mb-2 opacity-20" />
-                <p>Tidak ada garansi aktif</p>
-              </div>
-            )}
-          </TabsContent>
-        </Tabs>
+                      ))
+                    ) : (
+                      <div className="text-center py-20 text-[10px] text-slate-500 uppercase tracking-widest font-bold">
+                        Belum ada riwayat servis
+                      </div>
+                    )}
+                  </div>
+               </ScrollArea>
+            </TabsContent>
+
+            {/* WARRANTY TAB */}
+            <TabsContent value="warranty" className="mt-0 space-y-4 outline-none">
+              {loading ? (
+                <div className="h-40 bg-[#2A2A2A] animate-pulse rounded-sm" />
+              ) : customerDetail?.warranties && customerDetail.warranties.length > 0 ? (
+                <div className="space-y-4">
+                  {customerDetail.warranties.map((warranty) => (
+                    <div key={warranty.id} className={`bg-[#1C1B1B] rounded-sm border-l-2 overflow-hidden ${
+                      warranty.status === 'ACTIVE' ? 'border-l-emerald-500 border-t border-b border-r border-[#2A2A2A]' : 
+                      warranty.status === 'VOID' ? 'border-l-red-500 border-t border-b border-r border-[#2A2A2A]' : 
+                      'border-l-slate-500 border-t border-b border-r border-[#2A2A2A]'
+                    }`}>
+                      <div className="py-3 px-4 bg-[#1C1B1B] border-b border-[#2A2A2A] flex flex-row items-center justify-between">
+                        <div>
+                          <div className="text-sm font-bold text-white flex items-center gap-2 uppercase tracking-widest">
+                             {warranty.type === 'Coating' ? <ShieldCheck className="h-4 w-4 text-sky-400" /> : <Clock className="h-4 w-4 text-[#FFFF00]" />}
+                             Garansi {warranty.type}
+                          </div>
+                          <div className="text-[10px] text-slate-400 font-technical mt-1">
+                            {warranty.vehicle} • {warranty.plateNumber}
+                          </div>
+                        </div>
+                        <span className={`text-[9px] font-bold uppercase tracking-widest px-2 py-1 rounded-sm border ${
+                          warranty.status === 'ACTIVE' ? 'bg-emerald-950 text-emerald-400 border-emerald-900' : 
+                          warranty.status === 'VOID' ? 'bg-red-950 text-red-500 border-red-900' : 
+                          'bg-slate-900 text-slate-400 border-slate-800'
+                        }`}>
+                          {warranty.status}
+                        </span>
+                      </div>
+                      <div className="p-4 text-sm space-y-3">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <div className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-1">Tgl Mulai</div>
+                            <div className="font-technical text-white text-xs">{formatDate(warranty.startDate)}</div>
+                          </div>
+                          <div>
+                            <div className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-1">Berakhir</div>
+                            <div className="font-technical text-white text-xs">{formatDate(warranty.expiryDate)}</div>
+                          </div>
+                        </div>
+
+                        {warranty.type === 'Coating' && (
+                          <div className="pt-4 mt-2 border-t border-[#2A2A2A]">
+                            <div className="flex justify-between items-center mb-3">
+                              <span className="text-[10px] text-slate-400 flex items-center gap-1.5 font-bold uppercase tracking-widest">
+                                <Calendar className="h-3 w-3" /> Maint. Check
+                              </span>
+                              <span className="text-[10px] text-[#FFFF00] font-technical">Tiap 3 Bulan</span>
+                            </div>
+                            
+                            <div className="flex justify-between gap-2 mt-2">
+                               <div className="bg-[#131313] p-2.5 rounded-sm border border-[#2A2A2A] flex-1">
+                                  <div className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-1">Terakhir</div>
+                                  <div className="text-xs font-technical text-slate-300">{formatDate(warranty.lastMaintenance || null)}</div>
+                               </div>
+                               <div className={`p-2.5 rounded-sm border flex-1 ${warranty.status === 'VOID' ? 'bg-red-950 border-red-900' : 'bg-[#131313] border-[#2A2A2A]'}`}>
+                                  <div className={`text-[9px] font-bold uppercase tracking-widest mb-1 ${warranty.status === 'VOID' ? 'text-red-400' : 'text-slate-500'}`}>Next Maint</div>
+                                  <div className={`text-xs font-technical ${warranty.status === 'VOID' ? 'text-red-400' : 'text-[#FFFF00]'}`}>
+                                     {warranty.status === 'VOID' ? 'VOID' : formatDate(warranty.nextMaintenance || null)}
+                                  </div>
+                               </div>
+                            </div>
+                            
+                            {warranty.status === 'VOID' && (
+                              <div className="mt-3 p-3 bg-red-950 text-red-400 text-[10px] rounded-sm border border-red-900 flex gap-2 items-start font-medium leading-relaxed">
+                                 <AlertCircle className="h-4 w-4 shrink-0" />
+                                 <span>Garansi hangus karena terlewat jadwal. Hubungi admin untuk aktivasi.</span>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-20 text-slate-500 border border-dashed border-[#2A2A2A] rounded-sm">
+                  <ShieldCheck className="h-10 w-10 mx-auto mb-3 opacity-20" />
+                  <p className="text-[10px] font-bold uppercase tracking-widest">Tidak ada garansi aktif</p>
+                </div>
+              )}
+            </TabsContent>
+          </Tabs>
+        </div>
       </SheetContent>
     </Sheet>
   );
