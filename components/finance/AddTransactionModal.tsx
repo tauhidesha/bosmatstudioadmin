@@ -284,8 +284,12 @@ export default function AddTransactionModal({ isOpen, onClose, onSuccess, editDa
       if (sendReceipt && formData.type === 'income' && selectedCustomer) {
         try {
           const itemsString = cart.length > 0 
-            ? cart.map(i => `${i.service.name}${i.service.name === 'Spot Repair' ? ` (${i.spotCount} titik)` : ''}`).join(', ')
-            : formData.description || formData.category;
+            ? cart.map(i => {
+                const price = i.manualPrice ?? i.autoPrice;
+                const note = i.service.name === 'Spot Repair' ? `${i.spotCount} titik` : '';
+                return `${i.service.name}||${price}||${note}`;
+              }).join('\n')
+            : `${formData.description || formData.category}||${finalAmount}||`;
 
           const invoicePayload = {
             documentType: 'bukti_bayar',
@@ -546,6 +550,26 @@ export default function AddTransactionModal({ isOpen, onClose, onSuccess, editDa
           </div>
 
           <div className="p-8 pt-0 space-y-3">
+            {/* Checkbox Kirim Invoice WA */}
+            {formData.type === 'income' && selectedCustomer && (
+              <label className="flex items-center gap-3 cursor-pointer group p-3 border border-white/5 hover:border-[#FFFF00]/20 transition-all mb-2">
+                <input
+                  type="checkbox"
+                  checked={sendReceipt}
+                  onChange={e => setSendReceipt(e.target.checked)}
+                  className="size-4 rounded border-white/10 bg-[#131313] text-[#FFFF00] focus:ring-0"
+                />
+                <div className="flex flex-col text-left">
+                  <span className="text-[10px] font-headline font-bold text-white uppercase tracking-widest leading-tight">
+                    Kirim invoice ke WA
+                  </span>
+                  <span className="text-[9px] text-white/30 tracking-tight">
+                    {selectedCustomer.phone}
+                  </span>
+                </div>
+              </label>
+            )}
+
             <button type="button" onClick={handleSubmit} disabled={loading}
               className={`w-full py-5 font-headline font-black text-base uppercase tracking-widest transition-all ${formData.type === 'income' ? 'bg-[#FFFF00] text-[#131313]' : 'bg-[#ffb4ab] text-[#690005]'} disabled:opacity-50`}>
               {loading ? 'WAIT...' : 'SIMPAN'}

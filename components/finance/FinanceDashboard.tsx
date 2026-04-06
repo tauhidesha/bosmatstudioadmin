@@ -85,8 +85,8 @@ export default function FinanceDashboard() {
         onClose={() => {
           setIsModalOpen(false);
           setEditingTransaction(null);
-          refresh();
         }} 
+        onSuccess={refresh}
         editData={editingTransaction}
       />
     </div>
