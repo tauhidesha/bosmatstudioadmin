@@ -4,6 +4,11 @@ import prisma from '@/lib/prisma';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+const cleanServiceText = (text: string) => {
+  if (!text) return '';
+  return text.split(' § ').map(item => item.split('||')[0]).join(', ');
+};
+
 // GET /api/bookings
 // Query params:
 // - limit: number of bookings to return (default 50)
@@ -40,11 +45,6 @@ export async function GET(req: NextRequest) {
     });
 
     const transformedBookings = bookings.map(b => {
-      const cleanServiceText = (text: string) => {
-        if (!text) return '';
-        return text.split(' § ').map(item => item.split('||')[0]).join(', ');
-      };
-
       const services = b.serviceType 
         ? b.serviceType.split(' § ').map(item => item.split('||')[0])
         : [];
@@ -56,6 +56,7 @@ export async function GET(req: NextRequest) {
         vehicleInfo: b.vehicleModel ? `${b.vehicleModel}${b.plateNumber ? ' (' + b.plateNumber + ')' : ''}` : b.vehicle?.modelName,
         services,
         serviceName: cleanServiceText(b.serviceType || ''),
+        serviceTypeRaw: b.serviceType || '',
         bookingDate: b.bookingDate.toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' }),
         bookingTime: b.bookingDate.toLocaleTimeString('en-GB', { timeZone: 'Asia/Jakarta', hour12: false }).slice(0, 5),
         status: b.status.toLowerCase(),
@@ -227,6 +228,8 @@ export async function POST(req: NextRequest) {
         vehicleInfo: finalVehicleModel,
         plateNumber: finalPlateNumber,
         services: booking.serviceType ? booking.serviceType.split(' § ').map(s => s.split('||')[0]) : [],
+        serviceName: cleanServiceText(booking.serviceType || ''),
+        serviceTypeRaw: booking.serviceType || '',
         bookingDate: booking.bookingDate.toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' }),
         bookingTime: booking.bookingDate.toLocaleTimeString('en-GB', { timeZone: 'Asia/Jakarta', hour12: false }).slice(0, 5),
         status: 'pending',
@@ -419,7 +422,16 @@ export async function PUT(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      data: booking,
+      data: {
+        ...booking,
+        bookingDate: booking.bookingDate.toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' }),
+        bookingTime: booking.bookingDate.toLocaleTimeString('en-GB', { timeZone: 'Asia/Jakarta', hour12: false }).slice(0, 5),
+        status: booking.status.toLowerCase(),
+        serviceName: cleanServiceText(booking.serviceType || ''),
+        serviceTypeRaw: booking.serviceType || '',
+        services: booking.serviceType ? booking.serviceType.split(' § ').map(s => s.split('||')[0]) : [],
+        durationDays: calculateDurationDays([booking.serviceType]),
+      },
       message: 'Booking berhasil diperbarui sepenuhnya',
     });
   } catch (error: any) {

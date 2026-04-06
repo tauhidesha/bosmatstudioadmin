@@ -22,6 +22,7 @@ export interface Booking {
   bookingTime: string;
   status: BookingStatus;
   services: string | string[];
+  serviceTypeRaw?: string;
   notes?: string;
   additionalService?: string;
   totalAmount?: number;

@@ -242,12 +242,10 @@ export default function ManualBookingForm({
         }
       }
 
-      // Handle services population with Surcharges
-      const rawServices = Array.isArray(initialData.services) 
-        ? initialData.services 
-        : (typeof initialData.services === 'string' 
-            ? initialData.services.split(' § ').flatMap(s => s.split('\n'))
-            : []);
+      // Handle services population with Surcharges and Price Metadata
+      // Use serviceTypeRaw if available (contains ||Price||Notes), otherwise fallback to services array
+      const rawServiceString = (initialData as any).serviceTypeRaw || (Array.isArray(initialData.services) ? initialData.services.join(' § ') : initialData.services || '');
+      const rawServices = rawServiceString ? rawServiceString.split(' § ') : [];
 
       if (rawServices.length > 0) {
         const newCart: any[] = [];
@@ -258,19 +256,30 @@ export default function ManualBookingForm({
           if (!serviceLine) return;
           
           let itemSurcharges: string[] = [];
-          
-          let explicitCustomPrice = 0;
-          const explicitPriceMatch = serviceLine.match(/ \[Rp(\d+)\]/);
-          if (explicitPriceMatch) {
-            explicitCustomPrice = parseInt(explicitPriceMatch[1]);
-            serviceLine = serviceLine.replace(explicitPriceMatch[0], '').trim();
-          }
-          
           let itemNotes = '';
-          const colorMatch = serviceLine.match(/ \(Warna: ([^)]+)\)/);
-          if (colorMatch) {
-            itemNotes = colorMatch[1].trim();
-            serviceLine = serviceLine.replace(colorMatch[0], '').trim();
+          let explicitCustomPrice = 0;
+
+          // 1. New Format: Name||Price||Notes
+          if (serviceLine.includes('||')) {
+            const [name, priceStr, notes] = serviceLine.split('||');
+            serviceLine = name.trim();
+            explicitCustomPrice = parseInt(priceStr) || 0;
+            itemNotes = (notes || '').trim();
+          } else {
+            // 2. Legacy/Regex Format Fallbacks
+            // Explicit Price [Rp...]
+            const explicitPriceMatch = serviceLine.match(/ \[Rp(\d+)\]/);
+            if (explicitPriceMatch) {
+              explicitCustomPrice = parseInt(explicitPriceMatch[1]);
+              serviceLine = serviceLine.replace(explicitPriceMatch[0], '').trim();
+            }
+            
+            // Color/Notes (Warna: ...)
+            const colorMatch = serviceLine.match(/ \(Warna: ([^)]+)\)/);
+            if (colorMatch) {
+              itemNotes = colorMatch[1].trim();
+              serviceLine = serviceLine.replace(colorMatch[0], '').trim();
+            }
           }
 
           // Parse surcharges format: "Service Name [+Surcharge1, +Surcharge2]" OR "Service Name (+Surcharge)"
@@ -287,11 +296,12 @@ export default function ManualBookingForm({
             newCart.push({
               id: itemId,
               name: found.name,
-              price: calculateServicePrice(found, foundModel || null, surcharges, itemSurcharges),
+              // Use explicit price from metadata if available, otherwise calculate
+              price: explicitCustomPrice || calculateServicePrice(found, foundModel || null, surcharges, itemSurcharges),
               surcharges: itemSurcharges,
               itemNotes
             });
-          } else if (serviceLine.includes('Spot Repair')) {
+          } else if (serviceLine.startsWith('Spot Repair')) {
             const match = serviceLine.match(/Spot Repair \((\d+) spots\)/);
             if (match) {
               parsedSpotCount = parseInt(match[1]);
@@ -302,7 +312,7 @@ export default function ManualBookingForm({
               newCart.push({ 
                 id: itemId,
                 name: spotServiceMaster.name, 
-                price: 0,
+                price: explicitCustomPrice || 0, // Prefer metadata price
                 surcharges: []
               });
             }
@@ -313,28 +323,28 @@ export default function ManualBookingForm({
               newCart.push({
                 id: itemId,
                 name: looseMatch.name,
-                price: calculateServicePrice(looseMatch, foundModel || null, surcharges, itemSurcharges),
+                price: explicitCustomPrice || calculateServicePrice(looseMatch, foundModel || null, surcharges, itemSurcharges),
                 surcharges: itemSurcharges,
                 itemNotes
               });
             } else {
+              // Custom Service
               newCart.push({ 
                 id: itemId,
                 name: serviceLine, 
                 price: explicitCustomPrice || 0,
                 surcharges: itemSurcharges,
                 itemNotes,
-                isCustom: explicitCustomPrice === 0
+                isCustom: explicitCustomPrice === 0 // If we have 0 and no metadata, it needs deduction
               });
             }
           }
         });
 
-        // Deduce custom service price from the initial subtotal
-        if (initialData.subtotal !== undefined) {
-          let knownTotal = parsedSpotCount * 100000; // Base spot price is 100k
-          const customItems = newCart.filter(i => i.isCustom);
-          
+        // Deduce custom service price ONLY if price is still missing (Legacy support)
+        const customItems = newCart.filter(i => i.isCustom);
+        if (customItems.length > 0 && initialData.subtotal !== undefined) {
+          let knownTotal = parsedSpotCount * 100000;
           newCart.forEach(item => {
             if (!item.isCustom && item.name !== 'Spot Repair') {
               knownTotal += (item.price || 0);
@@ -342,11 +352,12 @@ export default function ManualBookingForm({
           });
 
           const difference = Math.max(0, initialData.subtotal - knownTotal);
-          
-          // Distribute remaining cost to the custom item (assume the first one takes the whole price difference for simplicity)
-          if (customItems.length > 0 && difference > 0) {
+          if (difference > 0) {
             const firstCustom = newCart.find(i => i.isCustom);
-            if (firstCustom) firstCustom.price = difference;
+            if (firstCustom) {
+              firstCustom.price = difference;
+              firstCustom.isCustom = false; // Mark as resolved
+            }
           }
         }
 
@@ -492,14 +503,16 @@ export default function ManualBookingForm({
     setIsSubmitting(true);
     try {
       const serviceSummary = [
-        ...cart.map((i: CartItem) => {
-          let nameWithSurcharges = i.name;
-          if (i.surcharges && i.surcharges.length > 0) {
-            nameWithSurcharges = `${i.name} (+${i.surcharges.join(', ')})`;
-          }
-          // Format: Name (Surcharges)||Price||Notes
-          return `${nameWithSurcharges}||${i.price}||${i.itemNotes ? `Warna: ${i.itemNotes}` : ''}`;
-        }),
+        ...cart
+          .filter((i: CartItem) => i.name !== 'Spot Repair')
+          .map((i: CartItem) => {
+            let nameWithSurcharges = i.name;
+            if (i.surcharges && i.surcharges.length > 0) {
+              nameWithSurcharges = `${i.name} (+${i.surcharges.join(', ')})`;
+            }
+            // Format: Name (Surcharges)||Price||Notes
+            return `${nameWithSurcharges}||${i.price}||${i.itemNotes ? `Warna: ${i.itemNotes}` : ''}`;
+          }),
         spotCount > 0 ? `Spot Repair (${spotCount} spots)||${spotCount * spotPrice}||` : null
       ].filter(Boolean).join(' § ');
 
