@@ -11,7 +11,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSupabaseEvent } from './useSupabaseEvent';
 import { useAuth } from './useAuth';
 
-export type BookingStatus = 'waiting' | 'pending' | 'in_progress' | 'done' | 'paid' | 'cancelled';
+export type BookingStatus = 'waiting' | 'pending' | 'in_progress' | 'done' | 'paid' | 'cancelled' | 'success';
 
 export interface Booking {
   id: string;

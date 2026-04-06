@@ -16,7 +16,7 @@ import {
  */
 export const isBookingActiveOnDate = (booking: Booking, targetDate: Date) => {
   if (booking.status === 'cancelled') return false;
-  if (booking.status === 'done' || booking.status === 'paid') return false;
+  if (booking.status === 'success' || booking.status === 'paid') return false;
   
   const bookingDay = startOfDay(parseISO(booking.bookingDate));
   const targetDay = startOfDay(targetDate);
