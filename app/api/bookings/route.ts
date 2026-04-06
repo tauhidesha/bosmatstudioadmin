@@ -62,6 +62,7 @@ export async function GET(req: NextRequest) {
         status: b.status.toLowerCase(),
         subtotal: b.subtotal || 0,
         totalAmount: b.totalAmount || b.subtotal || 0,
+        discount: b.discount || 0,
         downPayment: b.downPayment || 0,
         amountPaid: b.amountPaid || 0,
         paymentStatus: b.paymentStatus || 'UNPAID',
@@ -112,7 +113,8 @@ export async function POST(req: NextRequest) {
       dpAmount,
       paymentMethod,
       realPhone,
-      amountPaid
+      amountPaid,
+      discount
     } = body;
 
     if (!customerName || !customerPhone || !serviceName || !bookingDate || !bookingTime) {
@@ -199,6 +201,7 @@ export async function POST(req: NextRequest) {
         notes,
         subtotal: subtotal || 0,
         totalAmount: (totalAmount !== undefined && totalAmount !== null) ? totalAmount : (subtotal || 0),
+        discount: discount || 0,
         downPayment: downPayment || null,
         homeService: homeService || false,
         paymentMethod,
@@ -443,6 +446,7 @@ export async function PUT(req: NextRequest) {
     if (data.notes !== undefined) updateData.notes = data.notes;
     if (data.paymentMethod) updateData.paymentMethod = data.paymentMethod;
     if (data.realPhone !== undefined) updateData.realPhone = data.realPhone;
+    if (data.discount !== undefined) updateData.discount = data.discount;
 
     const booking = await prisma.booking.update({
       where: { id },
