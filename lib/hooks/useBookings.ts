@@ -56,7 +56,8 @@ export function useBookings() {
     try {
       const token = await getIdToken();
       const res = await fetch('/api/bookings?limit=100', {
-        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+        cache: 'no-store',
       });
       const json = await res.json();
       
@@ -73,16 +74,16 @@ export function useBookings() {
       setLoading(false);
       fetchingRef.current = false;
     }
-  }, []);
+  }, [getIdToken]);
 
   // Fetch on mount + whenever Supabase emits a Booking event
   useEffect(() => {
+    fetchingRef.current = false;
     fetchBookings();
   }, [revision, fetchBookings]);
 
   const updateBookingStatus = async (id: string, newStatus: BookingStatus) => {
     try {
-      // Optimistic update
       setBookings(prev => prev.map(b => b.id === id ? { ...b, status: newStatus } : b));
 
       const token = await getIdToken();
@@ -97,7 +98,7 @@ export function useBookings() {
 
       const json = await res.json();
       if (!json.success) {
-        await fetchBookings(); // Rollback
+        await fetchBookings();
         throw new Error(json.error);
       }
 

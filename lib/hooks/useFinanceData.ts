@@ -54,7 +54,9 @@ export function useFinanceData(daysLimit = 30, customerId?: string) {
     fetchingRef.current = true;
 
     try {
-      const res = await fetch(`/api/finance?limit=500&days=${daysLimit}${customerId ? '&customerId='+customerId : ''}`);
+      const res = await fetch(`/api/finance?limit=500&days=${daysLimit}${customerId ? '&customerId='+customerId : ''}`, {
+        cache: 'no-store',
+      });
       const json = await res.json();
 
       if (!json.success) {
@@ -90,6 +92,7 @@ export function useFinanceData(daysLimit = 30, customerId?: string) {
 
   // Fetch on mount + whenever Supabase emits a Transaction event
   useEffect(() => {
+    fetchingRef.current = false;
     fetchFinanceData();
   }, [revision, fetchFinanceData]);
 

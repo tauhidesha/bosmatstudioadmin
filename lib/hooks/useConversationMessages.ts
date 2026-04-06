@@ -89,6 +89,7 @@ export function useConversationMessages(
       setMessages([]);
       return;
     }
+    fetchingRef.current = false;
     fetchMessages();
   }, [conversationId, enabled, revision, fetchMessages]);
 

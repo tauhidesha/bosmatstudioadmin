@@ -5,6 +5,7 @@ import { formatRupiah } from '@/lib/data/pricing';
 import { cn } from '@/lib/utils';
 import { CheckCircle2, AlertCircle, Loader2, ExternalLink } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { useSupabaseEvent } from '@/lib/hooks/useSupabaseEvent';
 
 interface UnpaidBooking {
   id: string;
@@ -34,14 +35,15 @@ export default function UnpaidBookingsList() {
   const [loading, setLoading] = useState(true);
   const [payingId, setPayingId] = useState<string | null>(null);
   const router = useRouter();
+  const { revision } = useSupabaseEvent({ table: 'Booking', event: '*' });
 
   useEffect(() => {
     fetchUnpaidBookings();
-  }, []);
+  }, [revision]);
 
   const fetchUnpaidBookings = async () => {
     try {
-      const res = await fetch('/api/finance/unpaid-bookings');
+      const res = await fetch('/api/finance/unpaid-bookings', { cache: 'no-store' });
       const json = await res.json();
       if (json.success) {
         setBookings(json.data);
