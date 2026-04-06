@@ -13,6 +13,8 @@ interface InvoicePreviewModalProps {
     customerPhone: string;
     motorDetails: string;
     items: string;
+    subtotal?: number;
+    discount?: number;
     totalAmount: number;
     amountPaid: number;
     paymentMethod: string;

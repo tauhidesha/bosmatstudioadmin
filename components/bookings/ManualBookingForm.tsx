@@ -1347,6 +1347,8 @@ function MobileLayout(props: any) {
             ...cart.map((i: CartItem) => `${i.name}||${i.price}||${i.itemNotes ? `Catatan Warna: ${i.itemNotes}` : ''}`),
             spotCount > 0 ? `Spot Repair (${spotCount} spots)||${spotCount * spotPrice}||` : null
           ].filter(Boolean).join('\n'),
+          subtotal: servicesTotal,
+          discount: computedDiscount,
           totalAmount: finalTotal,
           amountPaid: amountPaid,
           paymentMethod: paymentMethod,
@@ -2246,6 +2248,8 @@ function DesktopLayout(props: any) {
             ...cart.map((i: CartItem) => `${i.name}||${i.price}||${i.itemNotes ? `Catatan Warna: ${i.itemNotes}` : ''}`),
             spotCount > 0 ? `Spot Repair (${spotCount} spots)||${spotCount * spotPrice}||` : null
           ].filter(Boolean).join('\n'),
+          subtotal: servicesTotal,
+          discount: computedDiscount,
           totalAmount: finalTotal,
           amountPaid: amountPaid,
           paymentMethod: paymentMethod,

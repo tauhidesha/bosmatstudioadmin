@@ -6,12 +6,13 @@ function generateInvoiceHTML(data: any): string {
     documentType, customerName, motorDetails, items,
     finalTotal, totalAmount, amountPaid, paymentMethod, notes,
     recipientNumber, bookingDate, docNumber, now, detectedSize,
-    logoBase64, realPhone
+    logoBase64, realPhone, subtotal: subtotalParam, discount
   } = data;
 
-  const subtotal = Number(finalTotal || totalAmount) || 0;
+  const subtotal = Number(subtotalParam || finalTotal || totalAmount) || 0;
+  const discountAmount = Number(discount) || 0;
   const paid = Number(amountPaid) || 0;
-  const balance = Math.max(0, subtotal - paid);
+  const balance = Math.max(0, subtotal - discountAmount - paid);
 
   const displayPhone = realPhone
     ? realPhone.replace(/^62/, '0')
@@ -88,6 +89,12 @@ function generateInvoiceHTML(data: any): string {
   <div style="display:flex; justify-content:space-between">
     <span class="text-muted" style="font-size:12px; text-transform:uppercase; letter-spacing:0.1em">DP / Uang Muka</span>
     <span style="font-size:16px; color:#ffb4ab">- Rp${paid.toLocaleString('id-ID')}</span>
+  </div>` : '';
+
+  const discountRow = discountAmount > 0 ? `
+  <div style="display:flex; justify-content:space-between">
+    <span class="text-muted" style="font-size:12px; text-transform:uppercase; letter-spacing:0.1em">Diskon</span>
+    <span style="font-size:16px; color:#ffb4ab">- Rp${discountAmount.toLocaleString('id-ID')}</span>
   </div>` : '';
 
   return `<!DOCTYPE html>
@@ -194,10 +201,11 @@ function generateInvoiceHTML(data: any): string {
         <span class="text-muted" style="font-size:12px; text-transform:uppercase; letter-spacing:0.1em">Subtotal</span>
         <span style="font-size:16px">Rp${subtotal.toLocaleString('id-ID')}</span>
       </div>
+      ${discountRow}
       ${dpRow}
       <div style="border-top:1px solid #484831; padding-top:24px; margin-top:8px">
         <span class="text-muted" style="font-size:10px; text-transform:uppercase; letter-spacing:0.2em; display:block; margin-bottom:8px">Total Keseluruhan</span>
-        <span class="font-headline" style="font-size:36px; font-weight:900">Rp${subtotal.toLocaleString('id-ID')}</span>
+        <span class="font-headline" style="font-size:36px; font-weight:900">Rp${(subtotal - discountAmount).toLocaleString('id-ID')}</span>
       </div>
       <div style="background:#FFFF00; padding:20px 24px; margin:0 -40px -40px; display:flex; justify-content:space-between; align-items:center">
         <div>
