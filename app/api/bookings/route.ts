@@ -130,9 +130,18 @@ export async function POST(req: NextRequest) {
     const plateToUse = plateNumber || extractPlateFromText(vehicleInfo);
 
     // 1. Find or create customer (using phoneReal if possible)
+    // Match against phone with or without @lid/@c.us suffix
+    const phoneVariants = [
+      normalizedPhone,
+      `${normalizedPhone}@lid`,
+      `${normalizedPhone}@c.us`,
+    ];
     const existingCustomer = await prisma.customer.findFirst({
       where: {
-        OR: [{ phoneReal: normalizedPhone }, { phone: normalizedPhone }]
+        OR: [
+          { phoneReal: normalizedPhone },
+          { phone: { in: phoneVariants } },
+        ]
       }
     });
 
@@ -147,7 +156,7 @@ export async function POST(req: NextRequest) {
         })
       : await prisma.customer.create({
           data: { 
-            phone: normalizedPhone,
+            phone: customerPhone, // Keep original with suffix if provided
             phoneReal: realPhone ? realPhone.replace(/\D/g, '') : normalizedPhone,
             name: customerName,
             status: 'new',
