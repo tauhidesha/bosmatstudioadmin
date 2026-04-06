@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { syncBookingFinance } from '@/lib/services/financeSync';
+import { syncBookingFinance, updateCustomerStats } from '@/lib/services/financeSync';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -40,10 +40,10 @@ export async function PATCH(
     const body = await req.json();
     const { amount, category, description, paymentMethod, status } = body;
 
-    // Get old transaction to check for bookingId
+    // Get old transaction to check for bookingId and customerId
     const oldTransaction = await prisma.transaction.findUnique({
       where: { id },
-      select: { bookingId: true }
+      select: { bookingId: true, customerId: true, type: true }
     });
 
     if (!oldTransaction) {
@@ -61,7 +61,10 @@ export async function PATCH(
       }
     });
 
-    // Sync booking if it exists
+    // Sync related records
+    if (transaction.customerId && transaction.type === 'income') {
+      await updateCustomerStats(transaction.customerId);
+    }
     if (oldTransaction.bookingId) {
       await syncBookingFinance(oldTransaction.bookingId);
     }
@@ -80,10 +83,10 @@ export async function DELETE(
   try {
     const id = params.id;
 
-    // Get transaction to check for bookingId before deleting
+    // Get transaction to check for relations before deleting
     const transaction = await prisma.transaction.findUnique({
       where: { id },
-      select: { bookingId: true }
+      select: { bookingId: true, customerId: true, type: true }
     });
 
     if (!transaction) {
@@ -94,7 +97,10 @@ export async function DELETE(
       where: { id }
     });
 
-    // Sync booking if it exists
+    // Sync related records
+    if (transaction.customerId && transaction.type === 'income') {
+      await updateCustomerStats(transaction.customerId);
+    }
     if (transaction.bookingId) {
       await syncBookingFinance(transaction.bookingId);
     }

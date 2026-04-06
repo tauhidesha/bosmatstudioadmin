@@ -60,3 +60,39 @@ export async function syncBookingFinance(bookingId: string) {
     console.error(`[FinanceSync] Error syncing booking ${bookingId}:`, error);
   }
 }
+
+/**
+ * Updates customer aggregate statistics (totalSpending, lastService, status)
+ */
+export async function updateCustomerStats(customerId: string) {
+  if (!customerId) return;
+
+  try {
+    const aggregation = await prisma.transaction.aggregate({
+      where: {
+        customerId,
+        type: 'income',
+        status: 'SUCCESS'
+      },
+      _sum: { amount: true },
+      _max: { createdAt: true }
+    });
+
+    const totalSpending = aggregation._sum.amount || 0;
+    const lastService = aggregation._max.createdAt || null;
+
+    await prisma.customer.update({
+      where: { id: customerId },
+      data: {
+        totalSpending,
+        lastService,
+        // Update status to active if they have spending
+        ...(totalSpending > 0 ? { status: 'active' } : {})
+      }
+    });
+
+    console.log(`[FinanceSync] Updated Customer ${customerId}: Spending=${totalSpending}, LastService=${lastService}`);
+  } catch (error) {
+    console.error(`[FinanceSync] Error updating customer stats ${customerId}:`, error);
+  }
+}

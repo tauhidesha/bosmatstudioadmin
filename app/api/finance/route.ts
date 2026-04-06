@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { syncBookingFinance } from '@/lib/services/financeSync';
+import { syncBookingFinance, updateCustomerStats } from '@/lib/services/financeSync';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -41,7 +41,11 @@ export async function POST(req: NextRequest) {
       }
     });
 
-    // Handle data correlation: sync booking if bookingId is provided
+    // Handle data correlation
+    if (customerId && type.toLowerCase() === 'income') {
+      await updateCustomerStats(customerId);
+    }
+
     if (bookingId) {
       await syncBookingFinance(bookingId);
     }
