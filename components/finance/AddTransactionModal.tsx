@@ -31,6 +31,7 @@ interface Customer {
   id: string;
   name: string;
   phone: string;
+  phoneReal: string | null;
   vehicles: { id: string; modelName: string; plateNumber: string | null }[];
 }
 

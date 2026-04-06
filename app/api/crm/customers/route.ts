@@ -94,6 +94,7 @@ export async function GET(req: NextRequest) {
       transactionCount: c._count.transactions,
       createdAt: c.createdAt.toISOString(),
       updatedAt: c.updatedAt.toISOString(),
+      phoneReal: c.phoneReal,
       // AI Classifier enrichment
       aiLabel: c.customerContext?.customerLabel ?? null,
       aiStrategy: c.customerContext?.followUpStrategy ?? null,
