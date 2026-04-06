@@ -101,6 +101,7 @@ model Booking {
   amountPaid       Float     @default(0)
   paymentStatus    String    @default("UNPAID") // UNPAID, PARTIAL, PAID
   realPhone        String?
+  discount        Float?    @default(0)
   
   subtotal        Float?
   downPayment     Float?
