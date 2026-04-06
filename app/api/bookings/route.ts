@@ -139,7 +139,9 @@ export async function POST(req: NextRequest) {
       ? await prisma.customer.update({
           where: { id: existingCustomer.id },
           data: { 
-            phoneReal: realPhone ? realPhone.replace(/\D/g, '') : (existingCustomer.phoneReal || normalizedPhone) 
+            phoneReal: realPhone ? realPhone.replace(/\D/g, '') : (existingCustomer.phoneReal || normalizedPhone),
+            // Sync name if different (prevents split identities like "Arul" vs "Rully")
+            ...(customerName && existingCustomer.name !== customerName ? { name: customerName } : {})
           }
         })
       : await prisma.customer.create({
@@ -411,13 +413,20 @@ export async function PUT(req: NextRequest) {
       data: updateData,
     });
 
-    // Also update customer's real phone if provided or if the booking has one
+    // Also update customer's real phone and name if provided
     const customerRealPhone = (data.realPhone || updateData.realPhone || (booking as any).realPhone);
-    if (customerRealPhone && booking.customerId) {
-      await prisma.customer.update({
-        where: { id: booking.customerId },
-        data: { phoneReal: customerRealPhone.replace(/\D/g, '') }
-      });
+    if (booking.customerId) {
+      const customerUpdateData: any = {};
+      if (customerRealPhone) customerUpdateData.phoneReal = customerRealPhone.replace(/\D/g, '');
+      // Sync customer name if booking name changed
+      if (data.customerName) customerUpdateData.name = data.customerName;
+      
+      if (Object.keys(customerUpdateData).length > 0) {
+        await prisma.customer.update({
+          where: { id: booking.customerId },
+          data: customerUpdateData
+        });
+      }
     }
 
     return NextResponse.json({
