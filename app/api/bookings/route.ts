@@ -111,7 +111,8 @@ export async function POST(req: NextRequest) {
       invoiceName, 
       dpAmount,
       paymentMethod,
-      realPhone
+      realPhone,
+      amountPaid
     } = body;
 
     if (!customerName || !customerPhone || !serviceName || !bookingDate || !bookingTime) {
@@ -216,6 +217,32 @@ export async function POST(req: NextRequest) {
         where: { id: customer.id },
         data: { 
           totalSpending: { increment: downPayment },
+          lastService: bookingDateTime
+        }
+      });
+    }
+
+    // If amountPaid > dpAmount, create additional transaction for the difference
+    const paidAmount = amountPaid || 0;
+    if (paidAmount > downPayment && paidAmount > 0) {
+      const additionalPayment = paidAmount - downPayment;
+      await prisma.transaction.create({
+        data: {
+          customerId: customer.id,
+          bookingId: booking.id,
+          amount: additionalPayment,
+          type: 'income',
+          status: 'SUCCESS',
+          description: `Pembayaran Service: ${serviceName}`,
+          paymentMethod: paymentMethod || 'transfer',
+        }
+      });
+
+      // Update customer totalSpending for additional payment
+      await prisma.customer.update({
+        where: { id: customer.id },
+        data: { 
+          totalSpending: { increment: additionalPayment },
           lastService: bookingDateTime
         }
       });
@@ -425,6 +452,34 @@ export async function PUT(req: NextRequest) {
         await prisma.customer.update({
           where: { id: booking.customerId },
           data: customerUpdateData
+        });
+      }
+    }
+
+    // Create transaction for additional payment when amountPaid increases
+    if (data.amountPaid !== undefined) {
+      const prevPaid = existingBooking.amountPaid || 0;
+      const diff = data.amountPaid - prevPaid;
+      if (diff > 0) {
+        await prisma.transaction.create({
+          data: {
+            customerId: booking.customerId,
+            bookingId: id,
+            amount: diff,
+            type: 'income',
+            status: 'SUCCESS',
+            description: `Pembayaran Service: ${existingBooking.serviceType}`,
+            paymentMethod: data.paymentMethod || existingBooking.paymentMethod || 'transfer',
+          }
+        });
+
+        // Update customer totalSpending
+        await prisma.customer.update({
+          where: { id: booking.customerId },
+          data: { 
+            totalSpending: { increment: diff },
+            lastService: existingBooking.bookingDate
+          }
         });
       }
     }
