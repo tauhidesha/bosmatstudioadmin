@@ -17,6 +17,7 @@ interface InvoicePreviewModalProps {
     discount?: number;
     totalAmount: number;
     amountPaid: number;
+    downPayment?: number;
     paymentMethod: string;
     notes: string;
     bookingDate: string;

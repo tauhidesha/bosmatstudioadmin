@@ -478,7 +478,7 @@ export default function ManualBookingForm({
   }, [servicesTotal, discountPercent, discountAmount]);
 
   const finalTotal = Math.max(0, servicesTotal - computedDiscount);
-  const remainingBalance = Math.max(0, finalTotal - amountPaid);
+  const remainingBalance = Math.max(0, finalTotal - amountPaid - (dpRequired ? nominalDP : 0));
 
   // --- ACTIONS ---
   const handleSelectConversation = async (conv: Conversation) => {
@@ -584,7 +584,7 @@ export default function ManualBookingForm({
         subtotal: servicesTotal,
         discount: computedDiscount,
         totalAmount: finalTotal,
-        dpAmount: nominalDP,
+        downPayment: nominalDP,
         amountPaid: amountPaid,
         status: bookingStatus,
         homeService,
@@ -639,6 +639,7 @@ export default function ManualBookingForm({
             totalAmount: finalTotal,
             discount: computedDiscount,
             amountPaid: amountPaid,
+            downPayment: nominalDP,
             paymentMethod: paymentMethod,
             notes: `Layanan:\n${serviceSummary.replace(/ § /g, '\n')}${additionalNotes ? `\n\nCatatan Tambahan:\n${additionalNotes}` : ''}`,
             bookingDate: entryDate,
@@ -1291,6 +1292,7 @@ function MobileLayout(props: any) {
                   notes: `Layanan:\n${serviceSummary}${additionalNotes ? `\n\nCatatan Tambahan:\n${additionalNotes}` : ''}`,
                   bookingDate: entryDate,
                   realPhone,
+                  downPayment: nominalDP,
                 };
                 setShowInvoicePreview(true);
               }}
@@ -1368,6 +1370,7 @@ function MobileLayout(props: any) {
             return result;
           }).join('\n')}${additionalNotes ? `\n\nCatatan Tambahan:\n${additionalNotes}` : ''}`,
           bookingDate: entryDate,
+          downPayment: nominalDP,
           realPhone,
         }}
         onSend={async () => {
@@ -1560,6 +1563,12 @@ function DesktopLayout(props: any) {
               <span className="text-slate-500 uppercase">Discount</span>
               <span className="text-red-500">- {formatRupiah(computedDiscount)}</span>
             </div>
+            {dpRequired && nominalDP > 0 && (
+              <div className="flex justify-between text-xs font-headline">
+                <span className="text-slate-500 uppercase">Down Payment (DP)</span>
+                <span className="text-[#FFFF00]">{formatRupiah(nominalDP)}</span>
+              </div>
+            )}
             <div className="pt-2 border-t border-white/5 flex flex-col gap-1">
               <div className="flex justify-between text-[10px] font-headline text-slate-600 uppercase">
                 <span>Equation</span>
@@ -2155,6 +2164,15 @@ function DesktopLayout(props: any) {
                   </div>
                 )}
 
+                {dpRequired && nominalDP > 0 && (
+                  <div className="space-y-1 pb-2">
+                    <label className="text-[10px] font-headline text-slate-500 uppercase tracking-widest">Down Payment</label>
+                    <div className="w-full bg-[#2a2a2a] py-4 px-4 font-headline text-sm text-right text-slate-300 rounded-sm">
+                      -{formatRupiah(nominalDP)}
+                    </div>
+                  </div>
+                )}
+
                 <div className="space-y-1 pt-2 border-t border-white/5">
                   <label className="text-[10px] font-headline text-slate-500 uppercase tracking-widest">Remaining Balance</label>
                   <div className="w-full bg-[#2a2a2a] py-4 px-4 font-headline text-sm text-right text-slate-300 rounded-sm">
@@ -2221,6 +2239,7 @@ function DesktopLayout(props: any) {
                   notes: `Layanan:\n${serviceSummary}${additionalNotes ? `\n\nCatatan Tambahan:\n${additionalNotes}` : ''}`,
                   bookingDate: entryDate,
                   realPhone,
+                  downPayment: nominalDP,
                 };
                 setShowInvoicePreview(true);
               }}
@@ -2272,6 +2291,7 @@ function DesktopLayout(props: any) {
             return result;
           }).join('\n')}${additionalNotes ? `\n\nCatatan Tambahan:\n${additionalNotes}` : ''}`,
           bookingDate: entryDate,
+          downPayment: nominalDP,
           realPhone,
         }}
         onSend={async () => {
