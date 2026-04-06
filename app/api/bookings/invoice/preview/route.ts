@@ -4,13 +4,13 @@ import { NextRequest, NextResponse } from 'next/server';
 function generateInvoiceHTML(data: any): string {
   const {
     documentType, customerName, motorDetails, items,
-    finalTotal, amountPaid, paymentMethod, notes,
+    finalTotal, totalAmount, amountPaid, paymentMethod, notes,
     recipientNumber, bookingDate, docNumber, now, detectedSize,
     logoBase64, realPhone
   } = data;
 
-  const subtotal = finalTotal || 0;
-  const paid = amountPaid || 0;
+  const subtotal = Number(finalTotal || totalAmount) || 0;
+  const paid = Number(amountPaid) || 0;
   const balance = Math.max(0, subtotal - paid);
 
   const displayPhone = realPhone
