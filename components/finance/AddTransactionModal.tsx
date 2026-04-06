@@ -59,18 +59,20 @@ interface CartItem {
 interface AddTransactionModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onSuccess: () => void;
   editData?: Transaction | null;
 }
 
 const STORAGE_KEY = 'add_transaction_draft';
 
-export default function AddTransactionModal({ isOpen, onClose, editData }: AddTransactionModalProps) {
+export default function AddTransactionModal({ isOpen, onClose, onSuccess, editData }: AddTransactionModalProps) {
   const { services, vehicleModels, surcharges, loading: loadingPricing } = usePricingData();
   const [loading, setLoading] = useState(false);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
+  const [sendReceipt, setSendReceipt] = useState(false);
 
   const [selectedMotor, setSelectedMotor] = useState<VehicleModel | null>(null);
   const [motorSearch, setMotorSearch] = useState('');
@@ -157,6 +159,7 @@ export default function AddTransactionModal({ isOpen, onClose, editData }: AddTr
     setManualTotal(0);
     setSelectedMotor(null);
     setMotorSearch('');
+    setSendReceipt(false);
   };
 
   useEffect(() => { if (isOpen) fetchCustomers(); }, [isOpen]);
@@ -195,8 +198,8 @@ export default function AddTransactionModal({ isOpen, onClose, editData }: AddTr
   const filteredMotors = useMemo(() => {
     if (!motorSearch) return vehicleModels.slice(0, 10);
     const q = motorSearch.toLowerCase();
-    return vehicleModels.filter(m => 
-      m.modelName.toLowerCase().includes(q) || 
+    return vehicleModels.filter(m =>
+      m.modelName.toLowerCase().includes(q) ||
       m.aliases.some(a => a.toLowerCase().includes(q))
     ).slice(0, 10);
   }, [motorSearch, vehicleModels]);
@@ -248,7 +251,7 @@ export default function AddTransactionModal({ isOpen, onClose, editData }: AddTr
   const addCustomService = () => {
     if (!customServiceDesc || !customServicePrice) return;
     const price = parseInt(customServicePrice) || 0;
-    const fakeService: Service = { 
+    const fakeService: Service = {
       id: 'custom-' + Date.now(), name: customServiceDesc, category: 'custom', subcategory: null,
       summary: null, description: null, estimatedDuration: 0, usesModelPricing: false, prices: []
     };
@@ -260,7 +263,7 @@ export default function AddTransactionModal({ isOpen, onClose, editData }: AddTr
     e.preventDefault();
     if (!formData.category) return alert('Pilih kategori!');
     if (formData.type === 'expense' && !formData.amount) return alert('Isi nominal!');
-    
+
     setLoading(true);
     try {
       const finalServiceType = cart.map(i => i.service.name).join(', ') || formData.serviceType;
@@ -273,8 +276,42 @@ export default function AddTransactionModal({ isOpen, onClose, editData }: AddTr
         body: JSON.stringify({ ...formData, amount: finalAmount, serviceType: finalServiceType, description: finalDesc }),
       });
 
-      if (!(await res.json()).success) throw new Error('Gagal simpan');
+      const resData = await res.json();
+      if (!resData.success) throw new Error('Gagal simpan');
+
+      // ─── SEND RECEIPT IF REQUESTED ───
+      if (sendReceipt && formData.type === 'income' && selectedCustomer) {
+        try {
+          const itemsString = cart.length > 0 
+            ? cart.map(i => `${i.service.name}${i.service.name === 'Spot Repair' ? ` (${i.spotCount} titik)` : ''}`).join(', ')
+            : formData.description || formData.category;
+
+          const invoicePayload = {
+            documentType: 'bukti_bayar',
+            customerName: selectedCustomer.name,
+            customerPhone: selectedCustomer.phone,
+            realPhone: selectedCustomer.phoneReal || '',
+            motorDetails: motorSearch || '-',
+            items: itemsString,
+            totalAmount: finalAmount,
+            amountPaid: finalAmount, // Bukti bayar asumsikan lunas untuk transaksi ini
+            paymentMethod: formData.paymentMethod,
+            notes: formData.description,
+            bookingDate: new Date().toISOString()
+          };
+
+          fetch('/api/bookings/invoice', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(invoicePayload)
+          }).catch(err => console.error('[Finance] Error sending receipt:', err));
+        } catch (err) {
+          console.error('[Finance] Failed to trigger receipt generation:', err);
+        }
+      }
+
       if (!editData) clearDraft();
+      onSuccess();
       onClose();
     } catch (err) { alert('Terjadi kesalahan'); } finally { setLoading(false); }
   };
@@ -284,7 +321,7 @@ export default function AddTransactionModal({ isOpen, onClose, editData }: AddTr
   return (
     <BaseModal isOpen={isOpen} onClose={onClose} size="6xl" showHeader={false}>
       <div className="flex h-[88vh] overflow-hidden">
-        
+
         {/* LEFT COLUMN */}
         <section className="flex-1 flex flex-col min-w-0 bg-[#1C1B1B]">
           <div className="px-8 py-5 border-b border-white/5 flex items-center justify-between bg-[#131313]/50 shrink-0">
@@ -399,7 +436,7 @@ export default function AddTransactionModal({ isOpen, onClose, editData }: AddTr
                         <label className="text-[11px] font-bold uppercase text-white/50 tracking-wider block">Kendaraan Terdaftar</label>
                         <div className="flex flex-wrap gap-2">
                           {selectedCustomer.vehicles.map(v => (
-                            <button key={v.id} type="button" onClick={() => { 
+                            <button key={v.id} type="button" onClick={() => {
                               setFormData(p => ({ ...p, vehicleId: v.id, plateNumber: v.plateNumber || '' }));
                               setMotorSearch(v.modelName);
                               const match = vehicleModels.find(m => m.modelName.toLowerCase() === v.modelName.toLowerCase());
@@ -453,7 +490,7 @@ export default function AddTransactionModal({ isOpen, onClose, editData }: AddTr
         <section className="w-[360px] shrink-0 bg-[#131313] border-l border-white/5 flex flex-col">
           <div className="p-8 flex-1 flex flex-col overflow-hidden">
             <h3 className="font-headline text-xl font-black uppercase text-white mb-8">Summary</h3>
-            
+
             {formData.type === 'income' && (
               <div className="flex-1 overflow-y-auto space-y-3 pr-1 no-scrollbar mb-6">
                 {cart.length === 0 ? <p className="text-white/20 italic text-center">Belum ada item</p> : cart.map(item => (

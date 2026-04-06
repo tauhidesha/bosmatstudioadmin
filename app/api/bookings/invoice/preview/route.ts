@@ -6,13 +6,15 @@ function generateInvoiceHTML(data: any): string {
     documentType, customerName, motorDetails, items,
     finalTotal, totalAmount, amountPaid, paymentMethod, notes,
     recipientNumber, bookingDate, docNumber, now, detectedSize,
-    logoBase64, realPhone, subtotal: subtotalParam, discount
+    logoBase64, realPhone, subtotal: subtotalParam, discount,
+    downPayment
   } = data;
 
   const subtotal = Number(subtotalParam || finalTotal || totalAmount) || 0;
   const discountAmount = Number(discount) || 0;
   const paid = Number(amountPaid) || 0;
-  const balance = Math.max(0, subtotal - discountAmount - paid);
+  const dp = Number(downPayment) || 0;
+  const balance = Math.max(0, subtotal - discountAmount - paid - dp);
 
   const displayPhone = realPhone
     ? realPhone.replace(/^62/, '0')
@@ -85,9 +87,15 @@ function generateInvoiceHTML(data: any): string {
     </div>
   </div>` : '';
 
-  const dpRow = paid > 0 ? `
+  const dpRow = dp > 0 ? `
   <div style="display:flex; justify-content:space-between">
-    <span class="text-muted" style="font-size:12px; text-transform:uppercase; letter-spacing:0.1em">DP / Uang Muka</span>
+    <span class="text-muted" style="font-size:12px; text-transform:uppercase; letter-spacing:0.1em">Down Payment (DP)</span>
+    <span style="font-size:16px; color:#ffb4ab">- Rp${dp.toLocaleString('id-ID')}</span>
+  </div>` : '';
+
+  const amountPaidRow = paid > 0 ? `
+  <div style="display:flex; justify-content:space-between">
+    <span class="text-muted" style="font-size:12px; text-transform:uppercase; letter-spacing:0.1em">Sudah Dibayar</span>
     <span style="font-size:16px; color:#ffb4ab">- Rp${paid.toLocaleString('id-ID')}</span>
   </div>` : '';
 
@@ -134,7 +142,7 @@ function generateInvoiceHTML(data: any): string {
         </h1>
         <div style="display:flex; gap:12px; margin-top:16px">
           <span style="background:#676700; color:#e6e67a; padding:4px 12px; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.1em">
-            Status: ${paid >= subtotal ? 'Lunas' : paid > 0 ? 'DP' : 'Belum Bayar'}
+            Status: ${(paid + dp) >= (subtotal - discountAmount) ? 'Lunas' : (paid + dp) > 0 ? 'DP' : 'Belum Bayar'}
           </span>
         </div>
       </div>
@@ -202,6 +210,7 @@ function generateInvoiceHTML(data: any): string {
       </div>
       ${discountRow}
       ${dpRow}
+      ${amountPaidRow}
       <div style="border-top:1px solid #484831; padding-top:24px; margin-top:8px">
         <span class="text-muted" style="font-size:10px; text-transform:uppercase; letter-spacing:0.2em; display:block; margin-bottom:8px">Total Keseluruhan</span>
         <span class="font-headline" style="font-size:36px; font-weight:900">Rp${(subtotal - discountAmount).toLocaleString('id-ID')}</span>
