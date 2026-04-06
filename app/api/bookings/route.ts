@@ -114,8 +114,10 @@ export async function POST(req: NextRequest) {
       paymentMethod,
       realPhone,
       amountPaid,
-      discount
+      discount,
+      downPayment: formDownPayment
     } = body;
+
 
     if (!customerName || !customerPhone || !serviceName || !bookingDate || !bookingTime) {
       return NextResponse.json(
@@ -126,7 +128,7 @@ export async function POST(req: NextRequest) {
 
     const normalizedPhone = customerPhone.replace(/\D/g, '');
     const bookingDateTime = new Date(`${bookingDate}T${bookingTime}:00+07:00`);
-    const downPayment = dpAmount || 0;
+    const downPayment = formDownPayment !== undefined ? formDownPayment : (dpAmount || 0);
 
     const modelToUse = motorModel || (vehicleInfo ? extractModelFromText(vehicleInfo) : null);
     const plateToUse = plateNumber || extractPlateFromText(vehicleInfo);
@@ -207,6 +209,7 @@ export async function POST(req: NextRequest) {
         paymentMethod,
         realPhone: realPhone || '',
         category: getServiceCategory(serviceName),
+        amountPaid: Math.max(downPayment || 0, amountPaid || 0)
       } as any
     });
 
@@ -426,22 +429,40 @@ export async function PUT(req: NextRequest) {
     if (modelToUse) updateData.vehicleModel = modelToUse;
     if (plateToUse) updateData.plateNumber = plateToUse;
     if (data.status) updateData.status = data.status.toUpperCase();
-    if (data.amountPaid !== undefined) {
-      updateData.amountPaid = data.amountPaid;
-      // Auto-update paymentStatus
-      const finalTotal = data.totalAmount !== undefined ? data.totalAmount : (existingBooking.totalAmount || existingBooking.subtotal || 0);
-      if (data.amountPaid >= finalTotal && finalTotal > 0) {
-        updateData.paymentStatus = 'PAID';
-      } else if (data.amountPaid > 0) {
-        updateData.paymentStatus = 'PARTIAL';
-      } else {
-        updateData.paymentStatus = 'UNPAID';
-      }
+    const finalTotal = data.totalAmount !== undefined ? data.totalAmount : (existingBooking.totalAmount || existingBooking.subtotal || 0);
+
+    const prevDp = existingBooking.downPayment || 0;
+    const prevAmountPaid = existingBooking.amountPaid || 0;
+    
+    let newDp = prevDp;
+    if (data.downPayment !== undefined) newDp = data.downPayment;
+    else if (data.dpAmount !== undefined) newDp = data.dpAmount;
+    
+    if (newDp !== prevDp) {
+        updateData.downPayment = newDp;
     }
+    const dpDiff = newDp - prevDp;
+
+    let targetAmountPaid = prevAmountPaid;
+    if (data.amountPaid !== undefined) {
+        targetAmountPaid = Math.max(data.amountPaid, prevAmountPaid + dpDiff); 
+    } else {
+        targetAmountPaid = prevAmountPaid + dpDiff;
+    }
+    
+    updateData.amountPaid = targetAmountPaid;
+    
+    if (updateData.amountPaid >= finalTotal && finalTotal > 0) {
+        updateData.paymentStatus = 'PAID';
+    } else if (updateData.amountPaid > 0) {
+        updateData.paymentStatus = 'PARTIAL';
+    } else {
+        updateData.paymentStatus = 'UNPAID';
+    }
+
     if (data.paymentStatus) updateData.paymentStatus = data.paymentStatus;
     if (data.totalAmount !== undefined) updateData.totalAmount = data.totalAmount;
     if (data.subtotal !== undefined) updateData.subtotal = data.subtotal;
-    if (data.dpAmount !== undefined) updateData.downPayment = data.dpAmount;
     if (data.homeService !== undefined) updateData.homeService = data.homeService;
     if (data.notes !== undefined) updateData.notes = data.notes;
     if (data.paymentMethod) updateData.paymentMethod = data.paymentMethod;
@@ -469,32 +490,50 @@ export async function PUT(req: NextRequest) {
       }
     }
 
-    // Create transaction for additional payment when amountPaid increases
-    if (data.amountPaid !== undefined) {
-      const prevPaid = existingBooking.amountPaid || 0;
-      const diff = data.amountPaid - prevPaid;
-      if (diff > 0) {
+    // Transaction logic
+    const totalAdditionalPaymentNeeded = targetAmountPaid - prevAmountPaid;
+    
+    if (dpDiff > 0) {
         await prisma.transaction.create({
-          data: {
-            customerId: booking.customerId,
-            bookingId: id,
-            amount: diff,
-            type: 'income',
-            status: 'SUCCESS',
-            description: `Pembayaran Service: ${existingBooking.serviceType}`,
-            paymentMethod: data.paymentMethod || existingBooking.paymentMethod || 'transfer',
-          }
+            data: {
+                customerId: booking.customerId,
+                bookingId: id,
+                amount: dpDiff,
+                type: 'income',
+                status: 'SUCCESS',
+                description: `Down Payment - ${existingBooking.serviceType}`,
+                paymentMethod: data.paymentMethod || existingBooking.paymentMethod || 'transfer',
+            }
         });
+        
+        await prisma.customer.update({
+            where: { id: booking.customerId },
+            data: { totalSpending: { increment: dpDiff }, lastService: existingBooking.bookingDate }
+        });
+    }
 
+    const regularPaymentNeeded = totalAdditionalPaymentNeeded - Math.max(0, dpDiff);
+    if (regularPaymentNeeded > 0) {
+        await prisma.transaction.create({
+            data: {
+                customerId: booking.customerId,
+                bookingId: id,
+                amount: regularPaymentNeeded,
+                type: 'income',
+                status: 'SUCCESS',
+                description: `Pembayaran Service: ${existingBooking.serviceType}`,
+                paymentMethod: data.paymentMethod || existingBooking.paymentMethod || 'transfer',
+            }
+        });
+        
         // Update customer totalSpending
         await prisma.customer.update({
-          where: { id: booking.customerId },
-          data: { 
-            totalSpending: { increment: diff },
-            lastService: existingBooking.bookingDate
-          }
+            where: { id: booking.customerId },
+            data: { 
+                totalSpending: { increment: regularPaymentNeeded },
+                lastService: existingBooking.bookingDate
+            }
         });
-      }
     }
 
     return NextResponse.json({

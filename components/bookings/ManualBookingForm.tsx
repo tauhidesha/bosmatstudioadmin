@@ -478,7 +478,7 @@ export default function ManualBookingForm({
   }, [servicesTotal, discountPercent, discountAmount]);
 
   const finalTotal = Math.max(0, servicesTotal - computedDiscount);
-  const remainingBalance = Math.max(0, finalTotal - amountPaid - (dpRequired ? nominalDP : 0));
+  const remainingBalance = Math.max(0, finalTotal - Math.max(amountPaid, dpRequired ? nominalDP : 0));
 
   // --- ACTIONS ---
   const handleSelectConversation = async (conv: Conversation) => {
