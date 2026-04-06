@@ -280,8 +280,11 @@ export default function ManualBookingForm({
       // Extract Discount
       const sub = Number(initialData.subtotal) || 0;
       const tot = Number(initialData.totalAmount);
-      // Only set discount if totalAmount explicitly exists and is less than subtotal
-      if (sub > 0 && !isNaN(tot) && tot < sub) {
+      const discountRaw = Number(initialData.discount) || Number(initialData.discountAmount) || 0;
+
+      if (discountRaw > 0) {
+        setDiscountAmount(discountRaw);
+      } else if (sub > 0 && !isNaN(tot) && tot < sub) {
         setDiscountAmount(sub - tot);
       } else {
         setDiscountAmount(0);
@@ -579,6 +582,7 @@ export default function ManualBookingForm({
         motorModel: motorcycleModel.modelName,
         plateNumber: platNomor,
         subtotal: servicesTotal,
+        discount: computedDiscount,
         totalAmount: finalTotal,
         dpAmount: nominalDP,
         amountPaid: amountPaid,
@@ -632,6 +636,7 @@ export default function ManualBookingForm({
             motorDetails: `${motorcycleModel.modelName} (${platNomor || '-'})`,
             items: detailedItems,
             totalAmount: finalTotal,
+            discount: computedDiscount,
             amountPaid: amountPaid,
             paymentMethod: paymentMethod,
             notes: `Layanan:\n${serviceSummary.replace(/ § /g, '\n')}${additionalNotes ? `\n\nCatatan Tambahan:\n${additionalNotes}` : ''}`,
@@ -1279,6 +1284,7 @@ function MobileLayout(props: any) {
                   motorDetails: `${motorcycleModel?.modelName || 'Motor'} (${platNomor || '-'})`,
                   items: detailedItems,
                   totalAmount: finalTotal,
+                  discount: computedDiscount,
                   amountPaid: amountPaid,
                   paymentMethod: paymentMethod,
                   notes: `Layanan:\n${serviceSummary}${additionalNotes ? `\n\nCatatan Tambahan:\n${additionalNotes}` : ''}`,
@@ -1391,6 +1397,7 @@ function MobileLayout(props: any) {
               motorDetails: `${motorcycleModel?.modelName || 'Motor'} (${platNomor || '-'})`,
               items: detailedItems,
               totalAmount: finalTotal,
+              discount: computedDiscount,
               amountPaid: amountPaid,
               paymentMethod: paymentMethod,
               notes: `Layanan:\n${serviceSummary}${additionalNotes ? `\n\nCatatan Tambahan:\n${additionalNotes}` : ''}`,
@@ -2206,6 +2213,7 @@ function DesktopLayout(props: any) {
                   motorDetails: `${motorcycleModel?.modelName || 'Motor'} (${platNomor || '-'})`,
                   items: detailedItems,
                   totalAmount: finalTotal,
+                  discount: computedDiscount,
                   amountPaid: amountPaid,
                   paymentMethod: paymentMethod,
                   notes: `Layanan:\n${serviceSummary}${additionalNotes ? `\n\nCatatan Tambahan:\n${additionalNotes}` : ''}`,
@@ -2292,6 +2300,7 @@ function DesktopLayout(props: any) {
               motorDetails: `${motorcycleModel?.modelName || 'Motor'} (${platNomor || '-'})`,
               items: detailedItems,
               totalAmount: finalTotal,
+              discount: computedDiscount,
               amountPaid: amountPaid,
               paymentMethod: paymentMethod,
               notes: `Layanan:\n${serviceSummary}${additionalNotes ? `\n\nCatatan Tambahan:\n${additionalNotes}` : ''}`,
