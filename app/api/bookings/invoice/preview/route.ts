@@ -172,6 +172,29 @@ function generateInvoiceHTML(data: any): string {
         <p class="font-headline" style="font-size:24px; font-weight:700; text-transform:uppercase; margin-bottom:8px">BOSMAT STUDIO</p>
       </div>
     </div>
+${(documentType === 'tanda_terima' || documentType === 'bukti_bayar' || documentType === 'invoice') ? `
+    <div style="margin-bottom: 40px; padding: 24px; background: rgba(255, 255, 0, 0.03); border: 1px solid rgba(255, 255, 0, 0.15); display: flex; align-items: flex-start; gap: 16px;">
+      <div style="background: #FFFF00; padding: 10px; display: flex; align-items: center; justify-content: center;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          ${documentType === 'tanda_terima' ? '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline>' : 
+            documentType === 'bukti_bayar' ? '<rect x="2" y="5" width="20" height="14" rx="2"></rect><line x1="2" y1="10" x2="22" y2="10"></line>' : 
+            '<circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line>'}
+        </svg>
+      </div>
+      <div>
+        <p style="font-size: 14px; font-weight: 800; color: #FFFF00; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 4px;">
+          ${documentType === 'tanda_terima' ? 'KENDARAAN DITERIMA' : 
+            documentType === 'bukti_bayar' ? 'PEMBAYARAN DIVALIDASI' : 
+            'RINGKASAN ESTIMASI'}
+        </p>
+        <p style="font-size: 13px; color: #cac8aa; line-height: 1.6; margin: 0;">
+          ${documentType === 'tanda_terima' ? `Halo! Unit kendaraan <b>${motorDetails || '-'}</b> telah kami terima dengan aman di Studio untuk proses treatment. Terima kasih telah mempercayakan kendaraan Anda kepada kami.` : 
+            documentType === 'bukti_bayar' ? `Terima kasih! Kami telah menerima pembayaran sebesar <b>Rp${(Number(amountPaid) || Number(downPayment) || 0).toLocaleString('id-ID')}</b> via <b>${paymentMethod || 'Transfer'}</b>. Status tagihan Anda telah diperbarui.` : 
+            `Berikut adalah rincian estimasi biaya untuk layanan Repaint & Detailing kendaraan Anda. Jika ada perubahan atau tambahan, akan kami informasikan kembali.`}
+        </p>
+      </div>
+    </div>
+` : ''}
 
     <table class="items-table">
       <thead>
