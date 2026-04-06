@@ -167,7 +167,7 @@ export default function AddTransactionModal({ isOpen, onClose, editData }: AddTr
 
   const fetchCustomers = async () => {
     try {
-      const res = await fetch('/api/crm/customers?limit=100');
+      const res = await fetch('/api/crm/customers?limit=1000');
       const data = await res.json();
       if (data.success) setCustomers(data.customers);
     } catch (err) { console.error('Failed to fetch customers:', err); }
