@@ -98,6 +98,57 @@ export default function ManualBookingForm({
   const [paymentMethod, setPaymentMethod] = useState('Transfer BCA');
   const [sendInvoiceWA, setSendInvoiceWA] = useState(false);
   const [showInvoicePreview, setShowInvoicePreview] = useState(false);
+  const [isSavingDraft, setIsSavingDraft] = useState(false);
+
+  // Load draft from localStorage on mount (only for new bookings)
+  useEffect(() => {
+    if (!isEdit) {
+      try {
+        const saved = localStorage.getItem('booking-draft');
+        if (saved) {
+          const draft = JSON.parse(saved);
+          if (draft.invoiceName) setInvoiceName(draft.invoiceName);
+          if (draft.contactPhone) setContactPhone(draft.contactPhone);
+          if (draft.realPhone) setRealPhone(draft.realPhone);
+          if (draft.motorcycleModel) setMotorcycleModel(draft.motorcycleModel);
+          if (draft.platNomor) setPlatNomor(draft.platNomor);
+          if (draft.cart) setCart(draft.cart);
+          if (draft.additionalNotes) setAdditionalNotes(draft.additionalNotes);
+          if (draft.entryDate) setEntryDate(draft.entryDate);
+          if (draft.timeSlot) setTimeSlot(draft.timeSlot);
+          if (draft.spotCount) setSpotCount(draft.spotCount);
+          if (draft.spotPrice) setSpotPrice(draft.spotPrice);
+          if (draft.discountAmount) setDiscountAmount(draft.discountAmount);
+          if (draft.paymentMethod) setPaymentMethod(draft.paymentMethod);
+          if (draft.homeService) setHomeService(draft.homeService);
+          if (draft.nominalDP) setNominalDP(draft.nominalDP);
+          if (draft.amountPaid) setAmountPaid(draft.amountPaid);
+          if (draft.bookingStatus) setBookingStatus(draft.bookingStatus);
+        }
+      } catch (e) { /* ignore parse errors */ }
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleSaveDraft = () => {
+    setIsSavingDraft(true);
+    try {
+      const draft = {
+        invoiceName, contactPhone, realPhone,
+        motorcycleModel, platNomor, cart,
+        additionalNotes, entryDate, timeSlot,
+        spotCount, spotPrice, discountAmount,
+        paymentMethod, homeService, nominalDP,
+        amountPaid, bookingStatus,
+        savedAt: new Date().toISOString(),
+      };
+      localStorage.setItem('booking-draft', JSON.stringify(draft));
+      alert('Draft berhasil disimpan!');
+    } catch (e) {
+      alert('Gagal menyimpan draft');
+    } finally {
+      setIsSavingDraft(false);
+    }
+  };
 
   // --- SMART SEARCH STATE ---
   const [foundVehicle, setFoundVehicle] = useState<{ model: string, owner: string, phone: string, plate: string } | null>(null);
@@ -636,6 +687,7 @@ export default function ManualBookingForm({
     isSubmitting, paymentMethod, setPaymentMethod,
     sendInvoiceWA, setSendInvoiceWA,
     showInvoicePreview, setShowInvoicePreview,
+    isSavingDraft, handleSaveDraft,
     foundVehicle, setFoundVehicle, isSearching,
     handleSubmit, handleDelete, handleSelectConversation, toggleSurchargeForItem, setItemNotesForItem,
     onCancel, servicesTotal, computedDiscount, finalTotal, remainingBalance,
@@ -664,7 +716,9 @@ function MobileLayout(props: any) {
     addCustomService, spotCount, setSpotCount, spotPrice, setSpotPrice,
     discountPercent, setDiscountPercent, discountAmount, setDiscountAmount,
     dpRequired, setDpRequired, nominalDP, setNominalDP, paymentMethod, setPaymentMethod,
-    sendInvoiceWA, setSendInvoiceWA, showInvoicePreview, setShowInvoicePreview, foundVehicle, isSearching,
+    sendInvoiceWA, setSendInvoiceWA, showInvoicePreview, setShowInvoicePreview,
+    isSavingDraft, handleSaveDraft,
+    foundVehicle, isSearching,
     handleSubmit, onCancel, servicesTotal, computedDiscount, finalTotal,
     allConversations, isSubmitting, handleSelectConversation,
     skipNextSearch, setSkipNextSearch, showAllChats, setShowAllChats,
@@ -1253,9 +1307,17 @@ function MobileLayout(props: any) {
 
       {/* Footer */}
       <footer className="flex-shrink-0 p-4 bg-neutral-950 shadow-[0px_-24px_48px_rgba(0,0,0,0.4)] flex gap-2 pb-8 z-50">
-        <button onClick={onCancel} className="flex-[0.3] flex flex-col items-center justify-center text-neutral-500 py-3 active:scale-95 transition-all">
+        <button onClick={onCancel} className="flex-[0.25] flex flex-col items-center justify-center text-neutral-500 py-3 active:scale-95 transition-all">
           <X className="size-5" />
           <span className="font-spartan font-bold uppercase text-[10px] mt-1">CANCEL</span>
+        </button>
+        <button
+          onClick={handleSaveDraft}
+          disabled={isSavingDraft}
+          className="flex-[0.25] flex flex-col items-center justify-center text-neutral-500 py-3 active:scale-95 transition-all disabled:opacity-50"
+        >
+          <FileText className="size-5" />
+          <span className="font-spartan font-bold uppercase text-[10px] mt-1">{isSavingDraft ? 'SAVING...' : 'DRAFT'}</span>
         </button>
         <button
           onClick={handleSubmit}
@@ -1352,7 +1414,9 @@ function DesktopLayout(props: any) {
     discountPercent, setDiscountPercent, discountAmount, setDiscountAmount,
     entryDate, setEntryDate, timeSlot, setTimeSlot, homeService, setHomeService,
     dpRequired, setDpRequired, nominalDP, setNominalDP, isSubmitting, paymentMethod, setPaymentMethod,
-    sendInvoiceWA, setSendInvoiceWA, showInvoicePreview, setShowInvoicePreview, foundVehicle, setFoundVehicle, isSearching,
+    sendInvoiceWA, setSendInvoiceWA, showInvoicePreview, setShowInvoicePreview,
+    isSavingDraft, handleSaveDraft,
+    foundVehicle, setFoundVehicle, isSearching,
     handleSubmit, handleDelete, handleSelectConversation, onCancel, getIdToken,
     servicesTotal, computedDiscount, finalTotal, remainingBalance, allConversations,
     skipNextSearch, setSkipNextSearch, showAllChats, setShowAllChats,
@@ -2111,8 +2175,12 @@ function DesktopLayout(props: any) {
             </label>
           </div>
           <div className="flex gap-4 w-full md:w-auto">
-            <button className="hidden md:block px-6 py-4 font-headline text-[10px] font-bold uppercase tracking-widest text-slate-500 hover:text-white transition-colors">
-              Save Draft
+            <button
+              onClick={handleSaveDraft}
+              disabled={isSavingDraft}
+              className="hidden md:block px-6 py-4 font-headline text-[10px] font-bold uppercase tracking-widest text-slate-500 hover:text-white transition-colors disabled:opacity-50"
+            >
+              {isSavingDraft ? 'Saving...' : 'Save Draft'}
             </button>
             <button
               onClick={handleSubmit}
