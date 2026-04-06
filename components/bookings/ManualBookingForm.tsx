@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import Image from 'next/image';
 import { useAuth } from '@/lib/hooks/useAuth';
+import InvoicePreviewModal from './InvoicePreviewModal';
 
 function useMediaQuery(query: string) {
   const [matches, setMatches] = useState(false);
@@ -96,6 +97,7 @@ export default function ManualBookingForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('Transfer BCA');
   const [sendInvoiceWA, setSendInvoiceWA] = useState(false);
+  const [showInvoicePreview, setShowInvoicePreview] = useState(false);
 
   // --- SMART SEARCH STATE ---
   const [foundVehicle, setFoundVehicle] = useState<{ model: string, owner: string, phone: string, plate: string } | null>(null);
@@ -633,6 +635,7 @@ export default function ManualBookingForm({
     nominalDP, setNominalDP,
     isSubmitting, paymentMethod, setPaymentMethod,
     sendInvoiceWA, setSendInvoiceWA,
+    showInvoicePreview, setShowInvoicePreview,
     foundVehicle, setFoundVehicle, isSearching,
     handleSubmit, handleDelete, handleSelectConversation, toggleSurchargeForItem, setItemNotesForItem,
     onCancel, servicesTotal, computedDiscount, finalTotal, remainingBalance,
@@ -642,7 +645,8 @@ export default function ManualBookingForm({
     services, vehicleModels, surcharges, loadingPricing,
     additionalNotes, setAdditionalNotes,
     realPhone, setRealPhone,
-    modelSearchText, setModelSearchText
+    modelSearchText, setModelSearchText,
+    getIdToken
   };
 
   const isMobile = useMediaQuery('(max-width: 768px)');
@@ -660,14 +664,14 @@ function MobileLayout(props: any) {
     addCustomService, spotCount, setSpotCount, spotPrice, setSpotPrice,
     discountPercent, setDiscountPercent, discountAmount, setDiscountAmount,
     dpRequired, setDpRequired, nominalDP, setNominalDP, paymentMethod, setPaymentMethod,
-    sendInvoiceWA, setSendInvoiceWA, foundVehicle, isSearching,
+    sendInvoiceWA, setSendInvoiceWA, showInvoicePreview, setShowInvoicePreview, foundVehicle, isSearching,
     handleSubmit, onCancel, servicesTotal, computedDiscount, finalTotal,
     allConversations, isSubmitting, handleSelectConversation,
     skipNextSearch, setSkipNextSearch, showAllChats, setShowAllChats,
     bookingStatus, setBookingStatus, amountPaid, setAmountPaid,
     services, vehicleModels, surcharges, loadingPricing,
     toggleSurchargeForItem, setItemNotesForItem, additionalNotes, setAdditionalNotes,
-    realPhone, setRealPhone
+    realPhone, setRealPhone, entryDate, timeSlot, getIdToken
   } = props;
 
   const isSpotRepairSelected = cart.some((item: CartItem) => item.name === 'Spot Repair');
@@ -1192,7 +1196,49 @@ function MobileLayout(props: any) {
               <span className="text-[10px] text-neutral-400 font-spartan font-bold uppercase tracking-widest leading-none">Final Total</span>
               <span className="text-xl font-spartan font-bold text-[#FFFF00] leading-none">{formatRupiah(finalTotal)}</span>
             </div>
-            <label className="flex items-center gap-3 pt-4 cursor-pointer group">
+            <button
+              type="button"
+              onClick={() => {
+                const detailedItems = [
+                  ...cart.map((i: CartItem) => `${i.name}||${i.price}||${i.itemNotes ? `Catatan Warna: ${i.itemNotes}` : ''}`),
+                  spotCount > 0 ? `Spot Repair (${spotCount} spots)||${spotCount * spotPrice}||` : null
+                ].filter(Boolean).join('\n');
+
+                const serviceSummary = [
+                  ...cart
+                    .filter((i: CartItem) => i.name !== 'Spot Repair')
+                    .map((i: CartItem) => {
+                      let nameWithSurcharges = i.name;
+                      if (i.surcharges && i.surcharges.length > 0) {
+                        nameWithSurcharges = `${i.name} (+${i.surcharges.join(', ')})`;
+                      }
+                      return `${nameWithSurcharges}||${i.price}||${i.itemNotes ? `Warna: ${i.itemNotes}` : ''}`;
+                    }),
+                  spotCount > 0 ? `Spot Repair (${spotCount} spots)||${spotCount * spotPrice}||` : null
+                ].filter(Boolean).join('\n');
+
+                // @ts-ignore
+                window.__invoicePreviewData = {
+                  documentType: 'invoice',
+                  customerName: invoiceName,
+                  customerPhone: contactPhone,
+                  motorDetails: `${motorcycleModel.modelName} (${platNomor || '-'})`,
+                  items: detailedItems,
+                  totalAmount: finalTotal,
+                  amountPaid: amountPaid,
+                  paymentMethod: paymentMethod,
+                  notes: `Layanan:\n${serviceSummary}${additionalNotes ? `\n\nCatatan Tambahan:\n${additionalNotes}` : ''}`,
+                  bookingDate: entryDate,
+                  realPhone,
+                };
+                setShowInvoicePreview(true);
+              }}
+              className="w-full py-2.5 bg-neutral-800 border border-[#FFFF00]/20 text-[#FFFF00] text-[10px] font-bold uppercase tracking-wider flex items-center justify-center gap-2 hover:bg-neutral-700 transition-colors"
+            >
+              <FileText className="size-3" />
+              Preview Invoice
+            </button>
+            <label className="flex items-center gap-3 pt-2 cursor-pointer group">
               <input
                 type="checkbox"
                 checked={sendInvoiceWA}
@@ -1228,6 +1274,67 @@ function MobileLayout(props: any) {
           </span>
         </button>
       </footer>
+      <InvoicePreviewModal
+        isOpen={showInvoicePreview}
+        onClose={() => setShowInvoicePreview(false)}
+        invoiceData={{
+          customerName: invoiceName,
+          customerPhone: contactPhone,
+          motorDetails: `${motorcycleModel?.modelName || 'Motor'} (${platNomor || '-'})`,
+          items: [
+            ...cart.map((i: CartItem) => `${i.name}||${i.price}||${i.itemNotes ? `Catatan Warna: ${i.itemNotes}` : ''}`),
+            spotCount > 0 ? `Spot Repair (${spotCount} spots)||${spotCount * spotPrice}||` : null
+          ].filter(Boolean).join('\n'),
+          totalAmount: finalTotal,
+          amountPaid: amountPaid,
+          paymentMethod: paymentMethod,
+          notes: `Layanan:\n${cart.map((i: CartItem) => {
+            const isKnown = services.some(s => s.name === i.name) || i.name === 'Spot Repair';
+            const baseName = isKnown ? i.name : `${i.name} [Rp${i.price}]`;
+            let result = baseName;
+            if (i.surcharges.length > 0) result += ` (+${i.surcharges.join(', ')})`;
+            if (i.itemNotes) result += ` (Warna: ${i.itemNotes})`;
+            return result;
+          }).join('\n')}${additionalNotes ? `\n\nCatatan Tambahan:\n${additionalNotes}` : ''}`,
+          bookingDate: entryDate,
+          realPhone,
+        }}
+        onSend={async () => {
+          const token = await getIdToken();
+          const detailedItems = [
+            ...cart.map((i: CartItem) => `${i.name}||${i.price}||${i.itemNotes ? `Catatan Warna: ${i.itemNotes}` : ''}`),
+            spotCount > 0 ? `Spot Repair (${spotCount} spots)||${spotCount * spotPrice}||` : null
+          ].filter(Boolean).join('\n');
+          const serviceSummary = cart.map((i: CartItem) => {
+            const isKnown = services.some(s => s.name === i.name) || i.name === 'Spot Repair';
+            const baseName = isKnown ? i.name : `${i.name} [Rp${i.price}]`;
+            let result = baseName;
+            if (i.surcharges.length > 0) result += ` (+${i.surcharges.join(', ')})`;
+            if (i.itemNotes) result += ` (Warna: ${i.itemNotes})`;
+            return result;
+          }).join('\n');
+          await fetch('/api/bookings/invoice', {
+            method: 'POST',
+            headers: { 
+              'Content-Type': 'application/json',
+              ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+            },
+            body: JSON.stringify({
+              documentType: 'invoice',
+              customerName: invoiceName,
+              customerPhone: contactPhone,
+              realPhone,
+              motorDetails: `${motorcycleModel?.modelName || 'Motor'} (${platNomor || '-'})`,
+              items: detailedItems,
+              totalAmount: finalTotal,
+              amountPaid: amountPaid,
+              paymentMethod: paymentMethod,
+              notes: `Layanan:\n${serviceSummary}${additionalNotes ? `\n\nCatatan Tambahan:\n${additionalNotes}` : ''}`,
+              bookingDate: entryDate,
+            }),
+          });
+        }}
+      />
     </div>
   );
 }
@@ -1245,8 +1352,8 @@ function DesktopLayout(props: any) {
     discountPercent, setDiscountPercent, discountAmount, setDiscountAmount,
     entryDate, setEntryDate, timeSlot, setTimeSlot, homeService, setHomeService,
     dpRequired, setDpRequired, nominalDP, setNominalDP, isSubmitting, paymentMethod, setPaymentMethod,
-    sendInvoiceWA, setSendInvoiceWA, foundVehicle, setFoundVehicle, isSearching,
-    handleSubmit, handleDelete, handleSelectConversation, onCancel,
+    sendInvoiceWA, setSendInvoiceWA, showInvoicePreview, setShowInvoicePreview, foundVehicle, setFoundVehicle, isSearching,
+    handleSubmit, handleDelete, handleSelectConversation, onCancel, getIdToken,
     servicesTotal, computedDiscount, finalTotal, remainingBalance, allConversations,
     skipNextSearch, setSkipNextSearch, showAllChats, setShowAllChats,
     bookingStatus, setBookingStatus, amountPaid, setAmountPaid,
