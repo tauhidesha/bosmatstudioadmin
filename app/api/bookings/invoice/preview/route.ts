@@ -9,9 +9,9 @@ function generateInvoiceHTML(data: any): string {
     logoBase64, realPhone
   } = data;
 
+  const subtotal = finalTotal || 0;
   const paid = amountPaid || 0;
-  const balance = finalTotal - paid;
-  const subtotal = finalTotal;
+  const balance = Math.max(0, subtotal - paid);
 
   const displayPhone = realPhone
     ? realPhone.replace(/^62/, '0')
@@ -20,10 +20,10 @@ function generateInvoiceHTML(data: any): string {
         .replace('@lid', '')
         .replace(/^62/, '0');
 
-  const itemsList = items.split('\n').map((i: string) => i.trim()).filter(Boolean);
+  const itemsList = (items || '').split('\n').map((i: string) => i.trim()).filter(Boolean);
 
   let filteredNotes = notes || '-';
-  if (filteredNotes.match(/^Layanan:\s*/i)) {
+  if (filteredNotes && filteredNotes !== '-' && filteredNotes.match(/^Layanan:\s*/i)) {
     const headerRemoved = filteredNotes.replace(/^Layanan:\s*/i, '').trim();
     const itemsSummary = itemsList.map((i: string) => i.split('||')[0].trim()).join(', ');
     if (headerRemoved === itemsSummary) {
@@ -38,6 +38,57 @@ function generateInvoiceHTML(data: any): string {
         .map((n: string) => n.trim())
         .filter((n: string) => n && !n.match(/^Layanan:?$/i))
     : [];
+
+  // Build items rows safely
+  const itemsRows = itemsList.map((item: string) => {
+    try {
+      const parts = item.split('||');
+      const cleanTitle = (parts[0] || '').trim().replace(/^(\d+\.|[-*•])\s*/, '');
+      const price = parseInt(parts[1]) || 0;
+      const itemDesc = (parts[2] || '').trim();
+      const priceStr = price > 0 ? `Rp${price.toLocaleString('id-ID')}` : '-';
+
+      return `
+      <tr class="item-row" style="page-break-inside: avoid;">
+        <td>
+          <p class="font-headline" style="font-size:18px; font-weight:700; text-transform:uppercase">${cleanTitle}</p>
+          ${itemDesc ? (
+            itemDesc.startsWith('Catatan Warna:') 
+            ? `<div style="display:flex; align-items:center; gap:6px; margin-top:6px; padding:4px 10px; background:rgba(255,255,0,0.05); border-left:2px solid #FFFF00; width:fit-content">
+                <span style="font-size:10px; color:#FFFF00; font-weight:800; text-transform:uppercase; letter-spacing:0.1em">🎨 ${itemDesc}</span>
+               </div>`
+            : `<p class="text-muted" style="font-size:12px; line-height:1.4; margin-top:4px">${itemDesc}</p>`
+          ) : ''}
+        </td>
+        <td style="text-align:center"><p class="font-headline" style="font-size:18px; font-weight:700">01</p></td>
+        <td style="text-align:right"><p class="text-muted" style="font-size:14px">${priceStr}</p></td>
+        <td style="text-align:right"><p class="font-headline text-yellow" style="font-size:18px; font-weight:700">${priceStr}</p></td>
+      </tr>`;
+    } catch (e) {
+      return '';
+    }
+  }).join('');
+
+  // Build notes safely
+  const notesHtml = notesList.length > 0 ? `
+  <div class="bg-darker border-yellow" style="padding:32px; margin-bottom:24px">
+    <p class="font-headline" style="font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.15em; margin-bottom:16px">Catatan Teknis Layanan</p>
+    <div style="display:flex; flex-direction:column; gap:8px">
+      ${notesList.map((n: string) => {
+        let icon = '●';
+        const lowerN = n.toLowerCase();
+        if (lowerN.includes('garansi')) icon = '✓';
+        else if (lowerN.includes('waktu') || lowerN.includes('jam') || lowerN.includes('hari')) icon = '⏱';
+        return `<div style="display:flex; gap:10px; align-items:flex-start"><span style="color:#FFFF00; font-size:14px; margin-top:2px">${icon}</span><p class="text-muted" style="font-size:14px; line-height:1.5">${n}</p></div>`;
+      }).join('')}
+    </div>
+  </div>` : '';
+
+  const dpRow = paid > 0 ? `
+  <div style="display:flex; justify-content:space-between">
+    <span class="text-muted" style="font-size:12px; text-transform:uppercase; letter-spacing:0.1em">DP / Uang Muka</span>
+    <span style="font-size:16px; color:#ffb4ab">- Rp${paid.toLocaleString('id-ID')}</span>
+  </div>` : '';
 
   return `<!DOCTYPE html>
 <html class="dark">
@@ -76,18 +127,18 @@ function generateInvoiceHTML(data: any): string {
         </h1>
         <div style="display:flex; gap:12px; margin-top:16px">
           <span style="background:#676700; color:#e6e67a; padding:4px 12px; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.1em">
-            Status: ${paid >= finalTotal ? 'Lunas' : paid > 0 ? 'DP' : 'Belum Bayar'}
+            Status: ${paid >= subtotal ? 'Lunas' : paid > 0 ? 'DP' : 'Belum Bayar'}
           </span>
         </div>
       </div>
       <div style="text-align:right">
         <div>
           <p class="text-muted" style="font-size:10px; text-transform:uppercase; letter-spacing:0.2em">Nomor Dokumen</p>
-          <p class="font-headline text-yellow" style="font-size:28px; font-weight:700">#BS-${docNumber}</p>
+          <p class="font-headline text-yellow" style="font-size:28px; font-weight:700">#BS-${docNumber || 'PREVIEW'}</p>
         </div>
         <div style="margin-top:16px">
           <p class="text-muted" style="font-size:10px; text-transform:uppercase; letter-spacing:0.2em">Tanggal Terbit</p>
-          <p style="font-size:16px; font-weight:500">${now.toLocaleDateString('id-ID', { day:'numeric', month:'long', year:'numeric' })}</p>
+          <p style="font-size:16px; font-weight:500">${now ? now.toLocaleDateString('id-ID', { day:'numeric', month:'long', year:'numeric' }) : '-'}</p>
         </div>
       </div>
     </div>
@@ -95,10 +146,10 @@ function generateInvoiceHTML(data: any): string {
     <div style="display:grid; grid-template-columns:1fr 1fr; gap:1px; background:#484831; margin-bottom:60px">
       <div class="bg-dark" style="padding:28px">
         <p class="text-yellow" style="font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.2em; margin-bottom:20px">Informasi Pelanggan</p>
-        <p class="font-headline" style="font-size:24px; font-weight:700; text-transform:uppercase; margin-bottom:8px">${customerName}</p>
+        <p class="font-headline" style="font-size:24px; font-weight:700; text-transform:uppercase; margin-bottom:8px">${customerName || '-'}</p>
         <p class="text-muted" style="font-size:14px; line-height:1.8">
           WhatsApp: ${displayPhone}<br/>
-          Kendaraan: ${motorDetails}
+          Kendaraan: ${motorDetails || '-'}
         </p>
       </div>
       <div class="bg-dark" style="padding:28px">
@@ -117,48 +168,13 @@ function generateInvoiceHTML(data: any): string {
         </tr>
       </thead>
       <tbody>
-        ${itemsList.map((item: string) => {
-          const parts = item.split('||');
-          const cleanTitle = (parts[0] || '').trim().replace(/^(\d+\.|[-*•])\s*/, '');
-          const price = parseInt(parts[1]) || 0;
-          const itemDesc = (parts[2] || '').trim();
-          const priceStr = price > 0 ? `Rp${price.toLocaleString('id-ID')}` : '-';
-
-          return `
-          <tr class="item-row" style="page-break-inside: avoid;">
-            <td>
-              <p class="font-headline" style="font-size:18px; font-weight:700; text-transform:uppercase">${cleanTitle}</p>
-              ${itemDesc ? (
-                itemDesc.startsWith('Catatan Warna:') 
-                ? `<div style="display:flex; align-items:center; gap:6px; margin-top:6px; padding:4px 10px; background:rgba(255,255,0,0.05); border-left:2px solid #FFFF00; width:fit-content">
-                    <span style="font-size:10px; color:#FFFF00; font-weight:800; text-transform:uppercase; letter-spacing:0.1em">🎨 ${itemDesc}</span>
-                   </div>`
-                : `<p class="text-muted" style="font-size:12px; line-height:1.4; margin-top:4px">${itemDesc}</p>`
-              ) : ''}
-            </td>
-            <td style="text-align:center"><p class="font-headline" style="font-size:18px; font-weight:700">01</p></td>
-            <td style="text-align:right"><p class="text-muted" style="font-size:14px">${priceStr}</p></td>
-            <td style="text-align:right"><p class="font-headline text-yellow" style="font-size:18px; font-weight:700">${priceStr}</p></td>
-          </tr>`;
-        }).join('')}
+        ${itemsRows || '<tr><td colspan="4" style="text-align:center; padding:40px; color:#666;">Belum ada layanan ditambahkan</td></tr>'}
       </tbody>
     </table>
 
   <div class="totals-section" style="display:grid; grid-template-columns:7fr 5fr; gap:32px; margin-top:40px">
     <div>
-      ${notesList.length > 0 ? `
-      <div class="bg-darker border-yellow" style="padding:32px; margin-bottom:24px">
-        <p class="font-headline" style="font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.15em; margin-bottom:16px">Catatan Teknis Layanan</p>
-        <div style="display:flex; flex-direction:column; gap:8px">
-          ${notesList.map((n: string) => {
-            let icon = '●';
-            const lowerN = n.toLowerCase();
-            if (lowerN.includes('garansi')) icon = '✓';
-            else if (lowerN.includes('waktu') || lowerN.includes('jam') || lowerN.includes('hari')) icon = '⏱';
-            return `<div style="display:flex; gap:10px; align-items:flex-start"><span style="color:#FFFF00; font-size:14px; margin-top:2px">${icon}</span><p class="text-muted" style="font-size:14px; line-height:1.5">${n}</p></div>`;
-          }).join('')}
-        </div>
-      </div>` : ''}
+      ${notesHtml}
       <div style="padding:24px; border:1px solid #484831; background:#1c1b1b">
         <p class="text-yellow" style="font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.15em; margin-bottom:16px">Informasi Pembayaran</p>
         <div style="display:flex; align-items:center; gap:16px">
@@ -178,11 +194,7 @@ function generateInvoiceHTML(data: any): string {
         <span class="text-muted" style="font-size:12px; text-transform:uppercase; letter-spacing:0.1em">Subtotal</span>
         <span style="font-size:16px">Rp${subtotal.toLocaleString('id-ID')}</span>
       </div>
-      ${paid > 0 ? `
-      <div style="display:flex; justify-content:space-between">
-        <span class="text-muted" style="font-size:12px; text-transform:uppercase; letter-spacing:0.1em">DP / Uang Muka</span>
-        <span style="font-size:16px; color:#ffb4ab">- Rp${paid.toLocaleString('id-ID')}</span>
-      </div>` : ''}
+      ${dpRow}
       <div style="border-top:1px solid #484831; padding-top:24px; margin-top:8px">
         <span class="text-muted" style="font-size:10px; text-transform:uppercase; letter-spacing:0.2em; display:block; margin-bottom:8px">Total Keseluruhan</span>
         <span class="font-headline" style="font-size:36px; font-weight:900">Rp${subtotal.toLocaleString('id-ID')}</span>
@@ -206,6 +218,14 @@ function generateInvoiceHTML(data: any): string {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
+    
+    if (!body.items) {
+      return NextResponse.json(
+        { success: false, error: 'Missing items field' },
+        { status: 400 }
+      );
+    }
+
     const html = generateInvoiceHTML({
       ...body,
       docNumber: body.docNumber || 'PREVIEW',
