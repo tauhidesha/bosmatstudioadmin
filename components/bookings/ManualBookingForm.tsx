@@ -2324,6 +2324,7 @@ function DesktopLayout(props: any) {
           bookingDate: entryDate,
           downPayment: nominalDP,
           realPhone,
+          documentType: docType,
         }}
         onSend={async () => {
           const token = await getIdToken();
@@ -2346,7 +2347,7 @@ function DesktopLayout(props: any) {
               ...(token ? { 'Authorization': `Bearer ${token}` } : {})
             },
             body: JSON.stringify({
-              documentType: 'invoice',
+              documentType: docType,
               customerName: invoiceName,
               customerPhone: contactPhone,
               realPhone,
