@@ -1,8 +1,9 @@
 /**
- * useConversationMessages Hook (Supabase Realtime)
+ * useConversationMessages Hook (Supabase Realtime + Polling Fallback)
  * 
  * BEFORE: Polled /api/conversation-history every 10 seconds (~864 MB/day egress!)
- * AFTER:  Subscribes to DirectMessage INSERT, fetches only on new messages (~2 MB/day)
+ * AFTER:  Subscribes to DirectMessage INSERT, fetches only on events (~2 MB/day)
+ *         + 5s polling fallback for reliability
  */
 
 'use client';
@@ -41,6 +42,7 @@ export function useConversationMessages(
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const fetchingRef = useRef(false);
+  const lastFetchRef = useRef(0);
 
   // Subscribe to DirectMessage INSERT events
   const { revision } = useSupabaseEvent({
@@ -51,7 +53,13 @@ export function useConversationMessages(
 
   const fetchMessages = useCallback(async () => {
     if (!conversationId || fetchingRef.current) return;
+    
+    // Debounce: skip if fetched within last 500ms
+    const now = Date.now();
+    if (now - lastFetchRef.current < 500) return;
+    
     fetchingRef.current = true;
+    lastFetchRef.current = now;
 
     try {
       const phone = conversationId.replace(/@c\.us$|@lid$/, '').replace(/\D/g, '');
@@ -91,6 +99,17 @@ export function useConversationMessages(
     }
     fetchMessages();
   }, [conversationId, enabled, revision, fetchMessages]);
+
+  // Polling fallback every 5 seconds
+  useEffect(() => {
+    if (!enabled || !conversationId) return;
+    
+    const interval = setInterval(() => {
+      fetchMessages();
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [conversationId, enabled, fetchMessages]);
 
   return { messages, loading, error };
 }

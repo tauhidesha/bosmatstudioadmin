@@ -1,8 +1,9 @@
 /**
- * useRealtimeConversations Hook (Supabase Realtime)
+ * useRealtimeConversations Hook (Supabase Realtime + Polling Fallback)
  * 
  * BEFORE: Polled /api/conversations every 15 seconds (~288 MB/day egress)
  * AFTER:  Subscribes to Customer + DirectMessage changes, fetches only on events (~5 MB/day)
+ *         + 10s polling fallback for reliability
  */
 
 'use client';
@@ -49,6 +50,7 @@ export function useRealtimeConversations(
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const fetchingRef = useRef(false);
+  const lastFetchRef = useRef(0);
 
   // Subscribe to Customer and DirectMessage changes
   const { revision: customerRevision } = useSupabaseEvent({
@@ -65,7 +67,13 @@ export function useRealtimeConversations(
 
   const fetchConversations = useCallback(async () => {
     if (fetchingRef.current) return;
+    
+    // Debounce: skip if fetched within last 500ms
+    const now = Date.now();
+    if (now - lastFetchRef.current < 500) return;
+    
     fetchingRef.current = true;
+    lastFetchRef.current = now;
 
     try {
       const res = await fetch(`/api/conversations?limit=100&t=${Date.now()}`, { cache: 'no-store' });
@@ -114,6 +122,17 @@ export function useRealtimeConversations(
     }
     fetchConversations();
   }, [enabled, customerRevision, messageRevision, fetchConversations]);
+
+  // Polling fallback every 10 seconds
+  useEffect(() => {
+    if (!enabled) return;
+    
+    const interval = setInterval(() => {
+      fetchConversations();
+    }, 10000);
+
+    return () => clearInterval(interval);
+  }, [enabled, fetchConversations]);
 
   return { conversations, loading, error };
 }

@@ -1,8 +1,9 @@
 /**
- * useFinanceData Hook (Supabase Realtime)
+ * useFinanceData Hook (Supabase Realtime + Polling Fallback)
  * 
  * BEFORE: Polled /api/finance every 30 seconds (~86 MB/day)
  * AFTER:  Subscribes to Transaction changes, fetches only on events (~2 MB/day)
+ *         + 10s polling fallback for reliability
  */
 
 'use client';
@@ -42,6 +43,7 @@ export function useFinanceData(daysLimit = 30, customerId?: string) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const fetchingRef = useRef(false);
+  const lastFetchRef = useRef(0);
 
   // Subscribe to Transaction changes
   const { revision } = useSupabaseEvent({
@@ -51,7 +53,13 @@ export function useFinanceData(daysLimit = 30, customerId?: string) {
 
   const fetchFinanceData = useCallback(async () => {
     if (fetchingRef.current) return;
+    
+    // Debounce: skip if fetched within last 500ms
+    const now = Date.now();
+    if (now - lastFetchRef.current < 500) return;
+    
     fetchingRef.current = true;
+    lastFetchRef.current = now;
 
     try {
       const res = await fetch(`/api/finance?limit=500&days=${daysLimit}${customerId ? '&customerId='+customerId : ''}`, {
@@ -92,9 +100,17 @@ export function useFinanceData(daysLimit = 30, customerId?: string) {
 
   // Fetch on mount + whenever Supabase emits a Transaction event
   useEffect(() => {
-    fetchingRef.current = false;
     fetchFinanceData();
   }, [revision, fetchFinanceData]);
+
+  // Polling fallback every 10 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchFinanceData();
+    }, 10000);
+
+    return () => clearInterval(interval);
+  }, [fetchFinanceData]);
 
   return { transactions, summary, loading, error, refresh: fetchFinanceData };
 }

@@ -1,8 +1,9 @@
 /**
- * useBookings Hook (Supabase Realtime)
+ * useBookings Hook (Supabase Realtime + Polling Fallback)
  * 
  * BEFORE: Polled /api/bookings every 30 seconds (~57 MB/day)
  * AFTER:  Subscribes to Booking changes, fetches only on events (~1 MB/day)
+ *         + 10s polling fallback for reliability
  */
 
 'use client';
@@ -42,6 +43,7 @@ export function useBookings() {
   const [error, setError] = useState<Error | null>(null);
   const { getIdToken } = useAuth();
   const fetchingRef = useRef(false);
+  const lastFetchRef = useRef(0);
 
   // Subscribe to Booking changes (INSERT, UPDATE, DELETE)
   const { revision } = useSupabaseEvent({
@@ -51,7 +53,13 @@ export function useBookings() {
 
   const fetchBookings = useCallback(async () => {
     if (fetchingRef.current) return;
+    
+    // Debounce: skip if fetched within last 500ms
+    const now = Date.now();
+    if (now - lastFetchRef.current < 500) return;
+    
     fetchingRef.current = true;
+    lastFetchRef.current = now;
 
     try {
       const token = await getIdToken();
@@ -78,9 +86,17 @@ export function useBookings() {
 
   // Fetch on mount + whenever Supabase emits a Booking event
   useEffect(() => {
-    fetchingRef.current = false;
     fetchBookings();
   }, [revision, fetchBookings]);
+
+  // Polling fallback every 10 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchBookings();
+    }, 10000);
+
+    return () => clearInterval(interval);
+  }, [fetchBookings]);
 
   const updateBookingStatus = async (id: string, newStatus: BookingStatus) => {
     try {
