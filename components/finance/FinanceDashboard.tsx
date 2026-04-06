@@ -5,8 +5,10 @@ import { useFinanceData } from '@/lib/hooks/useFinanceData';
 import FinanceStats from './FinanceStats';
 import FinanceChart from './FinanceChart';
 import TransactionList from './TransactionList';
+import UnpaidBookingsList from './UnpaidBookingsList';
 import AddTransactionModal from './AddTransactionModal';
 import { Transaction } from '@/lib/hooks/useFinanceData';
+import { Receipt } from 'lucide-react';
 
 export default function FinanceDashboard() {
   const [timeframe, setTimeframe] = useState(30);
@@ -56,6 +58,15 @@ export default function FinanceDashboard() {
 
       {/* Stats */}
       <FinanceStats summary={summary} loading={loading} />
+
+      {/* Unpaid Bookings */}
+      <div className="bg-neutral-900/20 border border-white/5 p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <Receipt className="size-4 text-[#FFFF00]" />
+          <h2 className="font-spartan text-sm uppercase tracking-widest text-white">Tagihan Belum Lunas</h2>
+        </div>
+        <UnpaidBookingsList />
+      </div>
 
       {/* Content — stacked layout */}
       <div className="flex flex-col gap-6">

@@ -33,7 +33,7 @@ export async function PATCH(
         data: { 
           paymentStatus: 'PAID', 
           amountPaid: totalAmount,
-          status: 'DONE'
+          status: 'PAID'
         }
       }),
       // Create transaction for income tracking
