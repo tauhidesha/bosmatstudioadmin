@@ -19,9 +19,9 @@ function generateInvoiceHTML(data: any): string {
   const displayPhone = realPhone
     ? realPhone.replace(/^62/, '0')
     : (recipientNumber || '-')
-        .replace('@c.us', '')
-        .replace('@lid', '')
-        .replace(/^62/, '0');
+      .replace('@c.us', '')
+      .replace('@lid', '')
+      .replace(/^62/, '0');
 
   const itemsList = (items || '').split('\n').map((i: string) => i.trim()).filter(Boolean);
 
@@ -36,10 +36,10 @@ function generateInvoiceHTML(data: any): string {
     }
   }
 
-  const notesList = (filteredNotes && filteredNotes !== '-') 
+  const notesList = (filteredNotes && filteredNotes !== '-')
     ? filteredNotes.split('\n')
-        .map((n: string) => n.trim())
-        .filter((n: string) => n && !n.match(/^Layanan:?$/i))
+      .map((n: string) => n.trim())
+      .filter((n: string) => n && !n.match(/^Layanan:?$/i))
     : [];
 
   // Build items rows safely
@@ -56,12 +56,12 @@ function generateInvoiceHTML(data: any): string {
         <td>
           <p class="font-headline" style="font-size:18px; font-weight:700; text-transform:uppercase">${cleanTitle}</p>
           ${itemDesc ? (
-            itemDesc.startsWith('Catatan Warna:') 
+          itemDesc.startsWith('Catatan Warna:')
             ? `<div style="display:flex; align-items:center; gap:6px; margin-top:6px; padding:4px 10px; background:rgba(255,255,0,0.05); border-left:2px solid #FFFF00; width:fit-content">
                 <span style="font-size:10px; color:#FFFF00; font-weight:800; text-transform:uppercase; letter-spacing:0.1em">🎨 ${itemDesc}</span>
                </div>`
             : `<p class="text-muted" style="font-size:12px; line-height:1.4; margin-top:4px">${itemDesc}</p>`
-          ) : ''}
+        ) : ''}
         </td>
         <td style="text-align:center"><p class="font-headline" style="font-size:18px; font-weight:700">01</p></td>
         <td style="text-align:right"><p class="text-muted" style="font-size:14px">${priceStr}</p></td>
@@ -78,12 +78,12 @@ function generateInvoiceHTML(data: any): string {
     <p class="font-headline" style="font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.15em; margin-bottom:16px">Catatan Teknis Layanan</p>
     <div style="display:flex; flex-direction:column; gap:8px">
       ${notesList.map((n: string) => {
-        let icon = '●';
-        const lowerN = n.toLowerCase();
-        if (lowerN.includes('garansi')) icon = '✓';
-        else if (lowerN.includes('waktu') || lowerN.includes('jam') || lowerN.includes('hari')) icon = '⏱';
-        return `<div style="display:flex; gap:10px; align-items:flex-start"><span style="color:#FFFF00; font-size:14px; margin-top:2px">${icon}</span><p class="text-muted" style="font-size:14px; line-height:1.5">${n}</p></div>`;
-      }).join('')}
+    let icon = '●';
+    const lowerN = n.toLowerCase();
+    if (lowerN.includes('garansi')) icon = '✓';
+    else if (lowerN.includes('waktu') || lowerN.includes('jam') || lowerN.includes('hari')) icon = '⏱';
+    return `<div style="display:flex; gap:10px; align-items:flex-start"><span style="color:#FFFF00; font-size:14px; margin-top:2px">${icon}</span><p class="text-muted" style="font-size:14px; line-height:1.5">${n}</p></div>`;
+  }).join('')}
     </div>
   </div>` : '';
 
@@ -153,7 +153,7 @@ function generateInvoiceHTML(data: any): string {
         </div>
         <div style="margin-top:16px">
           <p class="text-muted" style="font-size:10px; text-transform:uppercase; letter-spacing:0.2em">Tanggal Terbit</p>
-          <p style="font-size:16px; font-weight:500">${now ? now.toLocaleDateString('id-ID', { day:'numeric', month:'long', year:'numeric' }) : '-'}</p>
+          <p style="font-size:16px; font-weight:500">${now ? now.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : '-'}</p>
         </div>
       </div>
     </div>
@@ -176,21 +176,21 @@ ${(documentType === 'tanda_terima' || documentType === 'bukti_bayar' || document
     <div style="margin-bottom: 40px; padding: 24px; background: rgba(255, 255, 0, 0.03); border: 1px solid rgba(255, 255, 0, 0.15); display: flex; align-items: flex-start; gap: 16px;">
       <div style="background: #FFFF00; padding: 10px; display: flex; align-items: center; justify-content: center;">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          ${documentType === 'tanda_terima' ? '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline>' : 
-            documentType === 'bukti_bayar' ? '<rect x="2" y="5" width="20" height="14" rx="2"></rect><line x1="2" y1="10" x2="22" y2="10"></line>' : 
-            '<circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line>'}
+          ${documentType === 'tanda_terima' ? '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline>' :
+        documentType === 'bukti_bayar' ? '<rect x="2" y="5" width="20" height="14" rx="2"></rect><line x1="2" y1="10" x2="22" y2="10"></line>' :
+          '<circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line>'}
         </svg>
       </div>
       <div>
         <p style="font-size: 14px; font-weight: 800; color: #FFFF00; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 4px;">
-          ${documentType === 'tanda_terima' ? 'KENDARAAN DITERIMA' : 
-            documentType === 'bukti_bayar' ? 'PEMBAYARAN DIVALIDASI' : 
-            'RINGKASAN ESTIMASI'}
+          ${documentType === 'tanda_terima' ? 'KENDARAAN DITERIMA' :
+        documentType === 'bukti_bayar' ? 'PEMBAYARAN DIVALIDASI' :
+          'RINGKASAN ESTIMASI'}
         </p>
         <p style="font-size: 13px; color: #cac8aa; line-height: 1.6; margin: 0;">
-          ${documentType === 'tanda_terima' ? `Halo! Unit kendaraan <b>${motorDetails || '-'}</b> telah kami terima dengan aman di Studio untuk proses treatment. Terima kasih telah mempercayakan kendaraan Anda kepada kami.` : 
-            documentType === 'bukti_bayar' ? `Terima kasih! Kami telah menerima pembayaran sebesar <b>Rp${(Number(amountPaid) || Number(downPayment) || 0).toLocaleString('id-ID')}</b> via <b>${paymentMethod || 'Transfer'}</b>. Status tagihan Anda telah diperbarui.` : 
-            `Berikut adalah rincian estimasi biaya untuk layanan Repaint & Detailing kendaraan Anda. Jika ada perubahan atau tambahan, akan kami informasikan kembali.`}
+          ${documentType === 'tanda_terima' ? `Halo! Unit kendaraan <b>${motorDetails || '-'}</b> telah kami terima dengan aman di Studio untuk proses treatment. Terima kasih telah mempercayakan kendaraan Anda kepada kami.` :
+        documentType === 'bukti_bayar' ? `Terima kasih! Kami telah menerima pembayaran sebesar <b>Rp${(Number(amountPaid) || Number(downPayment) || 0).toLocaleString('id-ID')}</b> via <b>${paymentMethod || 'Transfer'}</b>. Status tagihan Anda telah diperbarui.` :
+          `Berikut adalah rincian estimasi biaya untuk layanan Repaint & Detailing kendaraan Anda. Jika ada perubahan atau tambahan, akan kami informasikan kembali.`}
         </p>
       </div>
     </div>
@@ -257,7 +257,7 @@ ${(documentType === 'tanda_terima' || documentType === 'bukti_bayar' || document
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    
+
     if (!body.items) {
       return NextResponse.json(
         { success: false, error: 'Missing items field' },
