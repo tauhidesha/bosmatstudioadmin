@@ -1,20 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-// Inline the invoice template to avoid cross-project import issues
 function generateInvoiceHTML(data: any): string {
   const {
     documentType, customerName, motorDetails, items,
     finalTotal, totalAmount, amountPaid, paymentMethod, notes,
-    recipientNumber, bookingDate, docNumber, now, detectedSize,
-    logoBase64, realPhone, subtotal: subtotalParam, discount,
-    downPayment
+    recipientNumber, bookingDate, docNumber, now,
+    realPhone, subtotal: subtotalParam, discount, downPayment
   } = data;
 
   const subtotal = Number(subtotalParam || finalTotal || totalAmount) || 0;
   const discountAmount = Number(discount) || 0;
+  const totalAfterDiscount = subtotal - discountAmount;
+
+  // amountPaid sudah include DP, jadi jangan hitung dobel
   const paid = Number(amountPaid) || 0;
   const dp = Number(downPayment) || 0;
-  const balance = Math.max(0, subtotal - discountAmount - paid - dp);
+
+  // Kalau amountPaid >= dp, berarti DP sudah termasuk di amountPaid
+  // Jadi balance = totalAfterDiscount - paid (saja)
+  const effectivePaid = Math.max(paid, dp);
+  const balance = Math.max(0, totalAfterDiscount - effectivePaid);
 
   const displayPhone = realPhone
     ? realPhone.replace(/^62/, '0')
@@ -25,6 +30,7 @@ function generateInvoiceHTML(data: any): string {
 
   const itemsList = (items || '').split('\n').map((i: string) => i.trim()).filter(Boolean);
 
+  // Filter notes — exclude raw item strings (contain ||) and empty
   let filteredNotes = notes || '-';
   if (filteredNotes && filteredNotes !== '-' && filteredNotes.match(/^Layanan:\s*/i)) {
     const headerRemoved = filteredNotes.replace(/^Layanan:\s*/i, '').trim();
@@ -39,16 +45,30 @@ function generateInvoiceHTML(data: any): string {
   const notesList = (filteredNotes && filteredNotes !== '-')
     ? filteredNotes.split('\n')
       .map((n: string) => n.trim())
-      .filter((n: string) => n && !n.match(/^Layanan:?$/i))
+      .filter((n: string) => n
+        && !n.match(/^Layanan:?$/i)
+        && !n.includes('||')
+        && !n.match(/^[●•\-*]\s*.+\|\|/)
+      )
     : [];
 
-  // Build items rows safely
+  // Build items rows — fix catatan warna duplikat
   const itemsRows = itemsList.map((item: string) => {
     try {
       const parts = item.split('||');
-      const cleanTitle = (parts[0] || '').trim().replace(/^(\d+\.|[-*•])\s*/, '');
+      const cleanTitle = (parts[0] || '').trim().replace(/^(\d+\.|[-*•●])\s*/, '');
       const price = parseInt(parts[1]) || 0;
-      const itemDesc = (parts[2] || '').trim();
+      const rawDesc = (parts[2] || '').trim();
+
+      // Strip duplikat "Warna:" / "Catatan Warna:" prefix
+      let itemDesc = rawDesc;
+      if (rawDesc) {
+        const stripped = rawDesc.replace(/^(catatan\s+warna:\s*|warna:\s*)+/gi, '').trim();
+        if (stripped !== rawDesc || rawDesc.match(/^(catatan\s+warna:|warna:)/i)) {
+          itemDesc = `Catatan Warna: ${stripped}`;
+        }
+      }
+
       const priceStr = price > 0 ? `Rp${price.toLocaleString('id-ID')}` : '-';
 
       return `
@@ -58,8 +78,8 @@ function generateInvoiceHTML(data: any): string {
           ${itemDesc ? (
           itemDesc.startsWith('Catatan Warna:')
             ? `<div style="display:flex; align-items:center; gap:6px; margin-top:6px; padding:4px 10px; background:rgba(255,255,0,0.05); border-left:2px solid #FFFF00; width:fit-content">
-                <span style="font-size:10px; color:#FFFF00; font-weight:800; text-transform:uppercase; letter-spacing:0.1em">🎨 ${itemDesc}</span>
-               </div>`
+                  <span style="font-size:10px; color:#FFFF00; font-weight:800; text-transform:uppercase; letter-spacing:0.1em">🎨 ${itemDesc}</span>
+                 </div>`
             : `<p class="text-muted" style="font-size:12px; line-height:1.4; margin-top:4px">${itemDesc}</p>`
         ) : ''}
         </td>
@@ -72,7 +92,7 @@ function generateInvoiceHTML(data: any): string {
     }
   }).join('');
 
-  // Build notes safely
+  // Notes HTML
   const notesHtml = notesList.length > 0 ? `
   <div class="bg-darker border-yellow" style="padding:32px; margin-bottom:24px">
     <p class="font-headline" style="font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.15em; margin-bottom:16px">Catatan Teknis Layanan</p>
@@ -87,22 +107,33 @@ function generateInvoiceHTML(data: any): string {
     </div>
   </div>` : '';
 
+  // Totals rows — jangan tampilkan DP dan Sudah Dibayar keduanya kalau nilainya sama
+  const discountRow = discountAmount > 0 ? `
+  <div style="display:flex; justify-content:space-between">
+    <span class="text-muted" style="font-size:12px; text-transform:uppercase; letter-spacing:0.1em">Diskon</span>
+    <span style="font-size:16px; color:#ffb4ab">- Rp${discountAmount.toLocaleString('id-ID')}</span>
+  </div>` : '';
+
+  // Tampilkan DP row jika ada DP
   const dpRow = dp > 0 ? `
   <div style="display:flex; justify-content:space-between">
     <span class="text-muted" style="font-size:12px; text-transform:uppercase; letter-spacing:0.1em">Down Payment (DP)</span>
     <span style="font-size:16px; color:#ffb4ab">- Rp${dp.toLocaleString('id-ID')}</span>
   </div>` : '';
 
-  const amountPaidRow = paid > 0 ? `
+  // Tampilkan "Sudah Dibayar" hanya jika paid > dp (ada pembayaran tambahan di luar DP)
+  const extraPaid = paid - dp;
+  const paidRow = extraPaid > 0 ? `
   <div style="display:flex; justify-content:space-between">
     <span class="text-muted" style="font-size:12px; text-transform:uppercase; letter-spacing:0.1em">Sudah Dibayar</span>
-    <span style="font-size:16px; color:#ffb4ab">- Rp${paid.toLocaleString('id-ID')}</span>
+    <span style="font-size:16px; color:#ffb4ab">- Rp${extraPaid.toLocaleString('id-ID')}</span>
   </div>` : '';
 
-  const discountRow = discountAmount > 0 ? `
+  // Kalau tidak ada DP tapi ada paid, tampilkan sebagai "Total Bayar"
+  const totalPaidRow = dp === 0 && paid > 0 ? `
   <div style="display:flex; justify-content:space-between">
-    <span class="text-muted" style="font-size:12px; text-transform:uppercase; letter-spacing:0.1em">Diskon</span>
-    <span style="font-size:16px; color:#ffb4ab">- Rp${discountAmount.toLocaleString('id-ID')}</span>
+    <span class="text-muted" style="font-size:12px; text-transform:uppercase; letter-spacing:0.1em">Total Bayar</span>
+    <span style="font-size:16px; color:#ffb4ab">- Rp${paid.toLocaleString('id-ID')}</span>
   </div>` : '';
 
   return `<!DOCTYPE html>
@@ -115,7 +146,6 @@ function generateInvoiceHTML(data: any): string {
     @page { margin: 0; size: A4; }
     html { background: #131313; -webkit-print-color-adjust: exact; }
     body { background: #131313; color: #e5e2e1; font-family: 'Manrope', sans-serif; padding: 0; width: 794px; margin: 0 auto; }
-    .page-wrap { padding: 40px; background: #131313; }
     .margin-top, .margin-bottom { height: 40px; background: #131313; }
     .font-headline { font-family: 'League Spartan', sans-serif; }
     .text-yellow { color: #FFFF00; }
@@ -123,7 +153,7 @@ function generateInvoiceHTML(data: any): string {
     .bg-darker { background: #0e0e0e; }
     .text-muted { color: #cac8aa; }
     .border-yellow { border-left: 2px solid #FFFF00; }
-    .items-table { width: 100%; border-collapse: collapse; }
+    .items-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
     .items-table thead { display: table-header-group; }
     .item-row td { padding: 28px 16px; border-bottom: 1px solid rgba(255,255,255,0.05); vertical-align: middle; }
     .item-row:last-child td { border-bottom: none; }
@@ -134,6 +164,8 @@ function generateInvoiceHTML(data: any): string {
   <table style="width:100%; border-collapse:collapse; background:#131313;">
     <thead><tr><td class="margin-top"></td></tr></thead>
     <tbody><tr><td style="padding: 0 40px; background:#131313;">
+
+    <!-- Header -->
     <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:60px">
       <div>
         <h1 class="font-headline" style="font-size:48px; font-weight:900; line-height:0.8; text-transform:uppercase; margin-bottom:16px">
@@ -142,7 +174,7 @@ function generateInvoiceHTML(data: any): string {
         </h1>
         <div style="display:flex; gap:12px; margin-top:16px">
           <span style="background:#676700; color:#e6e67a; padding:4px 12px; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.1em">
-            Status: ${(paid + dp) >= (subtotal - discountAmount) ? 'Lunas' : (paid + dp) > 0 ? 'DP' : 'Belum Bayar'}
+            Status: ${effectivePaid >= totalAfterDiscount && totalAfterDiscount > 0 ? 'Lunas' : effectivePaid > 0 ? 'DP' : 'Belum Bayar'}
           </span>
         </div>
       </div>
@@ -153,11 +185,12 @@ function generateInvoiceHTML(data: any): string {
         </div>
         <div style="margin-top:16px">
           <p class="text-muted" style="font-size:10px; text-transform:uppercase; letter-spacing:0.2em">Tanggal Terbit</p>
-          <p style="font-size:16px; font-weight:500">${now ? now.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : '-'}</p>
+          <p style="font-size:16px; font-weight:500">${now ? new Date(now).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
         </div>
       </div>
     </div>
 
+    <!-- Info Section -->
     <div style="display:grid; grid-template-columns:1fr 1fr; gap:1px; background:#484831; margin-bottom:60px">
       <div class="bg-dark" style="padding:28px">
         <p class="text-yellow" style="font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.2em; margin-bottom:20px">Informasi Pelanggan</p>
@@ -169,33 +202,40 @@ function generateInvoiceHTML(data: any): string {
       </div>
       <div class="bg-dark" style="padding:28px">
         <p class="text-yellow" style="font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.2em; margin-bottom:20px">Studio Layanan</p>
-        <p class="font-headline" style="font-size:24px; font-weight:700; text-transform:uppercase; margin-bottom:8px">BOSMAT STUDIO</p>
+        <p class="font-headline" style="font-size:24px; font-weight:700; text-transform:uppercase; margin-bottom:8px">BOSMAT REPAINT DETAILING MOTOR</p>
+        <p class="text-muted" style="font-size:14px; line-height:1.8">
+          Bukit Cengkeh 1, Jl. Medan No.B3/2, Kota Depok, Jawa Barat 16451<br/>
+          WA: 0895401527556
+        </p>
       </div>
     </div>
-${(documentType === 'tanda_terima' || documentType === 'bukti_bayar' || documentType === 'invoice') ? `
-    <div style="margin-bottom: 40px; padding: 24px; background: rgba(255, 255, 0, 0.03); border: 1px solid rgba(255, 255, 0, 0.15); display: flex; align-items: flex-start; gap: 16px;">
-      <div style="background: #FFFF00; padding: 10px; display: flex; align-items: center; justify-content: center;">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          ${documentType === 'tanda_terima' ? '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline>' :
-        documentType === 'bukti_bayar' ? '<rect x="2" y="5" width="20" height="14" rx="2"></rect><line x1="2" y1="10" x2="22" y2="10"></line>' :
-          '<circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line>'}
-        </svg>
+
+    <!-- Status Banner -->
+    <div style="margin-bottom:40px; padding:24px; background:rgba(255,255,0,0.03); border:1px solid rgba(255,255,0,0.15); display:flex; align-items:flex-start; gap:16px;">
+      <div style="background:#FFFF00; padding:10px; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+        ${documentType === 'tanda_terima'
+      ? '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>'
+      : documentType === 'bukti_bayar'
+        ? '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"></rect><line x1="2" y1="10" x2="22" y2="10"></line></svg>'
+        : '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>'
+    }
       </div>
       <div>
-        <p style="font-size: 14px; font-weight: 800; color: #FFFF00; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 4px;">
-          ${documentType === 'tanda_terima' ? 'KENDARAAN DITERIMA' :
-        documentType === 'bukti_bayar' ? 'PEMBAYARAN DIVALIDASI' :
-          'RINGKASAN ESTIMASI'}
+        <p style="font-size:14px; font-weight:800; color:#FFFF00; text-transform:uppercase; letter-spacing:0.1em; margin-bottom:4px;">
+          ${documentType === 'tanda_terima' ? 'KENDARAAN DITERIMA' : documentType === 'bukti_bayar' ? 'PEMBAYARAN DIVALIDASI' : 'RINGKASAN ESTIMASI'}
         </p>
-        <p style="font-size: 13px; color: #cac8aa; line-height: 1.6; margin: 0;">
-          ${documentType === 'tanda_terima' ? `Halo! Unit kendaraan <b>${motorDetails || '-'}</b> telah kami terima dengan aman di Studio untuk proses treatment. Terima kasih telah mempercayakan kendaraan Anda kepada kami.` :
-        documentType === 'bukti_bayar' ? `Terima kasih! Kami telah menerima pembayaran sebesar <b>Rp${(Number(amountPaid) || Number(downPayment) || 0).toLocaleString('id-ID')}</b> via <b>${paymentMethod || 'Transfer'}</b>. Status tagihan Anda telah diperbarui.` :
-          `Berikut adalah rincian estimasi biaya untuk layanan Repaint & Detailing kendaraan Anda. Jika ada perubahan atau tambahan, akan kami informasikan kembali.`}
+        <p style="font-size:13px; color:#cac8aa; line-height:1.6; margin:0; font-weight:400;">
+          ${documentType === 'tanda_terima'
+      ? `Halo! Unit kendaraan <b>${motorDetails || '-'}</b> telah kami terima dengan aman di Studio untuk proses treatment. Terima kasih telah mempercayakan kendaraan Anda kepada kami.`
+      : documentType === 'bukti_bayar'
+        ? `Terima kasih! Kami telah menerima pembayaran sebesar <b style="color:#FFFF00">Rp${(paid || dp || 0).toLocaleString('id-ID')}</b> via <b>${paymentMethod || 'Transfer'}</b>. Status tagihan Anda telah diperbarui.`
+        : `Berikut adalah rincian estimasi biaya untuk layanan Repaint & Detailing kendaraan Anda. Jika ada perubahan atau tambahan, akan kami informasikan kembali.`
+    }
         </p>
       </div>
     </div>
-` : ''}
 
+    <!-- Items Table -->
     <table class="items-table">
       <thead>
         <tr style="border-bottom:1px solid #484831;">
@@ -210,44 +250,47 @@ ${(documentType === 'tanda_terima' || documentType === 'bukti_bayar' || document
       </tbody>
     </table>
 
-  <div class="totals-section" style="display:grid; grid-template-columns:7fr 5fr; gap:32px; margin-top:40px">
-    <div>
-      <div style="padding:24px; border:1px solid #484831; background:#1c1b1b">
-        <p class="text-yellow" style="font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.15em; margin-bottom:16px">Informasi Pembayaran</p>
-        <div style="display:flex; align-items:center; gap:16px">
-          <div style="background:rgba(255,255,255,0.05); padding:12px; display:flex; align-items:center; justify-content:center">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M3 21H21M3 10H21M5 6L12 3L19 6M4 10V21M8 10V21M12 10V21M16 10V21M20 10V21" stroke="#FFFF00" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <div class="totals-section" style="display:grid; grid-template-columns:7fr 5fr; gap:32px; margin-top:40px">
+      <div>
+        ${notesHtml}
+        <div style="padding:24px; border:1px solid #484831; background:#1c1b1b">
+          <p class="text-yellow" style="font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.15em; margin-bottom:16px">Informasi Pembayaran</p>
+          <div style="display:flex; align-items:center; gap:16px">
+            <div style="background:rgba(255,255,255,0.05); padding:12px; display:flex; align-items:center; justify-content:center">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M3 21H21M3 10H21M5 6L12 3L19 6M4 10V21M8 10V21M12 10V21M16 10V21M20 10V21" stroke="#FFFF00" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <div>
+              <p class="font-headline" style="font-size:18px; font-weight:700; text-transform:uppercase">Blu BCA Digital: 0901 1180 1695</p>
+              <p class="text-muted" style="font-size:13px; text-transform:uppercase">A/N Muhammad Tauhid Haryadesa</p>
+            </div>
           </div>
+        </div>
+      </div>
+
+      <div style="background:#2a2a2a; padding:40px; display:flex; flex-direction:column; gap:20px">
+        <div style="display:flex; justify-content:space-between">
+          <span class="text-muted" style="font-size:12px; text-transform:uppercase; letter-spacing:0.1em">Subtotal</span>
+          <span style="font-size:16px">Rp${subtotal.toLocaleString('id-ID')}</span>
+        </div>
+        ${discountRow}
+        ${dpRow}
+        ${paidRow}
+        ${totalPaidRow}
+        <div style="border-top:1px solid #484831; padding-top:24px; margin-top:8px">
+          <span class="text-muted" style="font-size:10px; text-transform:uppercase; letter-spacing:0.2em; display:block; margin-bottom:8px">Total Keseluruhan</span>
+          <span class="font-headline" style="font-size:36px; font-weight:900">Rp${totalAfterDiscount.toLocaleString('id-ID')}</span>
+        </div>
+        <div style="background:#FFFF00; padding:20px 24px; margin:0 -40px -40px; display:flex; justify-content:space-between; align-items:center">
           <div>
-            <p class="font-headline" style="font-size:18px; font-weight:700; text-transform:uppercase">Blu BCA Digital: 0901 1180 1695</p>
-            <p class="text-muted" style="font-size:13px; text-transform:uppercase">A/N Muhammad Tauhid Haryadesa</p>
+            <span style="color:#1d1d00; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.2em; display:block; margin-bottom:4px">Sisa Tagihan</span>
+            <span class="font-headline" style="color:#1d1d00; font-size:44px; font-weight:900">Rp${balance.toLocaleString('id-ID')}</span>
           </div>
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none"><rect x="2" y="5" width="20" height="14" rx="2" stroke="#1d1d00" stroke-width="2"/><path d="M2 10H22" stroke="#1d1d00" stroke-width="2"/><path d="M6 15H10" stroke="#1d1d00" stroke-width="2" stroke-linecap="round"/></svg>
         </div>
       </div>
     </div>
 
-    <div style="background:#2a2a2a; padding:40px; display:flex; flex-direction:column; gap:20px">
-      <div style="display:flex; justify-content:space-between">
-        <span class="text-muted" style="font-size:12px; text-transform:uppercase; letter-spacing:0.1em">Subtotal</span>
-        <span style="font-size:16px">Rp${subtotal.toLocaleString('id-ID')}</span>
-      </div>
-      ${discountRow}
-      ${dpRow}
-      ${amountPaidRow}
-      <div style="border-top:1px solid #484831; padding-top:24px; margin-top:8px">
-        <span class="text-muted" style="font-size:10px; text-transform:uppercase; letter-spacing:0.2em; display:block; margin-bottom:8px">Total Keseluruhan</span>
-        <span class="font-headline" style="font-size:36px; font-weight:900">Rp${(subtotal - discountAmount).toLocaleString('id-ID')}</span>
-      </div>
-      <div style="background:#FFFF00; padding:20px 24px; margin:0 -40px -40px; display:flex; justify-content:space-between; align-items:center">
-        <div>
-          <span style="color:#1d1d00; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.2em; display:block; margin-bottom:4px">Sisa Tagihan</span>
-          <span class="font-headline" style="color:#1d1d00; font-size:44px; font-weight:900">Rp${balance.toLocaleString('id-ID')}</span>
-        </div>
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none"><rect x="2" y="5" width="20" height="14" rx="2" stroke="#1d1d00" stroke-width="2"/><path d="M2 10H22" stroke="#1d1d00" stroke-width="2"/><path d="M6 15H10" stroke="#1d1d00" stroke-width="2" stroke-linecap="round"/></svg>
-      </div>
-    </div>
-    </div>
-      </td></tr></tbody>
+    </td></tr></tbody>
     <tfoot><tr><td class="margin-bottom"></td></tr></tfoot>
   </table>
 </body>
@@ -280,4 +323,3 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-
