@@ -630,7 +630,7 @@ export default function ManualBookingForm({
             ...(token ? { 'Authorization': `Bearer ${token}` } : {})
           },
           body: JSON.stringify({
-            documentType: 'invoice',
+            documentType: docType,
             customerName: invoiceName,
             customerPhone: contactPhone,
             realPhone,
@@ -2257,7 +2257,7 @@ function DesktopLayout(props: any) {
                 }).join('\n');
                 // @ts-ignore
                 window.__invoicePreviewData = {
-                  documentType: 'invoice',
+                  documentType: docType,
                   customerName: invoiceName,
                   customerPhone: contactPhone,
                   motorDetails: `${motorcycleModel?.modelName || 'Motor'} (${platNomor || '-'})`,
