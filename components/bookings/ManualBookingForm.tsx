@@ -60,12 +60,23 @@ export default function ManualBookingForm({
   const [modelSearchText, setModelSearchText] = useState('');
   const [platNomor, setPlatNomor] = useState('');
   const [bookingStatus, setBookingStatus] = useState<string>('pending');
+  const [customModelSize, setCustomModelSize] = useState<'S' | 'M' | 'L' | 'XL'>('M');
+
+  const isCustomModel = modelSearchText.trim().length > 0 && motorcycleModel === null;
+  const effectiveMotor: VehicleModel | null = isCustomModel
+    ? {
+      id: '__custom__',
+      brand: 'Custom',
+      modelName: modelSearchText.trim(),
+      serviceSize: customModelSize,
+      repaintSize: customModelSize,
+      aliases: [],
+    }
+    : motorcycleModel;
 
   useEffect(() => {
     if (motorcycleModel?.modelName) {
       setModelSearchText(motorcycleModel.modelName);
-    } else {
-      setModelSearchText('');
     }
   }, [motorcycleModel]);
   const [amountPaid, setAmountPaid] = useState<number>(0);
@@ -185,8 +196,8 @@ export default function ManualBookingForm({
 
             // AUTO-APPLY FOR EDIT: If model is missing/generic, apply immediately
             if (isEdit && (!motorcycleModel || motorcycleModel.modelName.toLowerCase() === 'motor')) {
-              const model = vehicleModels.find(m => 
-                m.modelName.toLowerCase() === v.modelName.toLowerCase() || 
+              const model = vehicleModels.find(m =>
+                m.modelName.toLowerCase() === v.modelName.toLowerCase() ||
                 v.modelName.toLowerCase().includes(m.modelName.toLowerCase())
               );
               if (model) {
@@ -227,14 +238,14 @@ export default function ManualBookingForm({
       console.log('DEBUG: Matching model for:', { rawModel, rawInfo });
 
       // 1. Try to find model from vehicleModel field first (cleanest)
-      let foundModel = vehicleModels.find(m => 
+      let foundModel = vehicleModels.find(m =>
         m.modelName.toLowerCase() === rawModel.toLowerCase()
       );
 
       // 2. If not found, try extraction from vehicleInfo "Model (Plate)"
       if (!foundModel && rawInfo) {
         const extractedName = rawInfo.split(' (')[0].trim();
-        foundModel = vehicleModels.find(m => 
+        foundModel = vehicleModels.find(m =>
           m.modelName.toLowerCase() === extractedName.toLowerCase() ||
           m.aliases?.some(a => a.toLowerCase() === extractedName.toLowerCase())
         );
@@ -243,7 +254,7 @@ export default function ManualBookingForm({
       // 3. Fallback: partial match if still not found
       if (!foundModel && (rawModel || rawInfo)) {
         const searchStr = (rawModel || rawInfo).toLowerCase();
-        foundModel = vehicleModels.find(m => 
+        foundModel = vehicleModels.find(m =>
           searchStr.includes(m.modelName.toLowerCase()) ||
           m.aliases?.some(a => searchStr.includes(a.toLowerCase()))
         );
@@ -277,7 +288,7 @@ export default function ManualBookingForm({
       if (initialData.downPayment !== undefined) setNominalDP(initialData.downPayment);
       if (initialData.paymentMethod) setPaymentMethod(initialData.paymentMethod);
       if (initialData.homeService !== undefined) setHomeService(!!initialData.homeService);
-      
+
       // Extract Discount
       const sub = Number(initialData.subtotal) || 0;
       const tot = Number(initialData.totalAmount);
@@ -311,7 +322,7 @@ export default function ManualBookingForm({
         rawServices.forEach((s: string) => {
           let serviceLine = s.trim();
           if (!serviceLine) return;
-          
+
           let itemSurcharges: string[] = [];
           let itemNotes = '';
           let explicitCustomPrice = 0;
@@ -330,7 +341,7 @@ export default function ManualBookingForm({
               explicitCustomPrice = parseInt(explicitPriceMatch[1]);
               serviceLine = serviceLine.replace(explicitPriceMatch[0], '').trim();
             }
-            
+
             // Color/Notes (Warna: ...)
             const colorMatch = serviceLine.match(/ \(Warna: ([^)]+)\)/);
             if (colorMatch) {
@@ -345,16 +356,16 @@ export default function ManualBookingForm({
             serviceLine = surchargeMatch[1].trim();
             itemSurcharges = surchargeMatch[2].split(',').map(sum => sum.trim().replace(/^\+/, ''));
           }
-          
+
           const found = services.find(srv => srv.name === serviceLine);
           const itemId = Math.random().toString(36).substr(2, 9);
-          
+
           if (found) {
             newCart.push({
               id: itemId,
               name: found.name,
               // Use explicit price from metadata if available, otherwise calculate
-              price: explicitCustomPrice || calculateServicePrice(found, foundModel || null, surcharges, itemSurcharges),
+              price: explicitCustomPrice || calculateServicePrice(found, effectiveMotor || foundModel || null, surcharges, itemSurcharges),
               surcharges: itemSurcharges,
               itemNotes
             });
@@ -366,9 +377,9 @@ export default function ManualBookingForm({
             }
             const spotServiceMaster = services.find(srv => srv.name === 'Spot Repair');
             if (spotServiceMaster) {
-              newCart.push({ 
+              newCart.push({
                 id: itemId,
-                name: spotServiceMaster.name, 
+                name: spotServiceMaster.name,
                 price: explicitCustomPrice || 0, // Prefer metadata price
                 surcharges: []
               });
@@ -380,15 +391,15 @@ export default function ManualBookingForm({
               newCart.push({
                 id: itemId,
                 name: looseMatch.name,
-                price: explicitCustomPrice || calculateServicePrice(looseMatch, foundModel || null, surcharges, itemSurcharges),
+                price: explicitCustomPrice || calculateServicePrice(looseMatch, effectiveMotor || foundModel || null, surcharges, itemSurcharges),
                 surcharges: itemSurcharges,
                 itemNotes
               });
             } else {
               // Custom Service
-              newCart.push({ 
+              newCart.push({
                 id: itemId,
-                name: serviceLine, 
+                name: serviceLine,
                 price: explicitCustomPrice || 0,
                 surcharges: itemSurcharges,
                 itemNotes,
@@ -434,26 +445,26 @@ export default function ManualBookingForm({
     setCart(prev => prev.map(item => {
       const serviceMaster = services.find(s => s.name === item.name);
       if (serviceMaster && item.name !== 'Spot Repair') {
-        const newPrice = calculateServicePrice(serviceMaster, motorcycleModel, surcharges, item.surcharges || []);
+        const newPrice = calculateServicePrice(serviceMaster, effectiveMotor, surcharges, item.surcharges || []);
         return { ...item, price: newPrice };
       }
       return item;
     }));
-  }, [motorcycleModel, services, surcharges]);
+  }, [effectiveMotor, services, surcharges]);
 
   // --- ACTIONS ---
   const toggleSurchargeForItem = (itemId: string, surchargeName: string) => {
     setCart(prev => prev.map(item => {
       if (item.id === itemId) {
         const hasSurcharge = item.surcharges.includes(surchargeName);
-        const newSurcharges = hasSurcharge 
+        const newSurcharges = hasSurcharge
           ? item.surcharges.filter(s => s !== surchargeName)
           : [...item.surcharges, surchargeName];
-        
+
         // Recalculate price immediately for this item
         const serviceMaster = services.find(s => s.name === item.name);
-        const newPrice = serviceMaster 
-          ? calculateServicePrice(serviceMaster, motorcycleModel, surcharges, newSurcharges)
+        const newPrice = serviceMaster
+          ? calculateServicePrice(serviceMaster, effectiveMotor, surcharges, newSurcharges)
           : item.price;
 
         return { ...item, surcharges: newSurcharges, price: newPrice };
@@ -524,26 +535,26 @@ export default function ManualBookingForm({
 
   const addServiceToCart = (service: Service) => {
     const defaultSurcharges: string[] = [];
-    const price = calculateServicePrice(service, motorcycleModel, surcharges, defaultSurcharges);
-    
+    const price = calculateServicePrice(service, effectiveMotor, surcharges, defaultSurcharges);
+
     setCart((prev: CartItem[]) => {
       if (prev.find((i: CartItem) => i.name === service.name)) {
         return prev.filter((i: CartItem) => i.name !== service.name);
       }
-      return [...prev, { 
-        id: Math.random().toString(36).substr(2, 9), 
-        name: service.name, 
-        price, 
-        surcharges: defaultSurcharges 
+      return [...prev, {
+        id: Math.random().toString(36).substr(2, 9),
+        name: service.name,
+        price,
+        surcharges: defaultSurcharges
       }];
     });
   };
 
   const addCustomService = () => {
     if (!customServiceName || customServicePrice <= 0) return;
-    setCart((prev: CartItem[]) => [...prev, { 
+    setCart((prev: CartItem[]) => [...prev, {
       id: Math.random().toString(36).substr(2, 9),
-      name: customServiceName.toUpperCase(), 
+      name: customServiceName.toUpperCase(),
       price: customServicePrice,
       surcharges: []
     }]);
@@ -552,7 +563,7 @@ export default function ManualBookingForm({
   };
 
   const handleSubmit = async () => {
-    if (!invoiceName || !contactPhone || !motorcycleModel) {
+    if (!invoiceName || !contactPhone || (!motorcycleModel && !modelSearchText.trim())) {
       alert('Mohon lengkapi info customer dan model motor.');
       return;
     }
@@ -579,8 +590,8 @@ export default function ManualBookingForm({
         serviceName: serviceSummary,
         bookingDate: entryDate,
         bookingTime: timeSlot,
-        vehicleInfo: `${motorcycleModel.modelName} (${platNomor || '-'})`,
-        motorModel: motorcycleModel.modelName,
+        vehicleInfo: `${effectiveMotor?.modelName || modelSearchText.trim()} (${platNomor || '-'})`,
+        motorModel: effectiveMotor?.modelName || modelSearchText.trim(),
         plateNumber: platNomor,
         subtotal: servicesTotal,
         discount: computedDiscount,
@@ -597,7 +608,7 @@ export default function ManualBookingForm({
           if (i.surcharges.length > 0) result += ` (+${i.surcharges.join(', ')})`;
           if (i.itemNotes) result += ` (Warna: ${i.itemNotes})`;
           return result;
-        }).join(', ')} ${spotCount > 0 ? `| Spot Repair (${spotCount} spots)` : ''} | DP: ${paymentMethod} \n\nCatatan Tambahan: ${additionalNotes}`,
+        }).join(', ')} ${spotCount > 0 ? `| Spot Repair (${spotCount} spots)` : ''} | DP: ${paymentMethod} \n\nCatatan Tambahan: ${additionalNotes}${isCustomModel ? `\n\n[Custom Model - Size: ${customModelSize}]` : ''}`,
       };
 
       if (isEdit) {
@@ -606,7 +617,7 @@ export default function ManualBookingForm({
         const token = await getIdToken();
         const res = await fetch('/api/bookings', {
           method: 'POST',
-          headers: { 
+          headers: {
             'Content-Type': 'application/json',
             ...(token ? { 'Authorization': `Bearer ${token}` } : {})
           },
@@ -625,7 +636,7 @@ export default function ManualBookingForm({
         const token = await getIdToken();
         await fetch('/api/bookings/invoice', {
           method: 'POST',
-          headers: { 
+          headers: {
             'Content-Type': 'application/json',
             ...(token ? { 'Authorization': `Bearer ${token}` } : {})
           },
@@ -634,7 +645,7 @@ export default function ManualBookingForm({
             customerName: invoiceName,
             customerPhone: contactPhone,
             realPhone,
-            motorDetails: `${motorcycleModel.modelName} (${platNomor || '-'})`,
+            motorDetails: `${effectiveMotor?.modelName || modelSearchText.trim() || 'Motor'} (${platNomor || '-'})`,
             items: detailedItems,
             subtotal: servicesTotal,
             totalAmount: finalTotal,
@@ -707,7 +718,7 @@ export default function ManualBookingForm({
     additionalNotes, setAdditionalNotes,
     realPhone, setRealPhone,
     modelSearchText, setModelSearchText,
-    getIdToken
+    getIdToken,
   };
 
   const isMobile = useMediaQuery('(max-width: 768px)');
@@ -735,7 +746,8 @@ function MobileLayout(props: any) {
     bookingStatus, setBookingStatus, amountPaid, setAmountPaid,
     services, vehicleModels, surcharges, loadingPricing,
     toggleSurchargeForItem, setItemNotesForItem, additionalNotes, setAdditionalNotes,
-    realPhone, setRealPhone, entryDate, timeSlot, getIdToken
+    realPhone, setRealPhone, entryDate, timeSlot, getIdToken,
+    isCustomModel, customModelSize, setCustomModelSize, effectiveMotor, setCart
   } = props;
 
   const isSpotRepairSelected = cart.some((item: CartItem) => item.name === 'Spot Repair');
@@ -844,7 +856,7 @@ function MobileLayout(props: any) {
                   onChange={e => {
                     setModelSearchText(e.target.value);
                     const model = vehicleModels.find(m => m.modelName.toLowerCase() === e.target.value.toLowerCase());
-                    if (model) setMotorcycleModel(model);
+                    setMotorcycleModel(model || null);
                   }}
                   onBlur={() => {
                     if (!motorcycleModel || motorcycleModel.modelName.toLowerCase() !== modelSearchText.toLowerCase()) {
@@ -863,6 +875,16 @@ function MobileLayout(props: any) {
                 </datalist>
                 <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-500 size-3 pointer-events-none" />
               </div>
+              {isCustomModel && !motorcycleModel && (
+                <button
+                  type="button"
+                  onClick={() => (document.activeElement as HTMLElement)?.blur()}
+                  className="mt-1 flex items-center gap-1.5 text-[9px] font-bold text-[#FFFF00] bg-[#FFFF00]/10 px-2 py-1 rounded-sm border border-[#FFFF00]/20"
+                >
+                  <PlusCircle size={10} />
+                  USE CUSTOM: {modelSearchText.trim().toUpperCase()}
+                </button>
+              )}
             </div>
             <div className="space-y-1">
               <label className="block text-[10px] font-headline text-slate-500 uppercase ml-1">Plate Number</label>
@@ -879,6 +901,34 @@ function MobileLayout(props: any) {
               </div>
             </div>
           </div>
+
+          {isCustomModel && (
+            <div className="bg-neutral-900/60 p-4 border border-[#FFFF00]/20 rounded-sm space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="px-2 py-0.5 bg-[#FFFF00] text-black text-[9px] font-black uppercase rounded-sm">Custom Model</span>
+                  <HelpCircle className="size-3 text-neutral-500" />
+                </div>
+                <p className="text-[9px] text-neutral-400 font-headline italic">Pilih ukuran yang paling mendekati</p>
+              </div>
+
+              <div className="flex gap-1 bg-neutral-950 p-1 rounded-sm">
+                {(['S', 'M', 'L', 'XL'] as const).map(size => (
+                  <button
+                    key={size}
+                    type="button"
+                    onClick={() => setCustomModelSize(size)}
+                    className={cn(
+                      "flex-1 py-1.5 text-xs font-bold rounded-sm transition-all",
+                      customModelSize === size ? "bg-[#FFFF00] text-black" : "text-neutral-500"
+                    )}
+                  >
+                    {size}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {foundVehicle && (
             <div className="p-3 bg-[#FFFF00]/5 border border-[#FFFF00]/20 flex items-center justify-between rounded-sm animate-in fade-in slide-in-from-top-2 duration-300">
@@ -930,7 +980,7 @@ function MobileLayout(props: any) {
           <div className="space-y-2">
             {services.filter(s => s.category === activeTab).map((service: Service) => {
               const selected = cart.some((i: CartItem) => i.name === service.name);
-              const price = calculateServicePrice(service, motorcycleModel, surcharges);
+              const price = calculateServicePrice(service, effectiveMotor, surcharges);
               return (
                 <div
                   key={service.id}
@@ -990,7 +1040,7 @@ function MobileLayout(props: any) {
                 const isBodiHalus = item.name.toUpperCase().includes('BODI HALUS');
                 const isVelg = item.name.toUpperCase().includes('VELG');
                 const isCvtArm = item.name.toUpperCase().includes('CVT') || item.name.toUpperCase().includes('ARM');
-                
+
                 // Only show surcharge section if it's Bodi Halus, Velg or CVT/Arm
                 if (!isBodiHalus && !isVelg && !isCvtArm) return null;
 
@@ -1010,22 +1060,22 @@ function MobileLayout(props: any) {
                       </p>
                     </div>
                     {availableSurcharges.length > 0 && (
-                    <div className="grid grid-cols-1 gap-2 pb-3 mb-1 border-b border-white/5">
-                      {availableSurcharges.map((s: any) => (
-                        <label key={s.id} className="flex items-center gap-3 cursor-pointer p-2 bg-neutral-900 border border-white/5 rounded-sm">
-                          <input
-                            type="checkbox"
-                            checked={item.surcharges.includes(s.name)}
-                            onChange={() => toggleSurchargeForItem(item.id, s.name)}
-                            className="rounded border-white/10 bg-[#0e0e0e] text-[#FFFF00] focus:ring-[#FFFF00] size-4"
-                          />
-                          <div className="flex flex-col">
-                            <span className="text-xs font-bold text-white uppercase">{s.name}</span>
-                            <span className="text-[10px] text-slate-500">{s.isPercentage ? `${s.amount}%` : formatRupiah(s.amount)}</span>
-                          </div>
-                        </label>
-                      ))}
-                    </div>
+                      <div className="grid grid-cols-1 gap-2 pb-3 mb-1 border-b border-white/5">
+                        {availableSurcharges.map((s: any) => (
+                          <label key={s.id} className="flex items-center gap-3 cursor-pointer p-2 bg-neutral-900 border border-white/5 rounded-sm">
+                            <input
+                              type="checkbox"
+                              checked={item.surcharges.includes(s.name)}
+                              onChange={() => toggleSurchargeForItem(item.id, s.name)}
+                              className="rounded border-white/10 bg-[#0e0e0e] text-[#FFFF00] focus:ring-[#FFFF00] size-4"
+                            />
+                            <div className="flex flex-col">
+                              <span className="text-xs font-bold text-white uppercase">{s.name}</span>
+                              <span className="text-[10px] text-slate-500">{s.isPercentage ? `${s.amount}%` : formatRupiah(s.amount)}</span>
+                            </div>
+                          </label>
+                        ))}
+                      </div>
                     )}
                     <div className="space-y-1">
                       <label className="text-[9px] font-headline text-neutral-500 uppercase">Catatan Warna / Detail</label>
@@ -1037,6 +1087,27 @@ function MobileLayout(props: any) {
                         className="w-full bg-[#0e0e0e] border-none focus:ring-1 focus:ring-[#FFFF00]/50 text-xs py-2 px-3 text-white placeholder-neutral-700 rounded-sm"
                       />
                     </div>
+
+                    {/* Manual Price Fallback for Custom Repaint */}
+                    {isCustomModel && item.name === 'Repaint Bodi Halus' && item.price === 0 && (
+                      <div className="space-y-1 pt-2 border-t border-white/5 mt-2">
+                        <label className="text-[9px] font-headline text-[#FFFF00] uppercase">Harga Manual (Model tidak terdaftar)</label>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[9px] text-neutral-500 font-headline">IDR</span>
+                          <input
+                            type="text"
+                            value={item.price > 0 ? item.price.toLocaleString('id-ID') : ''}
+                            onChange={(e) => {
+                              const val = e.target.value.replace(/\./g, '').replace(/[^0-9]/g, '');
+                              const num = val ? Number(val) : 0;
+                              setCart(prev => prev.map(i => i.id === item.id ? { ...i, price: num } : i));
+                            }}
+                            className="w-full bg-[#FFFF00]/5 border border-[#FFFF00]/20 text-xs py-2 pl-8 pr-3 text-[#FFFF00] font-mono rounded-sm"
+                            placeholder="Input Harga Manual..."
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -1231,15 +1302,15 @@ function MobileLayout(props: any) {
                 {cart.map((item: any, idx: number) => (
                   <div key={idx} className="flex justify-between items-center text-[10px]">
                     <div className="flex items-center gap-2">
-                       <button 
-                         onClick={() => addServiceToCart({ name: item.name } as any)} 
-                         className="text-red-500 bg-red-500/10 p-0.5 rounded-sm"
-                       >
-                         <X size={10} />
-                       </button>
-                       <span className="text-neutral-300 font-headline uppercase truncate max-w-[180px]">
-                         {item.name} {item.name === 'Spot Repair' && spotCount > 0 ? `(${spotCount}x)` : ''}
-                       </span>
+                      <button
+                        onClick={() => addServiceToCart({ name: item.name } as any)}
+                        className="text-red-500 bg-red-500/10 p-0.5 rounded-sm"
+                      >
+                        <X size={10} />
+                      </button>
+                      <span className="text-neutral-300 font-headline uppercase truncate max-w-[180px]">
+                        {item.name} {item.name === 'Spot Repair' && spotCount > 0 ? `(${spotCount}x)` : ''}
+                      </span>
                     </div>
                     <span className="text-neutral-400 font-medium font-mono">
                       {item.name === 'Spot Repair' ? formatRupiah(spotCount * spotPrice) : formatRupiah(item.price)}
@@ -1286,7 +1357,7 @@ function MobileLayout(props: any) {
                   documentType: 'invoice',
                   customerName: invoiceName,
                   customerPhone: contactPhone,
-                  motorDetails: `${motorcycleModel?.modelName || 'Motor'} (${platNomor || '-'})`,
+                  motorDetails: `${effectiveMotor?.modelName || modelSearchText.trim() || 'Motor'} (${platNomor || '-'})`,
                   items: detailedItems,
                   totalAmount: finalTotal,
                   discount: computedDiscount,
@@ -1368,7 +1439,7 @@ function MobileLayout(props: any) {
         invoiceData={{
           customerName: invoiceName,
           customerPhone: contactPhone,
-          motorDetails: `${motorcycleModel?.modelName || 'Motor'} (${platNomor || '-'})`,
+          motorDetails: `${effectiveMotor?.modelName || modelSearchText.trim() || 'Motor'} (${platNomor || '-'})`,
           items: [
             ...cart.map((i: CartItem) => `${i.name}||${i.price}||${i.itemNotes ? `Catatan Warna: ${i.itemNotes}` : ''}`),
             spotCount > 0 ? `Spot Repair (${spotCount} spots)||${spotCount * spotPrice}||` : null
@@ -1407,7 +1478,7 @@ function MobileLayout(props: any) {
           }).join('\n');
           await fetch('/api/bookings/invoice', {
             method: 'POST',
-            headers: { 
+            headers: {
               'Content-Type': 'application/json',
               ...(token ? { 'Authorization': `Bearer ${token}` } : {})
             },
@@ -1416,7 +1487,7 @@ function MobileLayout(props: any) {
               customerName: invoiceName,
               customerPhone: contactPhone,
               realPhone,
-              motorDetails: `${motorcycleModel?.modelName || 'Motor'} (${platNomor || '-'})`,
+              motorDetails: `${effectiveMotor?.modelName || modelSearchText.trim() || 'Motor'} (${platNomor || '-'})`,
               items: detailedItems,
               totalAmount: finalTotal,
               discount: computedDiscount,
@@ -1455,7 +1526,8 @@ function DesktopLayout(props: any) {
     docType, setDocType,
     services, vehicleModels, surcharges, loadingPricing,
     toggleSurchargeForItem, setItemNotesForItem, additionalNotes, setAdditionalNotes,
-    realPhone, setRealPhone
+    realPhone, setRealPhone,
+    isCustomModel, customModelSize, setCustomModelSize, effectiveMotor, setCart
   } = props;
 
   const isSpotRepairSelected = cart.some((item: CartItem) => item.name === 'Spot Repair');
@@ -1503,7 +1575,7 @@ function DesktopLayout(props: any) {
               </button>
             ))}
             {allConversations.length > 3 && (
-              <button 
+              <button
                 onClick={() => setShowAllChats(!showAllChats)}
                 className="w-full flex items-center justify-center gap-2 p-2 border border-dashed border-white/10 text-slate-500 text-[10px] font-headline uppercase hover:text-white transition-colors">
                 <Search className="size-3" />
@@ -1514,7 +1586,7 @@ function DesktopLayout(props: any) {
         </section>
 
         {/* Total Summary Panel */}
-                <div className="mt-auto bg-[#0e0e0e] p-4 border border-white/5">
+        <div className="mt-auto bg-[#0e0e0e] p-4 border border-white/5">
           <h4 className="text-[10px] font-headline text-slate-500 uppercase mb-4 tracking-widest">Order Summary</h4>
           <div className="space-y-2">
             {cart.length > 0 && (
@@ -1534,12 +1606,12 @@ function DesktopLayout(props: any) {
                     <div key={item.id} className="space-y-1">
                       <div className="flex justify-between text-[10px] font-headline items-center">
                         <div className="flex items-center gap-2">
-                          <button 
+                          <button
                             onClick={() => addServiceToCart(services.find(s => s.name === item.name) || { name: item.name } as any)}
                             className="text-red-500 hover:text-red-400 bg-red-500/10 rounded-sm p-0.5 transition-colors"
                             title="Remove service"
                           >
-                           <X size={10} />
+                            <X size={10} />
                           </button>
                           <span className="text-slate-400 truncate max-w-[150px] uppercase">
                             {item.name} {item.name === 'Spot Repair' && spotCount > 0 ? `(${spotCount}x)` : ''}
@@ -1549,7 +1621,7 @@ function DesktopLayout(props: any) {
                           {item.name === 'Spot Repair' ? formatRupiah(spotCount * spotPrice) : formatRupiah(item.price)}
                         </span>
                       </div>
-                      
+
                       {/* Independent Surcharge select in Desktop Summary */}
                       {(isBodiHalus || isVelg || isCvtArm) && availableSurcharges.length > 0 && (
                         <div className="flex flex-wrap gap-1 pl-6">
@@ -1688,7 +1760,6 @@ function DesktopLayout(props: any) {
             </div>
           </section>
 
-          {/* Section 2: Technical Specs */}
           <section id="step-2" className="space-y-6">
             <div className="flex items-center gap-4 mb-2">
               <h3 className="font-display text-2xl font-bold uppercase tracking-tighter text-white">Technical Specs</h3>
@@ -1698,142 +1769,187 @@ function DesktopLayout(props: any) {
               <div className="space-y-1">
                 <label className="text-[10px] font-headline text-slate-500 uppercase tracking-widest">Motorcycle Model</label>
                 <div className="relative">
+                  <input
+                    list="motorcycle-models-desktop"
+                    value={modelSearchText}
+                    onChange={e => {
+                      setModelSearchText(e.target.value);
+                      const model = vehicleModels.find(m => m.modelName.toLowerCase() === e.target.value.toLowerCase());
+                      setMotorcycleModel(model || null);
+                    }}
+                    onBlur={() => {
+                      if (!motorcycleModel || motorcycleModel.modelName.toLowerCase() !== modelSearchText.toLowerCase()) {
+                        // If no strict match and we have text, try to find partial match
+                        const model = vehicleModels.find(m => m.modelName.toLowerCase().includes(modelSearchText.toLowerCase()));
+                        if (model) setMotorcycleModel(model);
+                      }
+                    }}
+                    className="w-full bg-[#0e0e0e] border-none focus:ring-0 text-sm py-4 px-4 font-headline text-white placeholder-neutral-700"
+                    placeholder="Type to search model..."
+                  />
+                  <datalist id="motorcycle-models-desktop">
+                    {vehicleModels.map(m => (
+                      <option key={m.id} value={m.modelName}>{m.modelName}</option>
+                    ))}
+                  </datalist>
+                  <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500 size-5" />
+                </div>
+                {isCustomModel && !motorcycleModel && (
+                  <div className="mt-2 animate-in fade-in slide-in-from-left-2 duration-300">
+                    <button
+                      type="button"
+                      onClick={() => (document.activeElement as HTMLElement)?.blur()}
+                      className="flex items-center gap-2 bg-[#FFFF00]/10 border border-[#FFFF00]/20 px-4 py-2 rounded-sm"
+                    >
+                      <PlusCircle className="size-4 text-[#FFFF00]" />
+                      <span className="text-[10px] font-black uppercase text-[#FFFF00] tracking-widest">Gunakan "{modelSearchText.trim().toUpperCase()}" (Custom Model)</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+              <div className="space-y-1">
+                <label className="flex justify-between items-center text-[10px] font-headline uppercase tracking-widest">
+                  <span className="text-slate-500">Plat Nomor</span>
+                  <span className="text-[#FFFF00] flex items-center gap-1"><Bolt className="size-3" /> SMART SEARCH</span>
+                </label>
                 <input
-                  list="motorcycle-models-desktop"
-                  value={modelSearchText}
-                  onChange={e => {
-                    setModelSearchText(e.target.value);
-                    const model = vehicleModels.find(m => m.modelName.toLowerCase() === e.target.value.toLowerCase());
-                    if (model) setMotorcycleModel(model);
+                  value={platNomor}
+                  onChange={(e) => {
+                    // Matikan tameng saat user dengan sengaja mengetik manual
+                    setSkipNextSearch(false);
+                    setPlatNomor(e.target.value.toUpperCase());
                   }}
-                  onBlur={() => {
-                    if (!motorcycleModel || motorcycleModel.modelName.toLowerCase() !== modelSearchText.toLowerCase()) {
-                      // If no strict match and we have text, try to find partial match
-                      const model = vehicleModels.find(m => m.modelName.toLowerCase().includes(modelSearchText.toLowerCase()));
-                      if (model) setMotorcycleModel(model);
-                    }
-                  }}
-                  className="w-full bg-[#0e0e0e] border-none focus:ring-0 text-sm py-4 px-4 font-headline text-white placeholder-neutral-700"
-                  placeholder="Type to search model..."
+                  className="w-full bg-[#0e0e0e] border-none focus:ring-0 text-sm py-4 px-4 font-headline placeholder:text-slate-800 text-white uppercase"
+                  placeholder="B 1234 XYZ"
                 />
-                <datalist id="motorcycle-models-desktop">
-                  {vehicleModels.map(m => (
-                    <option key={m.id} value={m.modelName}>{m.modelName}</option>
-                  ))}
-                </datalist>
-                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500 size-5" />
+
+                {/* Found Vehicle Card */}
+                {foundVehicle && (
+                  <div className="mt-2 p-3 bg-[#1c1b1b] border border-[#FFFF00]/20 flex items-center justify-between animate-in fade-in slide-in-from-top-1 duration-300">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-[#FFFF00]/10 flex items-center justify-center">
+                        <Bolt className="size-4 text-[#FFFF00]" />
+                      </div>
+                      <div>
+                        <p className="font-headline text-[10px] font-bold uppercase text-white leading-none mb-1">{foundVehicle.model}</p>
+                        <p className="text-[9px] text-slate-500 uppercase tracking-tight">Owner: {foundVehicle.owner}</p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        // FUZZY MATCHING: Cari model yang paling mendekati
+                        const model = vehicleModels.find(m =>
+                          m.modelName.toLowerCase() === foundVehicle.model.toLowerCase() ||
+                          foundVehicle.model.toLowerCase().includes(m.modelName.toLowerCase())
+                        );
+                        if (model) setMotorcycleModel(model);
+
+                        if (!invoiceName) setInvoiceName(foundVehicle.owner);
+                        if (!contactPhone) setContactPhone(foundVehicle.phone);
+                        setPlatNomor(foundVehicle.plate);
+                      }}
+                      className="px-3 py-1 bg-[#FFFF00] text-black font-headline text-[9px] font-black uppercase rounded-sm"
+                    >
+                      USE_DATA
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
-            <div className="space-y-1">
-              <label className="flex justify-between items-center text-[10px] font-headline uppercase tracking-widest">
-                <span className="text-slate-500">Plat Nomor</span>
-                <span className="text-[#FFFF00] flex items-center gap-1"><Bolt className="size-3" /> SMART SEARCH</span>
-              </label>
-              <input
-                value={platNomor}
-                onChange={(e) => {
-                  // Matikan tameng saat user dengan sengaja mengetik manual
-                  setSkipNextSearch(false);
-                  setPlatNomor(e.target.value.toUpperCase());
-                }}
-                className="w-full bg-[#0e0e0e] border-none focus:ring-0 text-sm py-4 px-4 font-headline placeholder:text-slate-800 text-white uppercase"
-                placeholder="B 1234 XYZ"
-              />
 
-              {/* Found Vehicle Card */}
-              {foundVehicle && (
-                <div className="mt-2 p-3 bg-[#1c1b1b] border border-[#FFFF00]/20 flex items-center justify-between animate-in fade-in slide-in-from-top-1 duration-300">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-[#FFFF00]/10 flex items-center justify-center">
-                      <Bolt className="size-4 text-[#FFFF00]" />
-                    </div>
-                    <div>
-                      <p className="font-headline text-[10px] font-bold uppercase text-white leading-none mb-1">{foundVehicle.model}</p>
-                      <p className="text-[9px] text-slate-500 uppercase tracking-tight">Owner: {foundVehicle.owner}</p>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      // FUZZY MATCHING: Cari model yang paling mendekati
-                      const model = vehicleModels.find(m => 
-                        m.modelName.toLowerCase() === foundVehicle.model.toLowerCase() || 
-                        foundVehicle.model.toLowerCase().includes(m.modelName.toLowerCase())
-                      );
-                      if (model) setMotorcycleModel(model);
-                      
-                      if (!invoiceName) setInvoiceName(foundVehicle.owner);
-                      if (!contactPhone) setContactPhone(foundVehicle.phone);
-                      setPlatNomor(foundVehicle.plate);
-                    }}
-                    className="px-3 py-1 bg-[#FFFF00] text-black font-headline text-[9px] font-black uppercase rounded-sm"
-                  >
-                    USE_DATA
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        </section>
-
-        {/* Section 3: Service Selection (Desktop) */}
-        <section id="step-3" className="space-y-6 pb-20">
-          <div className="flex items-center gap-4 mb-2">
-            <h3 className="font-display text-2xl font-bold uppercase tracking-tighter text-white">Service Selection</h3>
-            <div className="h-px flex-1 bg-white/5"></div>
-          </div>
-
-          <div className="flex gap-1 bg-[#0e0e0e] p-1 rounded-sm border border-white/5 w-fit">
-            {(['repaint', 'detailing', 'coating'] as const).map(tab => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={cn(
-                  "px-6 py-2 text-[10px] font-headline font-black uppercase tracking-widest transition-all",
-                  activeTab === tab ? "bg-[#FFFF00] text-[#131313]" : "text-slate-500 hover:text-white"
-                )}
-              >
-                {tab}
-              </button>
-            ))}
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {services.filter(s => s.category === activeTab).map((service: Service) => {
-              const selected = cart.some((i: CartItem) => i.name === service.name);
-              const price = calculateServicePrice(service, motorcycleModel, surcharges);
-              return (
-                <div
-                  key={service.id}
-                  onClick={() => addServiceToCart(service)}
-                  className={cn(
-                    "p-4 flex flex-col gap-4 transition-all border rounded-sm cursor-pointer group",
-                    selected 
-                      ? "bg-[#FFFF00]/5 border-[#FFFF00]/30 shadow-[0_0_20px_rgba(255,255,0,0.05)]" 
-                      : "bg-[#1c1b1b] border-white/5 hover:border-white/10"
-                  )}
-                >
-                  <div className="flex justify-between items-start">
-                    <div className={cn(
-                      "p-2 rounded-sm transition-colors",
-                      selected ? "bg-[#FFFF00] text-[#131313]" : "bg-white/5 text-slate-500 group-hover:text-white"
-                    )}>
-                      <Wrench size={16} />
-                    </div>
-                    {selected && <Check className="text-[#FFFF00] size-4" />}
+            {/* Custom Size Selector (Desktop) */}
+            {isCustomModel && (
+              <div className="bg-[#0e0e0e] p-6 border border-[#FFFF00]/20 rounded-sm flex items-center justify-between animate-in fade-in slide-in-from-bottom-2 duration-300">
+                <div className="flex items-center gap-4">
+                  <div className="px-3 py-1 bg-[#FFFF00] text-black text-[10px] font-black uppercase tracking-widest rounded-sm">
+                    Custom Model Detected
                   </div>
                   <div>
-                    <p className="text-[11px] font-bold text-white uppercase tracking-tight mb-1">{service.name}</p>
-                    <p className={cn(
-                      "text-lg font-display font-black italic",
-                      selected ? "text-[#FFFF00]" : "text-slate-500"
-                    )}>
-                      {motorcycleModel ? (price > 0 ? formatRupiah(price) : 'MANUAL') : '—'}
-                    </p>
+                    <p className="text-xs text-white font-headline opacity-80 uppercase tracking-tight">Tentukan ukuran standar untuk estimasi harga</p>
+                    <p className="text-[10px] text-slate-500">Pilih kategori yang paling mendekati dimensi motor ini</p>
                   </div>
                 </div>
-              );
-            })}
+
+                <div className="flex gap-2 p-1 bg-black rounded-sm border border-white/5">
+                  {(['S', 'M', 'L', 'XL'] as const).map(size => (
+                    <button
+                      key={size}
+                      type="button"
+                      onClick={() => setCustomModelSize(size)}
+                      className={cn(
+                        "w-12 h-10 flex items-center justify-center font-display font-black text-sm transition-all border",
+                        customModelSize === size
+                          ? "bg-[#FFFF00] text-black border-[#FFFF00]"
+                          : "bg-transparent text-slate-500 border-transparent hover:text-white"
+                      )}
+                    >
+                      {size}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </section>
+
+          {/* Section 3: Service Selection (Desktop) */}
+          <section id="step-3" className="space-y-6 pb-20">
+            <div className="flex items-center gap-4 mb-2">
+              <h3 className="font-display text-2xl font-bold uppercase tracking-tighter text-white">Service Selection</h3>
+              <div className="h-px flex-1 bg-white/5"></div>
+            </div>
+
+            <div className="flex gap-1 bg-[#0e0e0e] p-1 rounded-sm border border-white/5 w-fit">
+              {(['repaint', 'detailing', 'coating'] as const).map(tab => (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={cn(
+                    "px-6 py-2 text-[10px] font-headline font-black uppercase tracking-widest transition-all",
+                    activeTab === tab ? "bg-[#FFFF00] text-[#131313]" : "text-slate-500 hover:text-white"
+                  )}
+                >
+                  {tab}
+                </button>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {services.filter(s => s.category === activeTab).map((service: Service) => {
+                const selected = cart.some((i: CartItem) => i.name === service.name);
+                const price = calculateServicePrice(service, effectiveMotor, surcharges);
+                return (
+                  <div
+                    key={service.id}
+                    onClick={() => addServiceToCart(service)}
+                    className={cn(
+                      "p-4 flex flex-col gap-4 transition-all border rounded-sm cursor-pointer group",
+                      selected
+                        ? "bg-[#FFFF00]/5 border-[#FFFF00]/30 shadow-[0_0_20px_rgba(255,255,0,0.05)]"
+                        : "bg-[#1c1b1b] border-white/5 hover:border-white/10"
+                    )}
+                  >
+                    <div className="flex justify-between items-start">
+                      <div className={cn(
+                        "p-2 rounded-sm transition-colors",
+                        selected ? "bg-[#FFFF00] text-[#131313]" : "bg-white/5 text-slate-500 group-hover:text-white"
+                      )}>
+                        <Wrench size={16} />
+                      </div>
+                      {selected && <Check className="text-[#FFFF00] size-4" />}
+                    </div>
+                    <div>
+                      <p className="text-[11px] font-bold text-white uppercase tracking-tight mb-1">{service.name}</p>
+                      <p className={cn(
+                        "text-lg font-display font-black italic",
+                        selected ? "text-[#FFFF00]" : "text-slate-500"
+                      )}>
+                        {effectiveMotor ? (price > 0 ? formatRupiah(price) : 'MANUAL') : '—'}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
 
             </div>
 
@@ -1898,31 +2014,31 @@ function DesktopLayout(props: any) {
                       </h4>
                       <span className="text-[9px] font-headline text-slate-500 uppercase">Per-Item Selection</span>
                     </div>
-                    
+
                     {availableSurcharges.length > 0 && (
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4 pb-4 mb-2 border-b border-white/5">
-                      {availableSurcharges.map((s: any) => (
-                        <label key={s.id} className={cn(
-                          "flex items-center gap-3 cursor-pointer p-3 rounded-sm transition-all border",
-                          item.surcharges.includes(s.name) 
-                            ? "bg-[#FFFF00]/10 border-[#FFFF00]/30" 
-                            : "bg-[#0e0e0e] border-white/5 hover:border-white/10"
-                        )}>
-                          <input
-                            type="checkbox"
-                            checked={item.surcharges.includes(s.name)}
-                            onChange={() => toggleSurchargeForItem(item.id, s.name)}
-                            className="rounded border-white/10 bg-[#1c1b1b] text-[#FFFF00] focus:ring-[#FFFF00] size-4"
-                          />
-                          <div className="flex flex-col">
-                            <span className="text-xs font-bold text-white uppercase">{s.name}</span>
-                            <span className="text-[10px] text-slate-500">{s.isPercentage ? `${s.amount}%` : formatRupiah(s.amount)}</span>
-                          </div>
-                        </label>
-                      ))}
-                    </div>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 pb-4 mb-2 border-b border-white/5">
+                        {availableSurcharges.map((s: any) => (
+                          <label key={s.id} className={cn(
+                            "flex items-center gap-3 cursor-pointer p-3 rounded-sm transition-all border",
+                            item.surcharges.includes(s.name)
+                              ? "bg-[#FFFF00]/10 border-[#FFFF00]/30"
+                              : "bg-[#0e0e0e] border-white/5 hover:border-white/10"
+                          )}>
+                            <input
+                              type="checkbox"
+                              checked={item.surcharges.includes(s.name)}
+                              onChange={() => toggleSurchargeForItem(item.id, s.name)}
+                              className="rounded border-white/10 bg-[#1c1b1b] text-[#FFFF00] focus:ring-[#FFFF00] size-4"
+                            />
+                            <div className="flex flex-col">
+                              <span className="text-xs font-bold text-white uppercase">{s.name}</span>
+                              <span className="text-[10px] text-slate-500">{s.isPercentage ? `${s.amount}%` : formatRupiah(s.amount)}</span>
+                            </div>
+                          </label>
+                        ))}
+                      </div>
                     )}
-                    
+
                     <div className="space-y-1">
                       <label className="text-[9px] font-headline text-slate-500 uppercase">Catatan Warna / Detail</label>
                       <input
@@ -1933,6 +2049,27 @@ function DesktopLayout(props: any) {
                         className="w-full bg-[#0e0e0e] border border-white/5 focus:ring-1 focus:ring-[#FFFF00]/50 text-xs py-2.5 px-3 text-white placeholder-slate-700 rounded-sm"
                       />
                     </div>
+
+                    {/* Manual Price Fallback for Custom Repaint (Desktop) */}
+                    {isCustomModel && item.name === 'Repaint Bodi Halus' && item.price === 0 && (
+                      <div className="space-y-1 pt-4 border-t border-white/5 mt-2">
+                        <label className="text-[9px] font-headline text-[#FFFF00] uppercase">Harga Manual (Model tidak terdaftar)</label>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-neutral-500 font-headline">IDR</span>
+                          <input
+                            type="text"
+                            value={item.price > 0 ? item.price.toLocaleString('id-ID') : ''}
+                            onChange={(e) => {
+                              const val = e.target.value.replace(/\./g, '').replace(/[^0-9]/g, '');
+                              const num = val ? Number(val) : 0;
+                              setCart(prev => prev.map(i => i.id === item.id ? { ...i, price: num } : i));
+                            }}
+                            className="w-full bg-[#FFFF00]/5 border border-[#FFFF00]/20 text-sm py-3 pl-10 pr-4 text-[#FFFF00] font-mono rounded-sm"
+                            placeholder="Input Harga Manual..."
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -2260,7 +2397,7 @@ function DesktopLayout(props: any) {
                   documentType: docType,
                   customerName: invoiceName,
                   customerPhone: contactPhone,
-                  motorDetails: `${motorcycleModel?.modelName || 'Motor'} (${platNomor || '-'})`,
+                  motorDetails: `${effectiveMotor?.modelName || modelSearchText.trim() || 'Motor'} (${platNomor || '-'})`,
                   items: detailedItems,
                   subtotal: servicesTotal,
                   totalAmount: finalTotal,
@@ -2303,7 +2440,7 @@ function DesktopLayout(props: any) {
         invoiceData={{
           customerName: invoiceName,
           customerPhone: contactPhone,
-          motorDetails: `${motorcycleModel?.modelName || 'Motor'} (${platNomor || '-'})`,
+          motorDetails: `${effectiveMotor?.modelName || modelSearchText.trim() || 'Motor'} (${platNomor || '-'})`,
           items: [
             ...cart.map((i: CartItem) => `${i.name}||${i.price}||${i.itemNotes ? `Catatan Warna: ${i.itemNotes}` : ''}`),
             spotCount > 0 ? `Spot Repair (${spotCount} spots)||${spotCount * spotPrice}||` : null
@@ -2342,7 +2479,7 @@ function DesktopLayout(props: any) {
           }).join('\n');
           await fetch('/api/bookings/invoice', {
             method: 'POST',
-            headers: { 
+            headers: {
               'Content-Type': 'application/json',
               ...(token ? { 'Authorization': `Bearer ${token}` } : {})
             },
@@ -2351,7 +2488,7 @@ function DesktopLayout(props: any) {
               customerName: invoiceName,
               customerPhone: contactPhone,
               realPhone,
-              motorDetails: `${motorcycleModel?.modelName || 'Motor'} (${platNomor || '-'})`,
+              motorDetails: `${effectiveMotor?.modelName || modelSearchText.trim() || 'Motor'} (${platNomor || '-'})`,
               items: detailedItems,
               subtotal: servicesTotal,
               totalAmount: finalTotal,
