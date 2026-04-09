@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 const BOT_API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+const INTERNAL_SECRET = process.env.INTERNAL_API_SECRET || '';
 
 /**
  * POST /api/follow-up-queue/execute
@@ -13,15 +13,13 @@ const BOT_API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const cookieStore = await cookies();
-    const token = cookieStore.get('auth_token')?.value;
 
     const upstream = await fetch(`${BOT_API_URL}/follow-up-queue/execute`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'ngrok-skip-browser-warning': 'true',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        'x-internal-secret': INTERNAL_SECRET,
       },
       body: JSON.stringify(body),
     });
