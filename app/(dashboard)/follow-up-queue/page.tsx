@@ -74,6 +74,7 @@ export default function FollowUpQueuePage() {
   const [executing, setExecuting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
+  const [delayMs, setDelayMs] = useState(3000);
 
   const showToast = (msg: string, ok: boolean) => {
     setToast({ msg, ok });
@@ -136,7 +137,7 @@ export default function FollowUpQueuePage() {
       const res = await fetch('/api/follow-up-queue/execute', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ items: payload }),
+        body: JSON.stringify({ items: payload, delayMs }),
       });
       const data: { success: boolean; sent?: number; errors?: number; error?: string } & Partial<ExecuteResult> = await res.json();
 
@@ -209,6 +210,25 @@ export default function FollowUpQueuePage() {
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Delay input */}
+          {items.length > 0 && (
+            <div className="flex items-center gap-1.5 border border-[#2A2A2A] bg-[#1C1B1B] px-3 py-2">
+              <span className="material-symbols-outlined text-slate-500 text-sm">timer</span>
+              <input
+                type="number"
+                min={0}
+                max={30000}
+                step={500}
+                value={delayMs}
+                onChange={e => setDelayMs(Math.max(0, parseInt(e.target.value) || 0))}
+                disabled={executing}
+                className="w-16 bg-transparent text-[10px] font-mono text-slate-300 text-right
+                  focus:outline-none disabled:opacity-40"
+              />
+              <span className="text-[9px] text-slate-600 tracking-widest">ms</span>
+            </div>
+          )}
+
           {/* Generate button */}
           <button
             onClick={generateQueue}
