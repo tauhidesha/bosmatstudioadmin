@@ -18,6 +18,7 @@ const navItems: NavItem[] = [
   { label: 'Bookings', href: '/bookings', icon: 'calendar_today' },
   { label: 'CRM', href: '/crm', icon: 'groups' },
   { label: 'Follow-ups', href: '/follow-ups', icon: 'history_toggle_off' },
+  { label: 'Queue Review', href: '/follow-up-queue', icon: 'campaign' },
   { label: 'Keuangan', href: '/finance', icon: 'payments' },
   { label: 'Database', href: '/master-data', icon: 'database' },
   { label: 'Playground', href: '/playground', icon: 'science' },
