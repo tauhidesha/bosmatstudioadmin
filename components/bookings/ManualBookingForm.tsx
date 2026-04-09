@@ -63,16 +63,19 @@ export default function ManualBookingForm({
   const [customModelSize, setCustomModelSize] = useState<'S' | 'M' | 'L' | 'XL'>('M');
 
   const isCustomModel = modelSearchText.trim().length > 0 && motorcycleModel === null;
-  const effectiveMotor: VehicleModel | null = isCustomModel
-    ? {
-      id: '__custom__',
-      brand: 'Custom',
-      modelName: modelSearchText.trim(),
-      serviceSize: customModelSize,
-      repaintSize: customModelSize,
-      aliases: [],
-    }
-    : motorcycleModel;
+  const effectiveMotor = useMemo<VehicleModel | null>(() => 
+    isCustomModel
+      ? {
+        id: '__custom__',
+        brand: 'Custom',
+        modelName: modelSearchText.trim(),
+        serviceSize: customModelSize,
+        repaintSize: customModelSize,
+        aliases: [],
+      }
+      : motorcycleModel,
+    [isCustomModel, modelSearchText, customModelSize, motorcycleModel]
+  );
 
   useEffect(() => {
     if (motorcycleModel?.modelName) {
@@ -1802,7 +1805,7 @@ function DesktopLayout(props: any) {
                       className="flex items-center gap-2 bg-[#FFFF00]/10 border border-[#FFFF00]/20 px-4 py-2 rounded-sm"
                     >
                       <PlusCircle className="size-4 text-[#FFFF00]" />
-                      <span className="text-[10px] font-black uppercase text-[#FFFF00] tracking-widest">Gunakan "{modelSearchText.trim().toUpperCase()}" (Custom Model)</span>
+                      <span className="text-[10px] font-black uppercase text-[#FFFF00] tracking-widest">Gunakan &quot;{modelSearchText.trim().toUpperCase()}&quot; (Custom Model)</span>
                     </button>
                   </div>
                 )}
