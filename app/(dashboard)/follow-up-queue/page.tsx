@@ -180,6 +180,13 @@ export default function FollowUpQueuePage() {
   const visible = filter === 'all' ? items : items.filter(i => i.type === filter);
   const approvedCount = items.filter(i => i.approved).length;
 
+  // Estimated finish time: each message ~1.5s send overhead + configured delay
+  const estMs = approvedCount * (delayMs + 1500);
+  const estLabel = approvedCount === 0 ? null
+    : estMs < 60000
+      ? `~${Math.ceil(estMs / 1000)} detik`
+      : `~${Math.ceil(estMs / 60000)} mnt ${Math.ceil((estMs % 60000) / 1000)} detik`;
+
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
@@ -210,22 +217,30 @@ export default function FollowUpQueuePage() {
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Delay input */}
+          {/* Delay input + estimate */}
           {items.length > 0 && (
-            <div className="flex items-center gap-1.5 border border-[#2A2A2A] bg-[#1C1B1B] px-3 py-2">
-              <span className="material-symbols-outlined text-slate-500 text-sm">timer</span>
-              <input
-                type="number"
-                min={0}
-                max={30000}
-                step={500}
-                value={delayMs}
-                onChange={e => setDelayMs(Math.max(0, parseInt(e.target.value) || 0))}
-                disabled={executing}
-                className="w-16 bg-transparent text-[10px] font-mono text-slate-300 text-right
-                  focus:outline-none disabled:opacity-40"
-              />
-              <span className="text-[9px] text-slate-600 tracking-widest">ms</span>
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 border border-[#2A2A2A] bg-[#1C1B1B] px-3 py-2">
+                <span className="material-symbols-outlined text-slate-500 text-sm">timer</span>
+                <input
+                  type="number"
+                  min={0}
+                  max={30000}
+                  step={500}
+                  value={delayMs}
+                  onChange={e => setDelayMs(Math.max(0, parseInt(e.target.value) || 0))}
+                  disabled={executing}
+                  className="w-16 bg-transparent text-[10px] font-mono text-slate-300 text-right
+                    focus:outline-none disabled:opacity-40"
+                />
+                <span className="text-[9px] text-slate-600 tracking-widest">ms</span>
+              </div>
+              {estLabel && (
+                <div className="flex items-center gap-1 text-[9px] text-slate-500 border border-[#2A2A2A] bg-[#1C1B1B] px-3 py-2">
+                  <span className="material-symbols-outlined text-slate-600 text-sm">hourglass_empty</span>
+                  <span>Selesai dalam <span className="text-[#FFFF00] font-mono">{estLabel}</span></span>
+                </div>
+              )}
             </div>
           )}
 
