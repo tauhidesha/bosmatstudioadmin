@@ -16,6 +16,8 @@ interface QueueItem {
   diffDays?: number;
   bookingDate?: string;
   bookingTime?: string;
+  approved?: boolean;
+  editedMessage?: string;
 }
 
 type QueueType = 'nurturing' | 'review' | 'rebooking' | 'coating_reminder' | 'booking_reminder';
