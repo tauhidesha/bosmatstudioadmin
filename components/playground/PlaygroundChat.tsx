@@ -5,6 +5,7 @@ import { useAuth } from '@/lib/hooks/useAuth';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -47,7 +48,7 @@ export default function PlaygroundChat() {
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
-      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 160)}px`;
+      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 200)}px`;
     }
   }, [input]);
 
@@ -287,32 +288,38 @@ export default function PlaygroundChat() {
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex flex-col h-full bg-[#fbfbfb]">
+    <div className="flex flex-col h-full bg-slate-50/50">
       {/* Header */}
-      <div className="shrink-0 bg-white/90 backdrop-blur-md border-b border-slate-200 px-4 md:px-8 py-4">
-        <div className="max-w-4xl mx-auto flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3.5">
-            <div className="size-10 bg-slate-800 rounded-xl flex items-center justify-center shadow-md shadow-slate-800/20">
-              <span className="material-symbols-outlined text-teal-400 text-[22px]">smart_toy</span>
+      <div className="shrink-0 bg-white/70 backdrop-blur-xl border-b border-border/50 px-6 py-4 shadow-sm z-10 sticky top-0">
+        <div className="max-w-4xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="h-10 w-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center shadow-md shadow-indigo-500/20">
+              <span className="material-symbols-outlined text-white text-[20px]">smart_toy</span>
             </div>
             <div className="flex flex-col">
-              <h2 className="text-slate-900 text-base font-black leading-none tracking-tight">Zoya Playground</h2>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.15em] mt-1">
-                Full LangGraph Pipeline
-              </span>
+              <div className="flex items-center gap-2">
+                <h2 className="text-slate-900 font-semibold text-base leading-tight tracking-tight">Zoya Playground</h2>
+                <Badge variant="secondary" className="h-5 text-[10px] px-1.5 bg-indigo-50 text-indigo-700 border border-indigo-200/50 uppercase tracking-wide font-bold">
+                  Pipeline Aktif
+                </Badge>
+              </div>
+              <div className="flex items-center gap-1.5 mt-1 text-xs text-slate-500">
+                <div className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span>Memory Persistent Terhubung</span>
+              </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             {/* Mode Toggle */}
-            <div className="flex items-center bg-slate-100 rounded-xl p-1 gap-0.5">
+            <div className="flex items-center bg-slate-100/80 rounded-lg p-1 border border-slate-200/50">
               <button
                 onClick={() => setMode('customer')}
                 className={cn(
-                  "px-3 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all duration-200",
+                  "px-3 py-1.5 rounded-md text-xs font-semibold uppercase tracking-wider transition-all duration-200",
                   mode === 'customer'
-                    ? "bg-white text-slate-800 shadow-sm"
-                    : "text-slate-400 hover:text-slate-600"
+                    ? "bg-white text-indigo-700 shadow-sm ring-1 ring-slate-900/5"
+                    : "text-slate-500 hover:text-slate-700"
                 )}
               >
                 Customer
@@ -320,272 +327,240 @@ export default function PlaygroundChat() {
               <button
                 onClick={() => setMode('admin')}
                 className={cn(
-                  "px-3 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all duration-200",
+                  "px-3 py-1.5 rounded-md text-xs font-semibold uppercase tracking-wider transition-all duration-200",
                   mode === 'admin'
-                    ? "bg-white text-slate-800 shadow-sm"
-                    : "text-slate-400 hover:text-slate-600"
+                    ? "bg-white text-indigo-700 shadow-sm ring-1 ring-slate-900/5"
+                    : "text-slate-500 hover:text-slate-700"
                 )}
               >
                 Admin
               </button>
             </div>
 
-            {/* Memory indicator */}
-            <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 border border-emerald-200">
-              <div className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              <span className="text-[9px] font-bold uppercase tracking-wider text-emerald-600">Memory ON</span>
-            </div>
-
             {/* Clear Chat */}
             <button
               onClick={clearChat}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold uppercase tracking-wider text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all duration-200"
-              title="Clear chat + reset memory"
+              className="group flex items-center justify-center p-2 rounded-lg bg-red-50 text-red-600 border border-red-100 hover:bg-red-500 hover:text-white transition-all shadow-sm"
+              title="Reset Percakapan & Memory"
             >
               <span className="material-symbols-outlined text-[18px]">delete_sweep</span>
-              <span className="hidden md:inline">Reset</span>
             </button>
           </div>
         </div>
       </div>
 
       {/* Messages Area */}
-      <div
-        ref={scrollRef}
-        className="flex-1 overflow-y-auto"
-      >
-        <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[radial-gradient(#000_1px,transparent_1px)] [background-size:20px_20px]" />
-
-        <div
-          className="py-4 md:py-8 flex flex-col gap-3 min-h-full"
-          style={{ padding: '1rem 0.75rem', width: '100%', boxSizing: 'border-box' }}
+      <div className="flex-1 overflow-hidden relative">
+        {/* Subtle dot pattern background */}
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none" />
+        
+        <div 
+          ref={scrollRef} 
+          className="h-full overflow-y-auto px-4 md:px-8 py-6 flex flex-col"
         >
-          <div className="flex-1" />
+          <div className="max-w-4xl mx-auto w-full flex flex-col gap-6 flex-1 justify-end">
 
-          {/* Empty State */}
-          {messages.length === 0 && !isLoading && historyLoaded && (
-            <div className="flex items-center justify-center py-16">
-              <div className="text-center p-8 max-w-xs">
-                <div className="size-24 bg-white rounded-full flex items-center justify-center mx-auto shadow-2xl shadow-slate-200/50 mb-8 border border-slate-50">
-                  <span className="material-symbols-outlined text-6xl text-slate-100">smart_toy</span>
+            {/* Empty State / Welcome */}
+            {messages.length === 0 && !isLoading && historyLoaded && (
+              <div className="m-auto flex flex-col items-center justify-center text-center p-8 max-w-sm">
+                <div className="h-20 w-20 bg-white rounded-2xl flex items-center justify-center mb-6 shadow-xl shadow-slate-200/50 border border-slate-100 rotate-3 transition-transform hover:rotate-6">
+                  <span className="material-symbols-outlined text-4xl text-indigo-600 outline-none block">bot</span>
                 </div>
-                <h4 className="text-slate-900 font-black text-lg mb-2">Playground Siap!</h4>
-                <p className="text-xs text-slate-400 leading-relaxed font-medium">
-                  Full LangGraph pipeline aktif. Memory, tools, dan init node berjalan persis seperti WhatsApp real.
-                  Mode: <strong className="text-slate-600">{mode === 'customer' ? 'Customer' : 'Admin'}</strong>
+                <h4 className="text-slate-900 font-bold text-xl mb-3">Mulai Percakapan</h4>
+                <p className="text-sm text-slate-500 leading-relaxed max-w-xs mx-auto">
+                  Playground ini terhubung dengan LangGraph memori penuh. Segala konteks dan percakapan akan tersimpan secara persisten.
                 </p>
+                <div className="mt-6 flex gap-2 justify-center flex-wrap">
+                  <Badge variant="outline" className="bg-white px-3 py-1 font-medium">{mode === 'customer' ? 'Mode Customer Aktif' : 'Mode Admin Aktif'}</Badge>
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* History loading state */}
-          {!historyLoaded && (
-            <div className="flex items-center justify-center py-16">
-              <div className="flex items-center gap-2 text-slate-400 text-sm">
-                <div className="size-4 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin" />
-                Memuat history...
+            {/* History loading state */}
+            {!historyLoaded && (
+              <div className="m-auto flex items-center justify-center">
+                <div className="flex flex-col items-center gap-3">
+                  <div className="h-8 w-8 border-2 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
+                  <span className="text-sm font-medium text-slate-500">Memuat memory...</span>
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Message Bubbles */}
-          {messages.map((message) => {
-            const isOutgoing = message.role === 'user';
+            {/* Message Bubbles */}
+            {messages.map((message) => {
+              const isOutgoing = message.role === 'user';
 
-            return (
-              <div
-                key={message.id}
-                className={cn(
-                  "flex group animate-in fade-in slide-in-from-bottom-4 duration-500",
-                  isOutgoing ? "justify-end" : "justify-start"
-                )}
-                style={{ width: '100%', minWidth: 0, boxSizing: 'border-box' }}
-              >
-                {/* AI Avatar */}
-                {!isOutgoing && (
-                  <div className="w-10 mr-3 shrink-0 flex flex-col justify-end">
-                    <div className="w-9 h-9 rounded-full bg-slate-800 border-2 border-slate-700 flex items-center justify-center shadow-md">
-                      <span className="material-symbols-outlined text-teal-400 text-[16px]">smart_toy</span>
-                    </div>
-                  </div>
-                )}
-
+              return (
                 <div
+                  key={message.id}
                   className={cn(
-                    "flex flex-col",
-                    isOutgoing ? "items-end" : "items-start"
+                    "flex group w-full animate-in fade-in slide-in-from-bottom-2 duration-300",
+                    isOutgoing ? "justify-end" : "justify-start"
                   )}
-                  style={{
-                    minWidth: 0,
-                    maxWidth: isOutgoing ? '75%' : 'calc(75% - 52px)',
-                  }}
                 >
-                  {/* Media Preview in Message */}
-                  {message.media && message.media.length > 0 && (
-                    <div className="flex gap-2 mb-2 flex-wrap">
-                      {message.media.map((m, i) => (
-                        <div key={i} className="relative rounded-xl overflow-hidden border border-slate-200 shadow-sm">
-                          {m.type === 'image' ? (
-                            <img src={m.previewUrl} alt="attachment" className="max-h-48 max-w-64 object-cover rounded-xl" />
-                          ) : (
-                            <video src={m.previewUrl} className="max-h-48 max-w-64 rounded-xl" controls />
-                          )}
-                        </div>
-                      ))}
+                  {/* AI Avatar for incoming messages */}
+                  {!isOutgoing && (
+                    <div className="w-8 shrink-0 mr-3 hidden sm:flex flex-col justify-end">
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-sm">
+                        <span className="material-symbols-outlined text-white text-[14px]">smart_toy</span>
+                      </div>
                     </div>
                   )}
 
-                  {/* Text Bubble */}
-                  {message.content && (
-                    <div
-                      className={cn(
-                        "px-4 py-3 rounded-2xl leading-relaxed text-[15px] relative transition-all duration-300",
-                        isOutgoing
-                          ? "bg-slate-800 text-slate-50 font-medium rounded-tr-sm shadow-sm"
-                          : "bg-white text-slate-700 rounded-tl-sm border border-slate-200 shadow-sm"
-                      )}
-                      style={{ wordBreak: 'break-word', overflowWrap: 'break-word', minWidth: 0, maxWidth: '100%' }}
-                    >
+                  <div
+                    className={cn(
+                      "flex flex-col",
+                      isOutgoing ? "items-end" : "items-start",
+                      "max-w-[85%] md:max-w-[70%]"
+                    )}
+                  >
+                    {/* Media Preview in Message */}
+                    {message.media && message.media.length > 0 && (
+                      <div className="flex gap-2 mb-2 flex-wrap">
+                        {message.media.map((m, i) => (
+                          <div key={i} className="relative rounded-2xl overflow-hidden border border-slate-200 shadow-sm bg-slate-100">
+                            {m.type === 'image' ? (
+                              <img src={m.previewUrl} alt="attachment" className="max-h-56 object-cover" />
+                            ) : (
+                              <video src={m.previewUrl} className="max-h-56" controls playsInline />
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Text Bubble */}
+                    {message.content && (
                       <div
-                        dangerouslySetInnerHTML={{ __html: formatMessageText(message.content) }}
-                        style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', overflowWrap: 'break-word' }}
-                      />
-                    </div>
-                  )}
+                        className={cn(
+                          "px-5 py-3.5 text-[15px] leading-relaxed shadow-sm transition-all",
+                          isOutgoing
+                            ? "bg-indigo-600 text-white rounded-3xl rounded-br-sm border border-indigo-500"
+                            : "bg-white text-slate-700 rounded-3xl rounded-bl-sm border border-slate-200/60"
+                        )}
+                        style={{ wordBreak: 'break-word' }}
+                      >
+                        <div
+                          className="whitespace-pre-wrap font-medium"
+                          dangerouslySetInnerHTML={{ __html: formatMessageText(message.content) }}
+                        />
+                      </div>
+                    )}
 
-                  {/* Meta */}
-                  <div className={cn(
-                    "mt-2.5 flex items-center gap-2.5 px-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300",
-                    isOutgoing ? "flex-row-reverse" : ""
-                  )}>
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                      {isOutgoing ? 'You' : 'Zoya AI'}
-                    </span>
-                    <span className="size-1 bg-slate-200 rounded-full" />
-                    <Badge variant="outline" className={cn(
-                      "h-3.5 px-1.5 py-0 text-[9px] uppercase font-black tracking-tighter shadow-none",
-                      mode === 'admin'
-                        ? "border-amber-300/50 text-amber-600 bg-amber-50"
-                        : "border-teal-300/50 text-teal-600 bg-teal-50"
+                    {/* Meta */}
+                    <div className={cn(
+                      "mt-1.5 flex items-center gap-2 px-1 text-[11px] font-medium opacity-0 group-hover:opacity-100 transition-opacity",
+                      isOutgoing ? "text-slate-400 justify-end" : "text-slate-400 justify-start"
                     )}>
-                      {mode}
-                    </Badge>
+                      <span>{message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                      {!isOutgoing && mode === 'admin' && (
+                        <>
+                          <span className="h-1 w-1 bg-slate-300 rounded-full" />
+                          <span className="text-indigo-500">Zoya via Admin</span>
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
 
-          {/* Typing Indicator */}
-          {isLoading && (
-            <div className="flex justify-start animate-in fade-in slide-in-from-bottom-4 duration-500" style={{ width: '100%' }}>
-              <div className="w-10 mr-3 shrink-0 flex flex-col justify-end">
-                <div className="w-9 h-9 rounded-full bg-slate-800 border-2 border-slate-700 flex items-center justify-center shadow-md">
-                  <span className="material-symbols-outlined text-teal-400 text-[16px]">smart_toy</span>
+            {/* Typing Indicator */}
+            {isLoading && (
+              <div className="flex justify-start w-full animate-in fade-in slide-in-from-bottom-2 duration-300">
+                <div className="w-8 shrink-0 mr-3 hidden sm:flex flex-col justify-end">
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-sm">
+                    <span className="material-symbols-outlined text-white text-[14px]">smart_toy</span>
+                  </div>
+                </div>
+                <div className="bg-white border border-slate-200/60 rounded-3xl rounded-bl-sm px-5 py-4 shadow-sm flex items-center gap-1.5 h-[52px]">
+                  <div className="size-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                  <div className="size-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                  <div className="size-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                 </div>
               </div>
-              <div className="bg-white border border-slate-200 rounded-2xl rounded-tl-sm px-5 py-4 shadow-sm">
-                <div className="flex items-center gap-1.5">
-                  <div className="size-2 bg-slate-300 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                  <div className="size-2 bg-slate-300 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                  <div className="size-2 bg-slate-300 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                </div>
-              </div>
-            </div>
-          )}
+            )}
+            
+          </div>
         </div>
       </div>
 
       {/* Input Area */}
-      <div className="p-2 md:p-6 bg-white/90 backdrop-blur-md border-t border-slate-100 z-20 w-full">
+      <div className="bg-white/80 backdrop-blur-xl border-t border-border/50 px-4 py-4 md:py-6 shadow-[0_-10px_40px_-20px_rgba(0,0,0,0.05)] z-20">
         <div className="max-w-4xl mx-auto w-full">
-          <div className="relative flex flex-col items-stretch bg-white border border-slate-200 rounded-2xl shadow-sm focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary/30 transition-all">
-
-            {/* Input Header */}
-            <div className="flex items-center justify-between px-4 py-2 border-b border-slate-100 bg-slate-50/50 rounded-t-2xl">
-              <div className="flex items-center gap-2">
-                <div className={cn(
-                  "size-1.5 rounded-full animate-pulse shadow-sm",
-                  mode === 'admin' ? "bg-amber-500 shadow-amber-500/50" : "bg-teal-500 shadow-teal-500/50"
-                )} />
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                  LangGraph — {mode === 'admin' ? 'Admin Mode' : 'Customer Mode'}
-                </span>
-              </div>
-              <span className="text-[10px] font-medium text-slate-400 hidden md:block uppercase tracking-tight">Shift + Enter untuk baris baru</span>
-            </div>
+          <div className="relative flex flex-col items-stretch bg-white border border-slate-200/80 rounded-[20px] shadow-sm focus-within:ring-2 focus-within:ring-indigo-500/20 focus-within:border-indigo-500/30 transition-all duration-300 overflow-hidden">
 
             {/* Attachment Preview */}
             {attachments.length > 0 && (
-              <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-100 overflow-x-auto">
+              <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-100 bg-slate-50/50 overflow-x-auto">
                 {attachments.map((attachment, index) => (
                   <div key={index} className="relative shrink-0 group/thumb">
                     {attachment.type === 'image' ? (
                       <img
                         src={attachment.previewUrl}
                         alt={attachment.fileName}
-                        className="h-16 w-16 object-cover rounded-xl border border-slate-200"
+                        className="h-14 w-14 object-cover rounded-xl border border-slate-200 shadow-sm"
                       />
                     ) : (
-                      <div className="h-16 w-16 rounded-xl border border-slate-200 bg-slate-100 flex items-center justify-center">
-                        <span className="material-symbols-outlined text-slate-400 text-[24px]">videocam</span>
+                      <div className="h-14 w-14 rounded-xl border border-slate-200 bg-white flex items-center justify-center shadow-sm">
+                        <span className="material-symbols-outlined text-indigo-500 text-[24px]">videocam</span>
                       </div>
                     )}
                     <button
                       onClick={() => removeAttachment(index)}
-                      className="absolute -top-1.5 -right-1.5 size-5 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover/thumb:opacity-100 transition-opacity shadow-md"
+                      className="absolute -top-1.5 -right-1.5 h-6 w-6 bg-slate-800 text-white rounded-full flex items-center justify-center scale-0 group-hover/thumb:scale-100 transition-transform shadow-md hover:bg-slate-900"
                     >
-                      <span className="material-symbols-outlined text-[12px]">close</span>
+                      <span className="material-symbols-outlined text-[14px]">close</span>
                     </button>
-                    <span className="absolute bottom-0.5 left-0.5 right-0.5 text-[8px] font-bold text-white bg-black/50 rounded-b-lg px-1 py-0.5 truncate text-center">
-                      {attachment.fileName.length > 10 ? attachment.fileName.slice(0, 8) + '…' : attachment.fileName}
-                    </span>
                   </div>
                 ))}
               </div>
             )}
 
-            {/* Textarea + Buttons */}
-            <div className="relative">
+            {/* Textarea Wrapper */}
+            <div className="relative flex items-end px-2 py-2">
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isLoading}
+                className="shrink-0 h-11 w-11 flex items-center justify-center rounded-xl text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 disabled:opacity-50 transition-colors mb-1 ml-1"
+                title="Attach media..."
+              >
+                <span className="material-symbols-outlined text-[22px]">attach_file</span>
+              </button>
+
               <Textarea
                 ref={textareaRef}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Ketik pesan untuk menguji Zoya (full pipeline)..."
+                placeholder={mode === 'admin' ? "Kirim instruksi mode admin kepada Zoya..." : "Ngobrol sebagai customer..."}
                 disabled={isLoading}
-                className={cn(
-                  "min-h-[80px] p-4 pr-24 resize-none border-none bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 rounded-b-2xl transition-all text-[15px] font-medium placeholder:text-slate-400",
-                  isLoading && "opacity-50"
-                )}
-                style={{ maxHeight: '160px' }}
+                className="flex-1 min-h-[44px] max-h-[200px] border-none bg-transparent shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 px-3 py-3 text-[15px] resize-none scrollbar-w-1.5 scrollbar-track-transparent scrollbar-thumb-slate-200 hover:scrollbar-thumb-slate-300"
+                rows={1}
               />
 
-              {/* Action Buttons */}
-              <div className="absolute right-2 bottom-2 flex items-center gap-1.5">
-                {/* Attach Media */}
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={isLoading}
-                  className="rounded-xl h-10 w-10 flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 disabled:opacity-50 transition-all"
-                  title="Attach image/video"
-                >
-                  <span className="material-symbols-outlined text-[20px]">attach_file</span>
-                </button>
-
-                {/* Send Button */}
-                <button
-                  onClick={handleSend}
-                  disabled={(!input.trim() && attachments.length === 0) || isLoading}
-                  className="rounded-xl h-10 w-10 flex items-center justify-center bg-teal-500 text-white shadow-md shadow-teal-500/30 hover:bg-teal-600 disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none transition-all border-none"
-                >
-                  {isLoading ? (
-                    <div className="size-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  ) : (
-                    <span className="material-symbols-outlined text-[20px] ml-0.5">send</span>
-                  )}
-                </button>
-              </div>
+              <button
+                onClick={handleSend}
+                disabled={(!input.trim() && attachments.length === 0) || isLoading}
+                className={cn(
+                  "shrink-0 h-11 w-11 flex items-center justify-center rounded-xl transition-all mb-1 mr-1 shadow-sm",
+                  isLoading || (!input.trim() && attachments.length === 0)
+                    ? "bg-slate-100 text-slate-400 shadow-none cursor-not-allowed"
+                    : "bg-indigo-600 text-white hover:bg-indigo-700 hover:shadow-indigo-600/20"
+                )}
+              >
+                {isLoading ? (
+                  <div className="size-4 border-2 border-indigo-400 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <span className="material-symbols-outlined text-[20px] ml-0.5">send</span>
+                )}
+              </button>
+            </div>
+            
+            {/* Minimal footer inside input box */}
+            <div className="px-4 pb-2 bg-transparent flex justify-between items-center text-[10px] text-slate-400 font-medium tracking-tight">
+              <span>SHIFT + ENTER untuk baris baru</span>
+              <span className="uppercase text-indigo-500/70 font-semibold">{mode} MODE</span>
             </div>
           </div>
         </div>
