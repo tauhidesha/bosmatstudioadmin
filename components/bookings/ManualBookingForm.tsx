@@ -63,6 +63,14 @@ export default function ManualBookingForm({
   const [customModelSize, setCustomModelSize] = useState<'S' | 'M' | 'L' | 'XL'>('M');
   const [isWalkIn, setIsWalkIn] = useState(false);
 
+  // --- SMART SEARCH STATE ---
+  const [foundVehicle, setFoundVehicle] = useState<{ model: string, owner: string, phone: string, plate: string } | null>(null);
+  const [isSearching, setIsSearching] = useState(false);
+
+  // TAMBAHAN BARU: State khusus untuk mencegah tabrakan pencarian
+  const [skipNextSearch, setSkipNextSearch] = useState(false);
+  const [showAllChats, setShowAllChats] = useState(false);
+
   const isCustomModel = modelSearchText.trim().length > 0 && motorcycleModel === null;
   const effectiveMotor = useMemo<VehicleModel | null>(() => 
     isCustomModel
@@ -187,13 +195,7 @@ export default function ManualBookingForm({
     }
   };
 
-  // --- SMART SEARCH STATE ---
-  const [foundVehicle, setFoundVehicle] = useState<{ model: string, owner: string, phone: string, plate: string } | null>(null);
-  const [isSearching, setIsSearching] = useState(false);
 
-  // TAMBAHAN BARU: State khusus untuk mencegah tabrakan pencarian
-  const [skipNextSearch, setSkipNextSearch] = useState(false);
-  const [showAllChats, setShowAllChats] = useState(false);
 
   // --- SMART SEARCH LOGIC (Untuk ngetik manual) ---
   useEffect(() => {
