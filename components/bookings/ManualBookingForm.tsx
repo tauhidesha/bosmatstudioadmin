@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils';
 import {
   X, Search, Check, Bolt, Smartphone, History, Verified,
   ChevronDown, PlusCircle, FileText, Wrench, HelpCircle,
-  Minus, Plus, Trash2, Edit
+  Minus, Plus, Trash2, Edit, UserPlus, MessageSquare
 } from 'lucide-react';
 import Image from 'next/image';
 import { useAuth } from '@/lib/hooks/useAuth';
@@ -61,6 +61,7 @@ export default function ManualBookingForm({
   const [platNomor, setPlatNomor] = useState('');
   const [bookingStatus, setBookingStatus] = useState<string>('pending');
   const [customModelSize, setCustomModelSize] = useState<'S' | 'M' | 'L' | 'XL'>('M');
+  const [isWalkIn, setIsWalkIn] = useState(false);
 
   const isCustomModel = modelSearchText.trim().length > 0 && motorcycleModel === null;
   const effectiveMotor = useMemo<VehicleModel | null>(() => 
@@ -87,6 +88,27 @@ export default function ManualBookingForm({
   const [cart, setCart] = useState<CartItem[]>([]);
   const [additionalNotes, setAdditionalNotes] = useState('');
   const [realPhone, setRealPhone] = useState('');
+
+  // Sync realPhone if empty in Walk-In mode
+  useEffect(() => {
+    if (isWalkIn && contactPhone && !realPhone) {
+      setRealPhone(contactPhone);
+    }
+  }, [isWalkIn, contactPhone, realPhone]);
+
+  const handleToggleWalkIn = (val: boolean) => {
+    setIsWalkIn(val);
+    if (val) {
+      // Chat WA -> WALK-IN
+      setSelectedConversation(null);
+      setFoundVehicle(null);
+    } else {
+      // WALK-IN -> Chat WA
+      setInvoiceName('');
+      setContactPhone('');
+      setRealPhone('');
+    }
+  };
 
   // Custom Service state
   const [customServiceName, setCustomServiceName] = useState('');
@@ -721,6 +743,8 @@ export default function ManualBookingForm({
     additionalNotes, setAdditionalNotes,
     realPhone, setRealPhone,
     modelSearchText, setModelSearchText,
+    isWalkIn, handleToggleWalkIn,
+    isCustomModel, customModelSize, setCustomModelSize, effectiveMotor, setCart
     getIdToken,
   };
 
@@ -750,6 +774,7 @@ function MobileLayout(props: any) {
     services, vehicleModels, surcharges, loadingPricing,
     toggleSurchargeForItem, setItemNotesForItem, additionalNotes, setAdditionalNotes,
     realPhone, setRealPhone, entryDate, timeSlot, getIdToken,
+    isWalkIn, handleToggleWalkIn,
     isCustomModel, customModelSize, setCustomModelSize, effectiveMotor, setCart
   } = props;
 
@@ -782,8 +807,33 @@ function MobileLayout(props: any) {
             <h2 className="font-spartan text-sm uppercase tracking-widest text-white">Customer & Invoice</h2>
           </div>
           <div className="space-y-4">
-            <div className="relative">
-              <label className="block text-[10px] font-headline text-slate-500 uppercase mb-1 ml-1">WhatsApp Quick Select</label>
+            {/* Mode Toggle */}
+            <div className="flex bg-neutral-900 overflow-hidden rounded-sm p-1 border border-white/5">
+              <button
+                onClick={() => handleToggleWalkIn(false)}
+                className={cn(
+                  "flex-1 flex items-center justify-center gap-2 py-2 text-[9px] font-black uppercase tracking-widest rounded-sm transition-all",
+                  !isWalkIn ? "bg-[#FFFF00] text-black" : "text-neutral-500 hover:text-white"
+                )}
+              >
+                <MessageSquare size={12} className={cn(!isWalkIn ? "fill-current" : "")} />
+                DARI CHAT WA
+              </button>
+              <button
+                onClick={() => handleToggleWalkIn(true)}
+                className={cn(
+                  "flex-1 flex items-center justify-center gap-2 py-2 text-[9px] font-black uppercase tracking-widest rounded-sm transition-all",
+                  isWalkIn ? "bg-[#FFFF00] text-black" : "text-neutral-500 hover:text-white"
+                )}
+              >
+                <UserPlus size={12} className={cn(isWalkIn ? "fill-current" : "")} />
+                WALK-IN
+              </button>
+            </div>
+
+            {!isWalkIn && (
+              <div className="relative animate-in fade-in slide-in-from-top-2 duration-300">
+                <label className="block text-[10px] font-headline text-slate-500 uppercase mb-1 ml-1">WhatsApp Quick Select</label>
               <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
                 {(showAllChats ? allConversations : allConversations.slice(0, 5)).map((conv: Conversation) => (
                   <button
@@ -809,10 +859,13 @@ function MobileLayout(props: any) {
                 </button>
               </div>
             </div>
+            )}
 
             <div className="space-y-4 bg-neutral-900/40 p-4 rounded-sm border border-white/5">
               <div className="group">
-                <label className="block text-[10px] font-headline text-slate-500 uppercase mb-1">Invoice name (Display Name)</label>
+                <label className="block text-[10px] font-headline text-slate-500 uppercase mb-1">
+                  {isWalkIn ? 'Nama Customer (Manual)' : 'Invoice name (Display Name)'}
+                </label>
                 <input
                   value={invoiceName}
                   onChange={e => setInvoiceName(e.target.value)}
@@ -821,7 +874,9 @@ function MobileLayout(props: any) {
                 />
               </div>
               <div className="group">
-                <label className="block text-[10px] font-headline text-slate-500 uppercase mb-1">Contact Phone (WA ID)</label>
+                <label className="block text-[10px] font-headline text-slate-500 uppercase mb-1">
+                  {isWalkIn ? 'Nomor HP (Manual)' : 'Contact Phone (WA ID)'}
+                </label>
                 <input
                   value={contactPhone}
                   onChange={e => setContactPhone(e.target.value)}
@@ -829,8 +884,8 @@ function MobileLayout(props: any) {
                   type="tel"
                 />
               </div>
-              <div className="group">
-                <label className="block text-[10px] font-headline text-slate-500 uppercase mb-1">No. WA Asli (untuk Invoice)</label>
+              <div className={cn("group animate-in fade-in slide-in-from-top-1 duration-300", isWalkIn ? "block" : "hidden")}>
+                <label className="block text-[10px] font-headline text-slate-500 uppercase mb-1">No. WA untuk Invoice</label>
                 <input
                   value={realPhone}
                   onChange={e => setRealPhone(e.target.value)}
@@ -1530,6 +1585,7 @@ function DesktopLayout(props: any) {
     services, vehicleModels, surcharges, loadingPricing,
     toggleSurchargeForItem, setItemNotesForItem, additionalNotes, setAdditionalNotes,
     realPhone, setRealPhone,
+    isWalkIn, handleToggleWalkIn,
     isCustomModel, customModelSize, setCustomModelSize, effectiveMotor, setCart
   } = props;
 
@@ -1548,10 +1604,35 @@ function DesktopLayout(props: any) {
           <p className="text-[10px] font-headline text-slate-500 uppercase tracking-[0.2em]">{isEdit ? 'Mission Update Interface' : 'Booking Input Interface v2.1'}</p>
         </div>
 
+        {/* Mode Toggle */}
+        <div className="flex bg-[#0e0e0e] overflow-hidden p-0.5 border border-white/5 mb-6">
+          <button
+            onClick={() => handleToggleWalkIn(false)}
+            className={cn(
+              "flex-1 flex items-center justify-center gap-2 py-2 text-[8px] font-black uppercase tracking-widest transition-all",
+              !isWalkIn ? "bg-[#FFFF00] text-black" : "text-neutral-500 hover:text-white"
+            )}
+          >
+            <MessageSquare size={10} className={cn(!isWalkIn ? "fill-current" : "")} />
+            CHAT WA
+          </button>
+          <button
+            onClick={() => handleToggleWalkIn(true)}
+            className={cn(
+              "flex-1 flex items-center justify-center gap-2 py-2 text-[8px] font-black uppercase tracking-widest transition-all",
+              isWalkIn ? "bg-[#FFFF00] text-black" : "text-neutral-500 hover:text-white"
+            )}
+          >
+            <UserPlus size={10} className={cn(isWalkIn ? "fill-current" : "")} />
+            WALK-IN
+          </button>
+        </div>
+
         {/* WhatsApp Connection Section */}
-        <section>
-          <label className="block text-[10px] font-headline text-slate-500 uppercase tracking-widest mb-3">WhatsApp Connection</label>
-          <div className="space-y-2 max-h-[400px] overflow-y-auto no-scrollbar">
+        {!isWalkIn && (
+          <section className="animate-in fade-in slide-in-from-left-2 duration-300">
+            <label className="block text-[10px] font-headline text-slate-500 uppercase tracking-widest mb-3">WhatsApp Connection</label>
+            <div className="space-y-2 max-h-[400px] overflow-y-auto no-scrollbar">
             {(showAllChats ? allConversations : allConversations.slice(0, 3)).map((conv: Conversation) => (
               <button
                 key={conv.id}
@@ -1587,6 +1668,7 @@ function DesktopLayout(props: any) {
             )}
           </div>
         </section>
+        )}
 
         {/* Total Summary Panel */}
         <div className="mt-auto bg-[#0e0e0e] p-4 border border-white/5">
@@ -1728,7 +1810,9 @@ function DesktopLayout(props: any) {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="space-y-1">
-                <label className="text-[10px] font-headline text-slate-500 uppercase tracking-widest">Invoice Name (Display)</label>
+                <label className="text-[10px] font-headline text-slate-500 uppercase tracking-widest">
+                  {isWalkIn ? 'Nama Customer (Manual)' : 'Invoice Name (Display)'}
+                </label>
                 <input
                   value={invoiceName}
                   onChange={e => setInvoiceName(e.target.value)}
@@ -1737,7 +1821,9 @@ function DesktopLayout(props: any) {
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-[10px] font-headline text-slate-500 uppercase tracking-widest">Contact Phone (WA ID)</label>
+                <label className="text-[10px] font-headline text-slate-500 uppercase tracking-widest">
+                  {isWalkIn ? 'Nomor HP (Manual)' : 'Contact Phone (WA ID)'}
+                </label>
                 <div className="relative">
                   <input
                     value={contactPhone}
@@ -1745,13 +1831,13 @@ function DesktopLayout(props: any) {
                     className="w-full bg-[#0e0e0e] border-none focus:ring-0 text-sm py-4 px-4 font-headline text-white"
                     placeholder="628..."
                   />
-                  {contactPhone.length > 8 && (
+                  {contactPhone.length > 8 && !isWalkIn && (
                     <Verified className="absolute right-4 top-1/2 -translate-y-1/2 text-[#cccc63] size-4 fill-[#cccc63]/20" />
                   )}
                 </div>
               </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-headline text-slate-500 uppercase tracking-widest">No. WA Asli (untuk Invoice)</label>
+              <div className={cn("space-y-1 animate-in fade-in slide-in-from-top-1 duration-300", isWalkIn ? "block" : "hidden")}>
+                <label className="text-[10px] font-headline text-slate-500 uppercase tracking-widest">No. WA untuk Invoice</label>
                 <input
                   value={realPhone}
                   onChange={e => setRealPhone(e.target.value)}
