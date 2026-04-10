@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -12,7 +12,6 @@ interface QueueItem {
   type: QueueType;
   strategy: { angle?: string } | null;
   generatedMessage: string;
-  // extras for reminders
   maintenanceDate?: string;
   diffDays?: number;
   bookingDate?: string;
@@ -26,11 +25,14 @@ interface LocalItem extends QueueItem {
   editedMessage: string;
 }
 
-interface ExecuteResult {
+interface ExecuteStatus {
+  running: boolean;
+  total: number;
   sent: number;
   errors: number;
-  total: number;
-  results: { docId: string; type: string; status: string; error?: string }[];
+  current: { senderNumber: string; type: string } | null;
+  startedAt: string | null;
+  finishedAt: string | null;
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -65,6 +67,15 @@ function maskPhone(phone: string): string {
   return digits.slice(0, 4) + '****' + digits.slice(-3);
 }
 
+function isBefore9AM(): boolean {
+  const now = new Date();
+  // Use Asia/Jakarta timezone
+  const jakartaHour = parseInt(
+    now.toLocaleString('en-US', { timeZone: 'Asia/Jakarta', hour: 'numeric', hour12: false })
+  );
+  return jakartaHour < 9;
+}
+
 // ── Page ─────────────────────────────────────────────────────────────────────
 
 export default function FollowUpQueuePage() {
@@ -72,14 +83,91 @@ export default function FollowUpQueuePage() {
   const [filter, setFilter] = useState<QueueType | 'all'>('all');
   const [loading, setLoading] = useState(false);
   const [executing, setExecuting] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
-  const [delayMs, setDelayMs] = useState(3000);
+  const [delayMin, setDelayMin] = useState(5); // delay in minutes
+  const [savedAt, setSavedAt] = useState<string | null>(null);
+  const [execStatus, setExecStatus] = useState<ExecuteStatus | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const showToast = (msg: string, ok: boolean) => {
     setToast({ msg, ok });
     setTimeout(() => setToast(null), 4500);
   };
+
+  const delayMs = delayMin * 60 * 1000;
+
+  // ── Poll execute status ────────────────────────────────────────────────────
+
+  const startPolling = useCallback(() => {
+    if (pollRef.current) return;
+    pollRef.current = setInterval(async () => {
+      try {
+        const res = await fetch('/api/follow-up-queue/execute-status', { cache: 'no-store' });
+        const data: ExecuteStatus & { success: boolean } = await res.json();
+        setExecStatus(data);
+        if (!data.running && data.finishedAt) {
+          stopPolling();
+          setExecuting(false);
+          showToast(`✅ ${data.sent} pesan terkirim${data.errors ? `, ${data.errors} error` : ''}.`, true);
+          // Remove sent items
+          setItems(prev => {
+            const failedDocIds = new Set(
+              (data as any).results?.filter((r: any) => r.status === 'error').map((r: any) => r.docId) || []
+            );
+            return prev.filter(i => !i.approved || failedDocIds.has(i.docId));
+          });
+        }
+      } catch { /* ignore */ }
+    }, 5000);
+  }, []);
+
+  const stopPolling = useCallback(() => {
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+  }, []);
+
+  // ── Auto-load saved queue on mount (only if before 9 AM) ──────────────────
+
+  useEffect(() => {
+    if (!isBefore9AM()) return; // After 9 AM: don't auto-load, let user generate fresh
+
+    (async () => {
+      try {
+        const res = await fetch('/api/follow-up-queue/saved', { cache: 'no-store' });
+        const data = await res.json();
+        if (data.success && data.exists && data.queue.length > 0) {
+          const localItems: LocalItem[] = data.queue.map((item: QueueItem) => ({
+            ...item,
+            approved: item.approved ?? true,
+            editedMessage: item.editedMessage ?? item.generatedMessage,
+          }));
+          setItems(localItems);
+          setDelayMin(Math.round((data.delayMs || 300000) / 60000));
+          setSavedAt(data.savedAt);
+          showToast(`📋 Queue tersimpan dimuat (${localItems.length} item). Siap untuk jam 9 AM.`, true);
+        }
+      } catch { /* ignore */ }
+    })();
+
+    // Also check if execute is already running
+    (async () => {
+      try {
+        const res = await fetch('/api/follow-up-queue/execute-status', { cache: 'no-store' });
+        const data = await res.json();
+        if (data.running) {
+          setExecuting(true);
+          setExecStatus(data);
+          startPolling();
+        }
+      } catch { /* ignore */ }
+    })();
+  }, [startPolling]);
+
+  useEffect(() => () => stopPolling(), [stopPolling]);
 
   // ── Generate Queue ─────────────────────────────────────────────────────────
 
@@ -87,6 +175,7 @@ export default function FollowUpQueuePage() {
     setLoading(true);
     setError(null);
     setItems([]);
+    setSavedAt(null);
 
     try {
       const res = await fetch('/api/follow-up-queue', { cache: 'no-store' });
@@ -97,7 +186,6 @@ export default function FollowUpQueuePage() {
       }
 
       const data = await res.json();
-
       if (!data.success) throw new Error(data.error || 'Server error');
 
       const localItems: LocalItem[] = (data.queue as QueueItem[]).map(item => ({
@@ -115,7 +203,53 @@ export default function FollowUpQueuePage() {
     }
   }, []);
 
-  // ── Execute ────────────────────────────────────────────────────────────────
+  // ── Save Queue to DB ───────────────────────────────────────────────────────
+
+  const saveQueue = useCallback(async () => {
+    setSaving(true);
+    try {
+      const payload = items.map(i => ({
+        docId: i.docId,
+        senderNumber: i.senderNumber,
+        name: i.name,
+        customerLabel: i.customerLabel,
+        type: i.type,
+        strategy: i.strategy,
+        generatedMessage: i.generatedMessage,
+        editedMessage: i.editedMessage,
+        approved: i.approved,
+        // Include the message field that execute endpoint reads
+        message: i.editedMessage,
+      }));
+
+      const res = await fetch('/api/follow-up-queue/saved', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items: payload, delayMs }),
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || 'Save failed');
+
+      setSavedAt(new Date().toISOString());
+      showToast(`💾 ${data.saved} item tersimpan. Queue akan dieksekusi jam 9 AM besok.`, true);
+    } catch (err: any) {
+      showToast(`❌ ${err.message}`, false);
+    } finally {
+      setSaving(false);
+    }
+  }, [items, delayMs]);
+
+  // ── Clear Saved Queue ──────────────────────────────────────────────────────
+
+  const clearSaved = useCallback(async () => {
+    try {
+      await fetch('/api/follow-up-queue/saved', { method: 'DELETE' });
+      setSavedAt(null);
+      showToast('🗑️ Saved queue dihapus.', true);
+    } catch { /* ignore */ }
+  }, []);
+
+  // ── Execute Now ────────────────────────────────────────────────────────────
 
   const executeQueue = useCallback(async () => {
     const approvedItems = items.filter(i => i.approved);
@@ -139,24 +273,18 @@ export default function FollowUpQueuePage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ items: payload, delayMs }),
       });
-      const data: { success: boolean; sent?: number; errors?: number; error?: string } & Partial<ExecuteResult> = await res.json();
+      const data = await res.json();
 
       if (!data.success) throw new Error(data.error || 'Execute failed');
 
-      showToast(`✅ ${data.sent} pesan terkirim${data.errors ? `, ${data.errors} error` : ''}.`, true);
-
-      // Remove sent items (those that succeeded)
-      const failedDocIds = new Set(
-        (data.results || []).filter(r => r.status === 'error').map(r => r.docId)
-      );
-      setItems(prev => prev.filter(i => !i.approved || failedDocIds.has(i.docId)));
-
+      // 202 Accepted — start polling
+      showToast(`🚀 ${data.accepted} pesan diantrekan. Jeda ${delayMin} mnt antar pesan.`, true);
+      startPolling();
     } catch (err: any) {
       showToast(`❌ ${err.message}`, false);
-    } finally {
       setExecuting(false);
     }
-  }, [items]);
+  }, [items, delayMs, delayMin, startPolling]);
 
   // ── Item helpers ───────────────────────────────────────────────────────────
 
@@ -175,17 +303,15 @@ export default function FollowUpQueuePage() {
   const approveAll = () => setItems(prev => prev.map(i => ({ ...i, approved: true })));
   const rejectAll  = () => setItems(prev => prev.map(i => ({ ...i, approved: false })));
 
-  // ── Filtered view ──────────────────────────────────────────────────────────
+  // ── Derived ────────────────────────────────────────────────────────────────
 
   const visible = filter === 'all' ? items : items.filter(i => i.type === filter);
   const approvedCount = items.filter(i => i.approved).length;
-
-  // Estimated finish time: each message ~1.5s send overhead + configured delay
   const estMs = approvedCount * (delayMs + 1500);
   const estLabel = approvedCount === 0 ? null
     : estMs < 60000
       ? `~${Math.ceil(estMs / 1000)} detik`
-      : `~${Math.ceil(estMs / 60000)} mnt ${Math.ceil((estMs % 60000) / 1000)} detik`;
+      : `~${Math.ceil(estMs / 60000)} mnt`;
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
@@ -216,31 +342,30 @@ export default function FollowUpQueuePage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
-          {/* Delay input + estimate */}
-          {items.length > 0 && (
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1.5 border border-[#2A2A2A] bg-[#1C1B1B] px-3 py-2">
-                <span className="material-symbols-outlined text-slate-500 text-sm">timer</span>
-                <input
-                  type="number"
-                  min={0}
-                  max={30000}
-                  step={500}
-                  value={delayMs}
-                  onChange={e => setDelayMs(Math.max(0, parseInt(e.target.value) || 0))}
-                  disabled={executing}
-                  className="w-16 bg-transparent text-[10px] font-mono text-slate-300 text-right
-                    focus:outline-none disabled:opacity-40"
-                />
-                <span className="text-[9px] text-slate-600 tracking-widest">ms</span>
-              </div>
-              {estLabel && (
-                <div className="flex items-center gap-1 text-[9px] text-slate-500 border border-[#2A2A2A] bg-[#1C1B1B] px-3 py-2">
-                  <span className="material-symbols-outlined text-slate-600 text-sm">hourglass_empty</span>
-                  <span>Selesai dalam <span className="text-[#FFFF00] font-mono">{estLabel}</span></span>
-                </div>
-              )}
+        <div className="flex items-center gap-2 flex-wrap justify-end">
+
+          {/* Delay input */}
+          <div className="flex items-center gap-1.5 border border-[#2A2A2A] bg-[#1C1B1B] px-3 py-2">
+            <span className="material-symbols-outlined text-slate-500 text-sm">timer</span>
+            <input
+              type="number"
+              min={1}
+              max={30}
+              step={1}
+              value={delayMin}
+              onChange={e => setDelayMin(Math.max(1, parseInt(e.target.value) || 1))}
+              disabled={executing}
+              className="w-10 bg-transparent text-[10px] font-mono text-slate-300 text-right
+                focus:outline-none disabled:opacity-40"
+            />
+            <span className="text-[9px] text-slate-600 tracking-widest">mnt</span>
+          </div>
+
+          {/* Est time */}
+          {estLabel && (
+            <div className="flex items-center gap-1 text-[9px] text-slate-500 border border-[#2A2A2A] bg-[#1C1B1B] px-3 py-2">
+              <span className="material-symbols-outlined text-slate-600 text-sm">hourglass_empty</span>
+              <span>Selesai dalam <span className="text-[#FFFF00] font-mono">{estLabel}</span></span>
             </div>
           )}
 
@@ -259,7 +384,24 @@ export default function FollowUpQueuePage() {
             {loading ? 'Generating...' : 'Generate Queue'}
           </button>
 
-          {/* Execute button */}
+          {/* Save for 9AM */}
+          {items.length > 0 && (
+            <button
+              onClick={saveQueue}
+              disabled={saving || executing}
+              className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest
+                px-4 py-2 border border-amber-600 text-amber-300 bg-[#2c2000]
+                hover:bg-amber-700 hover:text-white transition-colors active:scale-95
+                disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <span className={`material-symbols-outlined text-sm ${saving ? 'animate-spin' : ''}`}>
+                {saving ? 'progress_activity' : 'save'}
+              </span>
+              {saving ? 'Saving...' : 'Simpan Jam 9 AM'}
+            </button>
+          )}
+
+          {/* Execute Now */}
           {items.length > 0 && (
             <button
               onClick={executeQueue}
@@ -272,11 +414,47 @@ export default function FollowUpQueuePage() {
               <span className={`material-symbols-outlined text-sm ${executing ? 'animate-spin' : ''}`}>
                 {executing ? 'progress_activity' : 'send'}
               </span>
-              {executing ? 'Sending...' : `Kirim ${approvedCount} Approved`}
+              {executing ? 'Sending...' : `Kirim ${approvedCount} Sekarang`}
             </button>
           )}
         </div>
       </div>
+
+      {/* Saved Queue Banner */}
+      {savedAt && !executing && (
+        <div className="mb-4 flex items-center justify-between px-4 py-3 bg-[#2c2000] border border-amber-700 text-amber-300 text-xs">
+          <div className="flex items-center gap-2">
+            <span className="material-symbols-outlined text-sm">schedule</span>
+            <span>Queue tersimpan — akan dieksekusi jam <strong>9 AM</strong> besok · Disimpan {new Date(savedAt).toLocaleString('id-ID', { hour: '2-digit', minute: '2-digit' })}</span>
+          </div>
+          <button onClick={clearSaved} className="text-[9px] text-amber-500 hover:text-amber-300 underline">Hapus</button>
+        </div>
+      )}
+
+      {/* Execute Progress Bar */}
+      {executing && execStatus && (
+        <div className="mb-4 px-4 py-3 bg-[#0c2910] border border-green-700 text-green-300 text-xs">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-sm animate-spin">progress_activity</span>
+              <span>Mengirim... <strong>{execStatus.sent}</strong>/{execStatus.total} terkirim
+                {execStatus.errors > 0 && <span className="text-red-400 ml-2">· {execStatus.errors} error</span>}
+              </span>
+            </div>
+            {execStatus.current && (
+              <span className="text-[9px] text-green-500 font-mono">
+                ▶ {execStatus.current.type} → {maskPhone(execStatus.current.senderNumber)}
+              </span>
+            )}
+          </div>
+          <div className="w-full bg-[#1C1B1B] h-1.5">
+            <div
+              className="bg-green-500 h-1.5 transition-all duration-500"
+              style={{ width: `${execStatus.total > 0 ? (execStatus.sent / execStatus.total) * 100 : 0}%` }}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Error */}
       {error && (
@@ -331,7 +509,11 @@ export default function FollowUpQueuePage() {
         <div className="flex flex-col items-center justify-center py-20 text-slate-600">
           <span className="material-symbols-outlined text-5xl mb-3">campaign</span>
           <p className="text-[11px] tracking-widest uppercase">
-            {items.length === 0 ? 'Klik "Generate Queue" untuk mulai preview.' : 'Tidak ada item untuk filter ini.'}
+            {items.length === 0
+              ? isBefore9AM()
+                ? 'Klik "Generate Queue" atau queue tersimpan akan muncul otomatis.'
+                : 'Sudah lewat jam 9 AM. Klik "Generate Queue" untuk generate baru.'
+              : 'Tidak ada item untuk filter ini.'}
           </p>
         </div>
       )}
@@ -380,7 +562,6 @@ export default function FollowUpQueuePage() {
 
                 {/* Controls */}
                 <div className="flex items-center gap-2 ml-3 shrink-0">
-                  {/* Approve toggle */}
                   <button
                     onClick={() => toggleApprove(item.docId)}
                     title={item.approved ? 'Reject' : 'Approve'}
@@ -395,7 +576,6 @@ export default function FollowUpQueuePage() {
                     </span>
                   </button>
 
-                  {/* Remove */}
                   <button
                     onClick={() => removeItem(item.docId)}
                     title="Hapus dari queue"
@@ -420,7 +600,6 @@ export default function FollowUpQueuePage() {
                     font-mono leading-relaxed px-3 py-2 resize-none
                     focus:outline-none focus:border-[#FFFF00] transition-colors"
                 />
-                {/* Dirty indicator */}
                 {item.editedMessage !== item.generatedMessage && (
                   <div className="flex items-center gap-1 mt-1">
                     <span className="material-symbols-outlined text-amber-400 text-xs">edit</span>
