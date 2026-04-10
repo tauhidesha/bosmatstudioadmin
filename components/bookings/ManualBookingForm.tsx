@@ -744,7 +744,7 @@ export default function ManualBookingForm({
     realPhone, setRealPhone,
     modelSearchText, setModelSearchText,
     isWalkIn, handleToggleWalkIn,
-    isCustomModel, customModelSize, setCustomModelSize, effectiveMotor, setCart
+    isCustomModel, customModelSize, setCustomModelSize, effectiveMotor, setCart,
     getIdToken,
   };
 
