@@ -757,28 +757,31 @@ export default function ManualBookingForm({
 // ── MOBILE LAYOUT ──
 function MobileLayout(props: any) {
   const {
-    isEdit, selectedConversation, invoiceName, setInvoiceName,
+    isEdit, currentStep, setCurrentStep,
+    selectedConversation, invoiceName, setInvoiceName,
     contactPhone, setContactPhone, motorcycleModel, setMotorcycleModel,
     modelSearchText, setModelSearchText,
     platNomor, setPlatNomor, activeTab, setActiveTab, cart, addServiceToCart,
     customServiceName, setCustomServiceName, customServicePrice, setCustomServicePrice,
     addCustomService, spotCount, setSpotCount, spotPrice, setSpotPrice,
     discountPercent, setDiscountPercent, discountAmount, setDiscountAmount,
-    dpRequired, setDpRequired, nominalDP, setNominalDP, paymentMethod, setPaymentMethod,
+    entryDate, setEntryDate, timeSlot, setTimeSlot, homeService, setHomeService,
+    dpRequired, setDpRequired, nominalDP, setNominalDP, isSubmitting, paymentMethod, setPaymentMethod,
     sendInvoiceWA, setSendInvoiceWA, showInvoicePreview, setShowInvoicePreview,
-    docType, setDocType,
     isSavingDraft, handleSaveDraft,
-    foundVehicle, isSearching,
-    handleSubmit, onCancel, servicesTotal, computedDiscount, finalTotal,
-    allConversations, isSubmitting, handleSelectConversation,
+    foundVehicle, setFoundVehicle, isSearching,
+    handleSubmit, handleDelete, handleSelectConversation, onCancel, getIdToken,
+    servicesTotal, computedDiscount, finalTotal, remainingBalance, allConversations,
     skipNextSearch, setSkipNextSearch, showAllChats, setShowAllChats,
     bookingStatus, setBookingStatus, amountPaid, setAmountPaid,
+    docType, setDocType,
     services, vehicleModels, surcharges, loadingPricing,
     toggleSurchargeForItem, setItemNotesForItem, additionalNotes, setAdditionalNotes,
-    realPhone, setRealPhone, entryDate, timeSlot, getIdToken,
+    realPhone, setRealPhone,
     isWalkIn, handleToggleWalkIn,
     isCustomModel, customModelSize, setCustomModelSize, effectiveMotor, setCart
   } = props;
+
 
   const isSpotRepairSelected = cart.some((item: CartItem) => item.name === 'Spot Repair');
 
