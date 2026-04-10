@@ -2,10 +2,15 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useAuth } from '@/lib/hooks/useAuth';
-import { createApiClient } from '@/lib/api/client';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+
+// ── Constants ──────────────────────────────────────────────────────────────────
+
+const PLAYGROUND_NUMBER = 'playground-test@c.us';
+
+// ── Types ──────────────────────────────────────────────────────────────────────
 
 interface ChatMessage {
   id: string;
@@ -16,12 +21,14 @@ interface ChatMessage {
 }
 
 interface MediaAttachment {
-  type: string; // 'image' or 'video'
+  type: string;
   mimetype: string;
   base64: string;
   previewUrl: string;
   fileName: string;
 }
+
+// ── Component ──────────────────────────────────────────────────────────────────
 
 export default function PlaygroundChat() {
   const { getIdToken } = useAuth();
@@ -30,11 +37,13 @@ export default function PlaygroundChat() {
   const [isLoading, setIsLoading] = useState(false);
   const [mode, setMode] = useState<'customer' | 'admin'>('customer');
   const [attachments, setAttachments] = useState<MediaAttachment[]>([]);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Auto-resize textarea
+  // ── Auto-resize textarea ───────────────────────────────────────────────────
+
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
@@ -42,7 +51,8 @@ export default function PlaygroundChat() {
     }
   }, [input]);
 
-  // Auto-scroll to bottom on new messages
+  // ── Auto-scroll ────────────────────────────────────────────────────────────
+
   useEffect(() => {
     if (scrollRef.current) {
       const timeout = setTimeout(() => {
@@ -52,7 +62,35 @@ export default function PlaygroundChat() {
     }
   }, [messages, isLoading]);
 
-  // Compress image using canvas to stay under Vercel's 4.5MB payload limit
+  // ── Load existing history on mount ─────────────────────────────────────────
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch(`/api/conversation-history/${PLAYGROUND_NUMBER}?limit=50`, {
+          cache: 'no-store',
+        });
+        const data = await res.json();
+
+        if (data.success && data.data && data.data.length > 0) {
+          const loaded: ChatMessage[] = data.data.map((msg: any, idx: number) => ({
+            id: `history-${idx}`,
+            role: msg.sender === 'ai' ? 'ai' : 'user',
+            content: msg.text || '',
+            timestamp: new Date(msg.timestamp),
+          }));
+          setMessages(loaded);
+        }
+      } catch {
+        /* ignore — fresh session */
+      } finally {
+        setHistoryLoaded(true);
+      }
+    })();
+  }, []);
+
+  // ── Image compression ─────────────────────────────────────────────────────
+
   const compressImage = useCallback(async (file: File, maxSize = 1024, quality = 0.7): Promise<string> => {
     return new Promise((resolve, reject) => {
       const img = new Image();
@@ -60,7 +98,6 @@ export default function PlaygroundChat() {
         const canvas = document.createElement('canvas');
         let { width, height } = img;
 
-        // Resize if larger than maxSize
         if (width > maxSize || height > maxSize) {
           if (width > height) {
             height = Math.round((height * maxSize) / width);
@@ -77,7 +114,6 @@ export default function PlaygroundChat() {
         if (!ctx) { reject(new Error('Canvas not supported')); return; }
         ctx.drawImage(img, 0, 0, width, height);
 
-        // Convert to JPEG base64
         const dataUrl = canvas.toDataURL('image/jpeg', quality);
         resolve(dataUrl.split(',')[1]);
       };
@@ -85,6 +121,8 @@ export default function PlaygroundChat() {
       img.src = URL.createObjectURL(file);
     });
   }, []);
+
+  // ── File handling ──────────────────────────────────────────────────────────
 
   const handleFileSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -102,11 +140,9 @@ export default function PlaygroundChat() {
       let mimetype = file.type;
 
       if (isImage) {
-        // Compress images to avoid Vercel payload limit
         base64 = await compressImage(file);
         mimetype = 'image/jpeg';
       } else {
-        // Videos: read as-is (user should keep them small)
         base64 = await new Promise<string>((resolve) => {
           const reader = new FileReader();
           reader.onload = () => {
@@ -129,7 +165,6 @@ export default function PlaygroundChat() {
     }
 
     setAttachments(prev => [...prev, ...newAttachments]);
-    // Reset file input
     if (fileInputRef.current) fileInputRef.current.value = '';
   }, [compressImage]);
 
@@ -142,6 +177,8 @@ export default function PlaygroundChat() {
     });
   }, []);
 
+  // ── Send message ───────────────────────────────────────────────────────────
+
   const handleSend = async () => {
     const trimmedInput = input.trim();
     if ((!trimmedInput && attachments.length === 0) || isLoading) return;
@@ -153,7 +190,7 @@ export default function PlaygroundChat() {
       previewUrl: a.previewUrl,
     }));
 
-    // Add user message
+    // Add user message to UI immediately
     const userMsg: ChatMessage = {
       id: `user-${Date.now()}`,
       role: 'user',
@@ -169,11 +206,7 @@ export default function PlaygroundChat() {
     setIsLoading(true);
 
     try {
-      const apiClient = createApiClient(
-        process.env.NEXT_PUBLIC_API_URL || '/api',
-        getIdToken
-      );
-
+      const token = await getIdToken();
       const payload: any = {
         message: trimmedInput || '(media)',
         mode,
@@ -187,7 +220,16 @@ export default function PlaygroundChat() {
         }));
       }
 
-      const result: any = await apiClient.testAI(payload);
+      const res = await fetch('/api/test-ai', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const result = await res.json();
 
       const aiMsg: ChatMessage = {
         id: `ai-${Date.now()}`,
@@ -196,6 +238,7 @@ export default function PlaygroundChat() {
         timestamp: new Date(),
       };
       setMessages(prev => [...prev, aiMsg]);
+
     } catch (error: any) {
       const errorMsg: ChatMessage = {
         id: `error-${Date.now()}`,
@@ -216,11 +259,22 @@ export default function PlaygroundChat() {
     }
   };
 
-  const clearChat = () => {
+  // ── Clear chat (wipe DB + LangGraph state) ────────────────────────────────
+
+  const clearChat = async () => {
     setMessages([]);
     attachments.forEach(a => URL.revokeObjectURL(a.previewUrl));
     setAttachments([]);
+
+    // Wipe backend data
+    try {
+      await fetch('/api/test-ai/clear', { method: 'DELETE' });
+    } catch {
+      /* ignore */
+    }
   };
+
+  // ── Format WhatsApp-style text ─────────────────────────────────────────────
 
   function formatMessageText(text: string) {
     if (!text) return '';
@@ -229,6 +283,8 @@ export default function PlaygroundChat() {
     text = text.replace(/~([^~]+)~/g, '<del>$1</del>');
     return text;
   }
+
+  // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
     <div className="flex flex-col h-full bg-[#fbfbfb]">
@@ -241,7 +297,9 @@ export default function PlaygroundChat() {
             </div>
             <div className="flex flex-col">
               <h2 className="text-slate-900 text-base font-black leading-none tracking-tight">Zoya Playground</h2>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.15em] mt-1">Testing & Debug</span>
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.15em] mt-1">
+                Full LangGraph Pipeline
+              </span>
             </div>
           </div>
 
@@ -272,14 +330,20 @@ export default function PlaygroundChat() {
               </button>
             </div>
 
+            {/* Memory indicator */}
+            <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 border border-emerald-200">
+              <div className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="text-[9px] font-bold uppercase tracking-wider text-emerald-600">Memory ON</span>
+            </div>
+
             {/* Clear Chat */}
             <button
               onClick={clearChat}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold uppercase tracking-wider text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all duration-200"
-              title="Clear chat"
+              title="Clear chat + reset memory"
             >
               <span className="material-symbols-outlined text-[18px]">delete_sweep</span>
-              <span className="hidden md:inline">Clear</span>
+              <span className="hidden md:inline">Reset</span>
             </button>
           </div>
         </div>
@@ -290,18 +354,16 @@ export default function PlaygroundChat() {
         ref={scrollRef}
         className="flex-1 overflow-y-auto"
       >
-        {/* Subtle dot pattern overlay */}
         <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[radial-gradient(#000_1px,transparent_1px)] [background-size:20px_20px]" />
 
         <div
           className="py-4 md:py-8 flex flex-col gap-3 min-h-full"
           style={{ padding: '1rem 0.75rem', width: '100%', boxSizing: 'border-box' }}
         >
-          {/* Spacer to push content down */}
           <div className="flex-1" />
 
           {/* Empty State */}
-          {messages.length === 0 && !isLoading && (
+          {messages.length === 0 && !isLoading && historyLoaded && (
             <div className="flex items-center justify-center py-16">
               <div className="text-center p-8 max-w-xs">
                 <div className="size-24 bg-white rounded-full flex items-center justify-center mx-auto shadow-2xl shadow-slate-200/50 mb-8 border border-slate-50">
@@ -309,8 +371,19 @@ export default function PlaygroundChat() {
                 </div>
                 <h4 className="text-slate-900 font-black text-lg mb-2">Playground Siap!</h4>
                 <p className="text-xs text-slate-400 leading-relaxed font-medium">
-                  Kirim pesan untuk menguji respons Zoya. Mode saat ini: <strong className="text-slate-600">{mode === 'customer' ? 'Customer' : 'Admin'}</strong>
+                  Full LangGraph pipeline aktif. Memory, tools, dan init node berjalan persis seperti WhatsApp real.
+                  Mode: <strong className="text-slate-600">{mode === 'customer' ? 'Customer' : 'Admin'}</strong>
                 </p>
+              </div>
+            </div>
+          )}
+
+          {/* History loading state */}
+          {!historyLoaded && (
+            <div className="flex items-center justify-center py-16">
+              <div className="flex items-center gap-2 text-slate-400 text-sm">
+                <div className="size-4 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin" />
+                Memuat history...
               </div>
             </div>
           )}
@@ -436,7 +509,7 @@ export default function PlaygroundChat() {
                   mode === 'admin' ? "bg-amber-500 shadow-amber-500/50" : "bg-teal-500 shadow-teal-500/50"
                 )} />
                 <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                  Playground — {mode === 'admin' ? 'Admin Mode' : 'Customer Mode'}
+                  LangGraph — {mode === 'admin' ? 'Admin Mode' : 'Customer Mode'}
                 </span>
               </div>
               <span className="text-[10px] font-medium text-slate-400 hidden md:block uppercase tracking-tight">Shift + Enter untuk baris baru</span>
@@ -479,7 +552,7 @@ export default function PlaygroundChat() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Ketik pesan untuk menguji Zoya..."
+                placeholder="Ketik pesan untuk menguji Zoya (full pipeline)..."
                 disabled={isLoading}
                 className={cn(
                   "min-h-[80px] p-4 pr-24 resize-none border-none bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 rounded-b-2xl transition-all text-[15px] font-medium placeholder:text-slate-400",
