@@ -12,6 +12,16 @@ const proxyHeaders = {
   'x-internal-secret': INTERNAL_SECRET,
 };
 
+async function safeJson(res: Response) {
+  const text = await res.text();
+  try {
+    return JSON.parse(text);
+  } catch {
+    console.error('[Proxy execute-status] Non-JSON upstream response:', text.substring(0, 200));
+    return { success: false, running: false, error: 'Backend returned non-JSON response' };
+  }
+}
+
 /** GET /api/follow-up-queue/execute-status — poll background execute progress */
 export async function GET(_req: NextRequest) {
   try {
@@ -19,9 +29,9 @@ export async function GET(_req: NextRequest) {
       headers: proxyHeaders,
       cache: 'no-store',
     });
-    const data = await upstream.json();
-    return NextResponse.json(data, { status: upstream.status });
+    const data = await safeJson(upstream);
+    return NextResponse.json(data, { status: upstream.ok ? 200 : 502 });
   } catch (err: any) {
-    return NextResponse.json({ success: false, error: err.message }, { status: 500 });
+    return NextResponse.json({ success: false, running: false, error: err.message }, { status: 500 });
   }
 }

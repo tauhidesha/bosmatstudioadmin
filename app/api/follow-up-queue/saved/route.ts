@@ -12,12 +12,22 @@ const headers = {
   'x-internal-secret': INTERNAL_SECRET,
 };
 
+async function safeJson(res: Response) {
+  const text = await res.text();
+  try {
+    return JSON.parse(text);
+  } catch {
+    console.error('[Proxy saved] Non-JSON upstream response:', text.substring(0, 200));
+    return { success: false, error: 'Backend returned non-JSON response' };
+  }
+}
+
 /** GET /api/follow-up-queue/saved — load saved queue from DB */
 export async function GET(_req: NextRequest) {
   try {
     const upstream = await fetch(`${BOT_API_URL}/follow-up-queue/saved`, { headers, cache: 'no-store' });
-    const data = await upstream.json();
-    return NextResponse.json(data, { status: upstream.status });
+    const data = await safeJson(upstream);
+    return NextResponse.json(data, { status: upstream.ok ? 200 : 502 });
   } catch (err: any) {
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });
   }
@@ -32,8 +42,8 @@ export async function POST(req: NextRequest) {
       headers,
       body: JSON.stringify(body),
     });
-    const data = await upstream.json();
-    return NextResponse.json(data, { status: upstream.status });
+    const data = await safeJson(upstream);
+    return NextResponse.json(data, { status: upstream.ok ? 200 : 502 });
   } catch (err: any) {
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });
   }
@@ -43,8 +53,8 @@ export async function POST(req: NextRequest) {
 export async function DELETE(_req: NextRequest) {
   try {
     const upstream = await fetch(`${BOT_API_URL}/follow-up-queue/saved`, { method: 'DELETE', headers });
-    const data = await upstream.json();
-    return NextResponse.json(data, { status: upstream.status });
+    const data = await safeJson(upstream);
+    return NextResponse.json(data, { status: upstream.ok ? 200 : 502 });
   } catch (err: any) {
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });
   }
