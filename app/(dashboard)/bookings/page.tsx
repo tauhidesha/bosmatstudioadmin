@@ -256,7 +256,7 @@ export default function BookingsPage() {
                         onClick={(e) => {
                           e.stopPropagation();
                           setPaymentModal(booking);
-                          setNominalDP(Number(booking.totalAmount || booking.subtotal) || 0);
+                          setNominalDP(Math.max(0, Number(booking.totalAmount || booking.subtotal || 0) - Number(booking.downPayment || 0)));
                         }}
                         className="flex-1 py-1.5 text-[9px] font-black font-headline uppercase tracking-widest bg-[#FFFF00] text-[#1d1d00] hover:brightness-110 transition-all"
                       >
@@ -328,7 +328,7 @@ export default function BookingsPage() {
           onUpdateStatus={updateBookingStatus}
           onOpenPayment={(booking) => {
             setPaymentModal(booking);
-            setNominalDP(Number(booking.totalAmount || booking.subtotal) || 0);
+            setNominalDP(Math.max(0, Number(booking.totalAmount || booking.subtotal || 0) - Number(booking.downPayment || 0)));
           }}
         />
       </div>
@@ -373,11 +373,32 @@ export default function BookingsPage() {
           </div>
 
           {/* Total */}
-          <div className="bg-[#1c1b1b] p-4 flex justify-between items-center rounded-sm">
-            <span className="text-white/40 text-xs font-headline uppercase tracking-widest">Total Tagihan</span>
-            <span className="font-headline font-black text-xl text-white">
-              Rp {Number(paymentModal?.totalAmount || paymentModal?.subtotal || 0).toLocaleString('id-ID')}
-            </span>
+          <div className="bg-[#1c1b1b] p-4 flex flex-col gap-2 rounded-sm">
+            {(paymentModal?.downPayment || 0) > 0 && (
+              <>
+                <div className="flex justify-between items-center">
+                  <span className="text-white/40 text-xs font-headline uppercase tracking-widest">Subtotal</span>
+                  <span className="font-headline text-white/60">
+                    Rp {Number(paymentModal?.totalAmount || paymentModal?.subtotal || 0).toLocaleString('id-ID')}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center text-[#FFFF00]">
+                  <span className="text-xs font-headline uppercase tracking-widest">DP (Sudah Dibayar)</span>
+                  <span className="font-headline">
+                    - Rp {Number(paymentModal?.downPayment || 0).toLocaleString('id-ID')}
+                  </span>
+                </div>
+                <div className="h-px w-full bg-white/10 my-1 font-headline" />
+              </>
+            )}
+            <div className="flex justify-between items-center">
+              <span className="text-white/40 text-xs font-headline uppercase tracking-widest">
+                {(paymentModal?.downPayment || 0) > 0 ? 'Sisa Tagihan' : 'Total Tagihan'}
+              </span>
+              <span className="font-headline font-black text-xl text-white">
+                Rp {Math.max(0, Number(paymentModal?.totalAmount || paymentModal?.subtotal || 0) - Number(paymentModal?.downPayment || 0)).toLocaleString('id-ID')}
+              </span>
+            </div>
           </div>
 
           {/* Nominal Bayar */}
