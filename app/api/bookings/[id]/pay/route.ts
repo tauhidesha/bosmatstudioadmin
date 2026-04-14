@@ -190,8 +190,10 @@ export async function POST(
     const updatedBooking = await prisma.booking.update({
       where: { id: bookingId },
       data: {
-        status: 'SUCCESS',
+        status: 'paid',
         paymentMethod,
+        paymentStatus: 'PAID',
+        amountPaid: totalAmount,
       }
     });
 
