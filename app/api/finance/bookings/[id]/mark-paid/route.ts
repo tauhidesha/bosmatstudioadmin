@@ -27,37 +27,47 @@ export async function PATCH(
     const amountPaidCurrent = booking.amountPaid || 0;
     const incrementAmount = totalAmount - amountPaidCurrent;
 
-    await prisma.$transaction([
+    const transactionsToRun: any[] = [
       prisma.booking.update({
         where: { id },
         data: { 
           paymentStatus: 'PAID', 
           amountPaid: totalAmount,
-          status: 'PAID'
-        }
-      }),
-      // Create transaction for income tracking
-      prisma.transaction.create({
-        data: {
-          bookingId: id,
-          customerId: booking.customerId,
-          amount: totalAmount,
-          type: 'income',
-          status: 'SUCCESS',
-          paymentMethod: booking.paymentMethod || 'transfer',
-          description: `Pelunasan booking - ${booking.customerName || 'Customer'}`,
-          category: booking.category || 'service',
-          paymentDate: new Date(),
-        }
-      }),
-      // Update totalSpending in Customer
-      prisma.customer.update({
-        where: { id: booking.customerId },
-        data: { 
-          totalSpending: { increment: Math.max(0, incrementAmount) }
+          status: 'paid' // synchronize with other flows
         }
       })
-    ]);
+    ];
+
+    if (incrementAmount > 0) {
+      // Create transaction for income tracking for the remaining balance
+      transactionsToRun.push(
+        prisma.transaction.create({
+          data: {
+            bookingId: id,
+            customerId: booking.customerId,
+            amount: incrementAmount,
+            type: 'income',
+            status: 'SUCCESS',
+            paymentMethod: booking.paymentMethod || 'transfer',
+            description: `Pelunasan booking - ${booking.customerName || 'Customer'}`,
+            category: booking.category || 'service',
+            paymentDate: new Date(),
+          }
+        })
+      );
+      
+      // Update totalSpending in Customer
+      transactionsToRun.push(
+        prisma.customer.update({
+          where: { id: booking.customerId },
+          data: { 
+            totalSpending: { increment: incrementAmount }
+          }
+        })
+      );
+    }
+    
+    await prisma.$transaction(transactionsToRun);
 
     return NextResponse.json({
       success: true,
