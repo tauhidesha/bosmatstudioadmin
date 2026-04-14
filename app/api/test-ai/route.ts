@@ -3,16 +3,33 @@ import { NextRequest, NextResponse } from 'next/server';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const playgroundDocId = 'playground_test';
+const BOT_API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+const INTERNAL_SECRET = process.env.INTERNAL_API_SECRET || '';
+
+const proxyHeaders: Record<string, string> = {
+  'Content-Type': 'application/json',
+  'ngrok-skip-browser-warning': 'true',
+  'x-internal-secret': INTERNAL_SECRET,
+};
+
+async function safeJson(res: Response) {
+  const text = await res.text();
+  try {
+    return JSON.parse(text);
+  } catch {
+    console.error('[Proxy test-ai] Non-JSON upstream:', text.substring(0, 200));
+    return { success: false, error: 'Backend returned non-JSON response' };
+  }
+}
 
 /**
- * Test AI endpoint for the admin playground
- * Langsung panggil LangChain engine — tanpa proxy ke ADK
+ * POST /api/test-ai
+ * Proxy to Express POST /test-ai — full LangGraph pipeline playground.
  */
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { message, history, mode, media, model_override } = body;
+    const { message, mode, media } = body;
 
     if (!message && (!media || media.length === 0)) {
       return NextResponse.json(
@@ -21,58 +38,26 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Build providedHistory dari format playground [{role, content}]
-    const providedHistory = (history || []).map((h: { role: string; content: string }) => ({
-      role: h.role === 'assistant' || h.role === 'ai' ? 'ai' : 'human',
-      content: h.content,
-    }));
-
-    // Extract media info jika ada (playground kirim base64 atau URL)
-    const firstMedia = media?.[0] ?? null;
-    const mediaUrl = firstMedia?.url ?? null;
-    const mediaExtension = firstMedia?.extension ?? firstMedia?.mimeType?.split('/')?.[1] ?? null;
-
-    const isAdminOverride = mode === 'admin' ? true : mode === 'customer' ? false : undefined;
-
-    // Proxy to GCP backend
-    const gcpBackendUrl = 'https://ebd7-104-197-168-252.ngrok-free.app/test-ai';
-    
-    console.log(`[Test-AI] Proxying to GCP: ${gcpBackendUrl}`);
-
-    const response = await fetch(gcpBackendUrl, {
+    const upstream = await fetch(`${BOT_API_URL}/test-ai`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        message: message || '',
-        senderNumber: playgroundDocId,
-        mode: mode || 'customer',
-        model_override,
-        history: providedHistory,
-        media: media, // Forward media as-is
-      }),
+      headers: proxyHeaders,
+      body: JSON.stringify({ message, mode, media }),
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`GCP Backend Error: ${response.status} - ${errorText}`);
-    }
-
-    const result = await response.json();
+    const result = await safeJson(upstream);
 
     return NextResponse.json({
-      success: true,
+      success: upstream.ok,
       response: result.ai_response,
-      isAdmin: result.mode === 'admin',
-      toolsCalled: result.toolsCalled || [], // app.js doesn't return toolsCalled in the snippet I saw, but it's okay
-      runId: result.run_id,
-    });
+      intent: result.intent || null,
+      mode: result.mode || mode || 'customer',
+      memory_enabled: result.memory_enabled ?? true,
+    }, { status: upstream.ok ? 200 : 502 });
 
   } catch (error: any) {
-    console.error('[Test-AI] Error:', error);
+    console.error('[Test-AI Proxy] Error:', error);
     return NextResponse.json(
-      { success: false, error: 'Internal server error', details: error.message },
+      { success: false, error: error.message },
       { status: 500 }
     );
   }
