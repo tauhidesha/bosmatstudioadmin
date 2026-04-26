@@ -4,6 +4,7 @@
  * BEFORE: Polled /api/conversation-history every 10 seconds (~864 MB/day egress!)
  * AFTER:  Subscribes to DirectMessage INSERT, fetches only on events (~2 MB/day)
  *         + 5s polling fallback for reliability
+ *         + INSTANT optimistic injection from WebSocket payload (Bypassing Vercel completely!)
  */
 
 'use client';
@@ -24,6 +25,7 @@ export interface Message {
 
 interface UseConversationMessagesOptions {
   conversationId?: string;
+  customerId?: string; // Used to match WebSocket payload
   enabled?: boolean;
 }
 
@@ -37,7 +39,7 @@ interface UseConversationMessagesReturn {
 export function useConversationMessages(
   options: UseConversationMessagesOptions = {}
 ): UseConversationMessagesReturn {
-  const { conversationId, enabled = true } = options;
+  const { conversationId, customerId, enabled = true } = options;
 
   const [messages, setMessages] = useState<Message[]>(() => {
     if (typeof window === 'undefined' || !conversationId) return [];
@@ -52,12 +54,48 @@ export function useConversationMessages(
   const fetchingRef = useRef(false);
   const lastFetchRef = useRef(0);
 
+  const addMessageLocally = useCallback((newMsg: Message) => {
+    setMessages((prev) => {
+      // Prevent duplicates if already exists
+      if (prev.some(m => m.id === newMsg.id)) return prev;
+      
+      const updated = [...prev, newMsg];
+      // Sort to ensure chronologically correct
+      updated.sort((a, b) => a.timestamp - b.timestamp);
+      
+      if (typeof window !== 'undefined' && conversationId) {
+        localStorage.setItem(`cached-messages-${conversationId}`, JSON.stringify(updated));
+      }
+      return updated;
+    });
+  }, [conversationId]);
+
   // Subscribe to DirectMessage INSERT events
-  const { revision } = useSupabaseEvent({
+  const { revision, lastPayload } = useSupabaseEvent({
     table: 'DirectMessage',
     event: 'INSERT',
     enabled: enabled && !!conversationId,
   });
+
+  // INSTANT INJECTION: Listen to WebSocket payload and inject immediately
+  useEffect(() => {
+    if (lastPayload && lastPayload.new && conversationId && customerId) {
+      const item = lastPayload.new;
+      
+      // If the incoming message belongs to the current conversation
+      if (item.customerId === customerId) {
+        const newMsg: Message = {
+          id: item.id || `msg-${Date.now()}-${item.createdAt || Date.now()}`,
+          conversationId: conversationId,
+          sender: item.role === 'user' ? 'customer' : (item.role === 'assistant' ? 'ai' : 'admin'),
+          senderName: item.role === 'user' ? 'Pelanggan' : (item.role === 'assistant' ? 'Zoya Bot' : 'Admin'),
+          content: item.content,
+          timestamp: item.createdAt ? new Date(item.createdAt).getTime() : Date.now(),
+        };
+        addMessageLocally(newMsg);
+      }
+    }
+  }, [lastPayload, conversationId, customerId, addMessageLocally]);
 
   const fetchMessages = useCallback(async () => {
     if (!conversationId || fetchingRef.current) return;
@@ -79,6 +117,7 @@ export function useConversationMessages(
       }
 
       const mappedData: Message[] = json.data.map((item: any, idx: number) => ({
+        // We use item.timestamp because API returns timestamp
         id: `msg-${idx}-${item.timestamp}`,
         conversationId: conversationId,
         sender: item.sender === 'user' ? 'customer' : (item.sender === 'ai' ? 'ai' : 'admin'),
@@ -101,7 +140,7 @@ export function useConversationMessages(
     }
   }, [conversationId]);
 
-  // Fetch on mount + whenever Supabase emits a DirectMessage INSERT
+  // Fetch on mount + whenever Supabase emits a DirectMessage INSERT (Fallback sync)
   useEffect(() => {
     if (!enabled || !conversationId) {
       setLoading(false);
@@ -113,7 +152,6 @@ export function useConversationMessages(
       const cached = localStorage.getItem(`cached-messages-${conversationId}`);
       if (cached) {
         // If we have cache, we still want to show it immediately
-        // Only set the state if it's currently empty or we want to ensure immediate swap
         setMessages(JSON.parse(cached));
         setLoading(false);
       } else {
@@ -124,7 +162,7 @@ export function useConversationMessages(
     fetchMessages();
   }, [conversationId, enabled, revision, fetchMessages]);
 
-  // Polling fallback every 5 seconds
+  // Polling fallback every 5 seconds (Just in case WebSocket misses something)
   useEffect(() => {
     if (!enabled || !conversationId) return;
     
@@ -134,22 +172,6 @@ export function useConversationMessages(
 
     return () => clearInterval(interval);
   }, [conversationId, enabled, fetchMessages]);
-
-  const addMessageLocally = useCallback((newMsg: Message) => {
-    setMessages((prev) => {
-      // Prevent duplicates if already exists
-      if (prev.some(m => m.id === newMsg.id)) return prev;
-      
-      const updated = [...prev, newMsg];
-      // Sort to ensure chronologically correct
-      updated.sort((a, b) => a.timestamp - b.timestamp);
-      
-      if (typeof window !== 'undefined' && conversationId) {
-        localStorage.setItem(`cached-messages-${conversationId}`, JSON.stringify(updated));
-      }
-      return updated;
-    });
-  }, [conversationId]);
 
   return { messages, loading, error, addMessageLocally };
 }

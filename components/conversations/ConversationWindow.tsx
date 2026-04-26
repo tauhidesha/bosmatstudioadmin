@@ -30,6 +30,7 @@ export default function ConversationWindow({
   const conversationPhone = conversation.customerPhone || conversation.platformId;
   const { messages, loading: messagesLoading, addMessageLocally } = useConversationMessages({
     conversationId: conversationPhone,
+    customerId: conversation.customerId, // Pass customerId for WebSocket optimization
     enabled: !!conversationPhone,
   });
 
