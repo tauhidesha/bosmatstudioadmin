@@ -46,8 +46,15 @@ export function useRealtimeConversations(
 ): UseRealtimeConversationsReturn {
   const { enabled = true } = options;
 
-  const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [conversations, setConversations] = useState<Conversation[]>(() => {
+    if (typeof window === 'undefined') return [];
+    const cached = localStorage.getItem('cached-conversations');
+    return cached ? JSON.parse(cached) : [];
+  });
+  const [loading, setLoading] = useState(() => {
+    if (typeof window === 'undefined') return true;
+    return !localStorage.getItem('cached-conversations');
+  });
   const [error, setError] = useState<Error | null>(null);
   const fetchingRef = useRef(false);
   const lastFetchRef = useRef(0);
@@ -104,6 +111,9 @@ export function useRealtimeConversations(
       }));
 
       setConversations(mappedData);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('cached-conversations', JSON.stringify(mappedData));
+      }
       setError(null);
     } catch (err: any) {
       console.error('[useRealtimeConversations] Error:', err);

@@ -31,6 +31,7 @@ interface UseConversationMessagesReturn {
   messages: Message[];
   loading: boolean;
   error: Error | null;
+  addMessageLocally: (msg: Message) => void;
 }
 
 export function useConversationMessages(
@@ -38,8 +39,15 @@ export function useConversationMessages(
 ): UseConversationMessagesReturn {
   const { conversationId, enabled = true } = options;
 
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [messages, setMessages] = useState<Message[]>(() => {
+    if (typeof window === 'undefined' || !conversationId) return [];
+    const cached = localStorage.getItem(`cached-messages-${conversationId}`);
+    return cached ? JSON.parse(cached) : [];
+  });
+  const [loading, setLoading] = useState(() => {
+    if (typeof window === 'undefined' || !conversationId) return true;
+    return !localStorage.getItem(`cached-messages-${conversationId}`);
+  });
   const [error, setError] = useState<Error | null>(null);
   const fetchingRef = useRef(false);
   const lastFetchRef = useRef(0);
@@ -80,6 +88,9 @@ export function useConversationMessages(
       }));
 
       setMessages(mappedData);
+      if (typeof window !== 'undefined' && conversationId) {
+        localStorage.setItem(`cached-messages-${conversationId}`, JSON.stringify(mappedData));
+      }
       setError(null);
     } catch (err: any) {
       console.error('[useConversationMessages] Error:', err);
@@ -97,6 +108,19 @@ export function useConversationMessages(
       setMessages([]);
       return;
     }
+    
+    if (typeof window !== 'undefined') {
+      const cached = localStorage.getItem(`cached-messages-${conversationId}`);
+      if (cached) {
+        // If we have cache, we still want to show it immediately
+        // Only set the state if it's currently empty or we want to ensure immediate swap
+        setMessages(JSON.parse(cached));
+        setLoading(false);
+      } else {
+        setLoading(true);
+      }
+    }
+
     fetchMessages();
   }, [conversationId, enabled, revision, fetchMessages]);
 
@@ -111,5 +135,21 @@ export function useConversationMessages(
     return () => clearInterval(interval);
   }, [conversationId, enabled, fetchMessages]);
 
-  return { messages, loading, error };
+  const addMessageLocally = useCallback((newMsg: Message) => {
+    setMessages((prev) => {
+      // Prevent duplicates if already exists
+      if (prev.some(m => m.id === newMsg.id)) return prev;
+      
+      const updated = [...prev, newMsg];
+      // Sort to ensure chronologically correct
+      updated.sort((a, b) => a.timestamp - b.timestamp);
+      
+      if (typeof window !== 'undefined' && conversationId) {
+        localStorage.setItem(`cached-messages-${conversationId}`, JSON.stringify(updated));
+      }
+      return updated;
+    });
+  }, [conversationId]);
+
+  return { messages, loading, error, addMessageLocally };
 }

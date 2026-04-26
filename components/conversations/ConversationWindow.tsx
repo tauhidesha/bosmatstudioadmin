@@ -28,7 +28,7 @@ export default function ConversationWindow({
 
   // Load messages for this conversation - use customerPhone or platformId
   const conversationPhone = conversation.customerPhone || conversation.platformId;
-  const { messages, loading: messagesLoading } = useConversationMessages({
+  const { messages, loading: messagesLoading, addMessageLocally } = useConversationMessages({
     conversationId: conversationPhone,
     enabled: !!conversationPhone,
   });
@@ -37,16 +37,34 @@ export default function ConversationWindow({
     setSendingMessage(true);
     try {
       const targetId = conversation.customerPhone || conversation.platformId || conversation.id;
-      await apiClient.sendMessage({
+      
+      // Optimistic UI update
+      addMessageLocally({
+        id: `optimistic-${Date.now()}`,
+        conversationId: conversationPhone || targetId,
+        sender: 'admin',
+        senderName: 'Admin',
+        content: messageText,
+        timestamp: Date.now(),
+      });
+
+      // We do not await this, making the send "fire and forget" from UI perspective,
+      // but catching errors if any.
+      apiClient.sendMessage({
         number: targetId,
         message: messageText,
         channel: conversation.channel,
         platformId: targetId,
+      }).catch(err => {
+        console.error('Failed to send message:', err);
+        // Optionally, we could show a toast here if we want to alert them of failure.
       });
+      
     } catch (error) {
       console.error('Failed to send message:', error);
       throw error;
     } finally {
+      // Because we fire and forget the actual send, we can immediately release the input block
       setSendingMessage(false);
     }
   };
