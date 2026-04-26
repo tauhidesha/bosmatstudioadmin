@@ -30,7 +30,7 @@ function useMediaQuery(query: string) {
 interface ManualBookingFormProps {
   apiClient: ApiClient;
   allConversations: Conversation[];
-  onSuccess: () => void;
+  onSuccess: (newBooking?: any) => void;
   onCancel: () => void;
   initialData?: any; // To support edit
   onDelete?: (id: string) => Promise<any>;
@@ -639,6 +639,8 @@ export default function ManualBookingForm({
         }).join(', ')} ${spotCount > 0 ? `| Spot Repair (${spotCount} spots)` : ''} | DP: ${paymentMethod} \n\nCatatan Tambahan: ${additionalNotes}${isCustomModel ? `\n\n[Custom Model - Size: ${customModelSize}]` : ''}`,
       };
 
+      let createdBookingData = null;
+
       if (isEdit) {
         if (onUpdate) await onUpdate(initialData.id, payload);
       } else {
@@ -652,6 +654,10 @@ export default function ManualBookingForm({
           body: JSON.stringify(payload),
         });
         if (!res.ok) throw new Error('Gagal membuat booking');
+        const json = await res.json();
+        if (json.success && json.data) {
+          createdBookingData = json.data;
+        }
       }
 
       if (sendInvoiceWA) {
@@ -662,32 +668,41 @@ export default function ManualBookingForm({
         ].filter(Boolean).join('\n');
 
         const token = await getIdToken();
-        await fetch('/api/bookings/invoice', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-          },
-          body: JSON.stringify({
-            documentType: docType,
-            customerName: invoiceName,
-            customerPhone: contactPhone,
-            realPhone,
-            motorDetails: `${effectiveMotor?.modelName || modelSearchText.trim() || 'Motor'} (${platNomor || '-'})`,
-            items: detailedItems,
-            subtotal: servicesTotal,
-            totalAmount: finalTotal,
-            discount: computedDiscount,
-            amountPaid: amountPaid,
-            downPayment: nominalDP,
-            paymentMethod: paymentMethod,
-            notes: `Layanan:\n${serviceSummary.replace(/ § /g, '\n')}${additionalNotes ? `\n\nCatatan Tambahan:\n${additionalNotes}` : ''}`,
-            bookingDate: entryDate,
-          }),
-        });
+        try {
+          const invRes = await fetch('/api/bookings/invoice', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+            },
+            body: JSON.stringify({
+              documentType: docType,
+              customerName: invoiceName,
+              customerPhone: contactPhone,
+              realPhone,
+              motorDetails: `${effectiveMotor?.modelName || modelSearchText.trim() || 'Motor'} (${platNomor || '-'})`,
+              items: detailedItems,
+              subtotal: servicesTotal,
+              totalAmount: finalTotal,
+              discount: computedDiscount,
+              amountPaid: amountPaid,
+              downPayment: nominalDP,
+              paymentMethod: paymentMethod,
+              notes: `Layanan:\n${serviceSummary.replace(/ § /g, '\n')}${additionalNotes ? `\n\nCatatan Tambahan:\n${additionalNotes}` : ''}`,
+              bookingDate: entryDate,
+            }),
+          });
+          
+          if (!invRes.ok) {
+            alert('Booking tersimpan, namun GAGAL mengirim WhatsApp Invoice.');
+          }
+        } catch (waErr) {
+          console.error('WA Error:', waErr);
+          alert('Booking tersimpan, namun terjadi error koneksi saat mengirim WhatsApp.');
+        }
       }
 
-      onSuccess();
+      onSuccess(createdBookingData);
     } catch (err: any) {
       alert(err.message);
     } finally {

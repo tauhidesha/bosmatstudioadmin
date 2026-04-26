@@ -45,6 +45,19 @@ export function useBookings() {
   const fetchingRef = useRef(false);
   const lastFetchRef = useRef(0);
 
+  // Load from cache initially for instant UI
+  useEffect(() => {
+    try {
+      const cached = localStorage.getItem('cached-bookings');
+      if (cached) {
+        setBookings(JSON.parse(cached));
+        setLoading(false);
+      }
+    } catch (e) {
+      console.error('Failed to parse cached bookings', e);
+    }
+  }, []);
+
   // Subscribe to Booking changes (INSERT, UPDATE, DELETE)
   const { revision } = useSupabaseEvent({
     table: 'Booking',
@@ -74,6 +87,11 @@ export function useBookings() {
       }
 
       setBookings(json.data as Booking[]);
+      try {
+        localStorage.setItem('cached-bookings', JSON.stringify(json.data));
+      } catch (e) {
+        console.error('Failed to save cached bookings', e);
+      }
       setError(null);
     } catch (err: any) {
       console.error('[useBookings] Error:', err);
@@ -166,5 +184,18 @@ export function useBookings() {
     }
   };
 
-  return { bookings, loading, error, updateBookingStatus, deleteBooking, updateBooking };
+  const addBookingLocally = useCallback((newBooking: Booking) => {
+    setBookings(prev => {
+      // Prevent duplicates if Realtime already caught it
+      if (prev.some(b => b.id === newBooking.id)) return prev;
+      
+      const newArray = [newBooking, ...prev];
+      try {
+        localStorage.setItem('cached-bookings', JSON.stringify(newArray));
+      } catch (e) {}
+      return newArray;
+    });
+  }, []);
+
+  return { bookings, loading, error, updateBookingStatus, deleteBooking, updateBooking, addBookingLocally };
 }

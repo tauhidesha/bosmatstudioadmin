@@ -27,7 +27,7 @@ const statusConfig = {
 };
 
 export default function BookingsPage() {
-  const { bookings, loading, updateBookingStatus, deleteBooking, updateBooking } = useBookings();
+  const { bookings, loading, updateBookingStatus, deleteBooking, updateBooking, addBookingLocally } = useBookings();
   const { conversations } = useRealtimeConversations();
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [editingBooking, setEditingBooking] = useState<Booking | null>(null);
@@ -346,9 +346,10 @@ export default function BookingsPage() {
           initialData={editingBooking}
           onDelete={deleteBooking}
           onUpdate={updateBooking}
-          onSuccess={() => {
+          onSuccess={(newBooking?: any) => {
             setShowBookingModal(false);
             setEditingBooking(null);
+            if (newBooking) addBookingLocally(newBooking);
           }}
           onCancel={() => {
             setShowBookingModal(false);
