@@ -23,7 +23,7 @@ const fontTechnical = Space_Grotesk({
 
 export const metadata: Metadata = {
   title: 'Bosmat Admin - Comprehensive Admin Dashboard',
-  description: 'Admin dashboard for Bosmat Repainting & Detailing Studio',
+  description: 'Admin dashboard for Bosmat x Garasi 54',
 };
 
 import { AuthProvider } from '@/lib/context/AuthContext';

@@ -202,9 +202,9 @@ function generateInvoiceHTML(data: any): string {
       </div>
       <div class="bg-dark" style="padding:28px">
         <p class="text-yellow" style="font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.2em; margin-bottom:20px">Studio Layanan</p>
-        <p class="font-headline" style="font-size:24px; font-weight:700; text-transform:uppercase; margin-bottom:8px">BOSMAT REPAINT DETAILING MOTOR</p>
+        <p class="font-headline" style="font-size:24px; font-weight:700; text-transform:uppercase; margin-bottom:8px">BOSMAT X GARASI 54</p>
         <p class="text-muted" style="font-size:14px; line-height:1.8">
-          Bukit Cengkeh 1, Jl. Medan No.B3/2, Kota Depok, Jawa Barat 16451<br/>
+          Jl. Raden Sanim No.99, Tanah Baru, Kecamatan Beji, Kota Depok, Jawa Barat 16426<br/>
           WA: 0895401527556
         </p>
       </div>

@@ -39,10 +39,16 @@ export async function PATCH(
     ];
 
     if (incrementAmount > 0) {
-      // Create transaction for income tracking for the remaining balance
+      // Upsert transaction for income tracking for the remaining balance
       transactionsToRun.push(
-        prisma.transaction.create({
-          data: {
+        prisma.transaction.upsert({
+          where: { bookingId: id },
+          update: {
+            amount: { increment: incrementAmount },
+            paymentDate: new Date(),
+            description: `Pelunasan booking - ${booking.customerName || 'Customer'}`
+          },
+          create: {
             bookingId: id,
             customerId: booking.customerId,
             amount: incrementAmount,
