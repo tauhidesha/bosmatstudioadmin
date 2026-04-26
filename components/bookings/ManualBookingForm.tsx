@@ -612,6 +612,7 @@ export default function ManualBookingForm({
       ].filter(Boolean).join(' § ');
 
       const payload = {
+        customerId: selectedConversation?.customerId,
         customerName: invoiceName,
         customerPhone: contactPhone,
         serviceName: serviceSummary,
