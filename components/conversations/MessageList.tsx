@@ -7,6 +7,29 @@ import { id as idLocale } from 'date-fns/locale';
 import { cn } from "@/lib/utils";
 import { useLayout } from '@/context/LayoutContext';
 
+function renderWhatsAppText(text: string) {
+  if (!text) return null;
+  
+  // Split by markdown markers: *bold*, _italic_, ~strikethrough~, ```code```
+  const parts = text.split(/(\*[^*]+\*|_[^_]+_|~[^~]+~|```[^`]+```)/g);
+  
+  return parts.map((part, index) => {
+    if (part.startsWith('```') && part.endsWith('```') && part.length > 6) {
+      return <code key={index} className="bg-black/10 rounded px-1.5 py-0.5 font-mono text-xs">{part.slice(3, -3)}</code>;
+    }
+    if (part.startsWith('*') && part.endsWith('*') && part.length > 2) {
+      return <strong key={index} className="font-bold">{part.slice(1, -1)}</strong>;
+    }
+    if (part.startsWith('_') && part.endsWith('_') && part.length > 2) {
+      return <em key={index} className="italic">{part.slice(1, -1)}</em>;
+    }
+    if (part.startsWith('~') && part.endsWith('~') && part.length > 2) {
+      return <del key={index} className="line-through">{part.slice(1, -1)}</del>;
+    }
+    return part;
+  });
+}
+
 interface MessageListProps {
   messages: Message[];
   loading?: boolean;
@@ -165,12 +188,12 @@ export default function MessageList({
                   'p-4 text-sm font-sans leading-relaxed whitespace-pre-wrap',
                   isOutgoing
                     ? isAI
-                      ? 'bg-[#FFFF00] text-[#1d1d00] rounded-tl-xl rounded-bl-xl rounded-br-xl font-semibold shadow-[0_8px_24px_rgba(234,234,0,0.15)]'
+                      ? 'bg-[#FFFF00] text-[#1d1d00] rounded-tl-xl rounded-bl-xl rounded-br-xl shadow-[0_8px_24px_rgba(234,234,0,0.15)]'
                       : 'bg-[#2a2a2a] text-[#e5e2e1] rounded-tl-xl rounded-bl-xl rounded-br-xl border border-white/5'
                     : 'bg-[#2a2a2a] text-[#e5e2e1] rounded-tr-xl rounded-br-xl rounded-bl-xl border-l-2 border-zinc-600/30'
                 )}
               >
-                {message.content}
+                {renderWhatsAppText(message.content)}
               </div>
             )}
           </div>
