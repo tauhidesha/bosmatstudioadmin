@@ -105,9 +105,15 @@ export async function GET(req: NextRequest) {
       }
     });
 
+    // Normalize type to lowercase for frontend consistency
+    const normalized = transactions.map(t => ({
+      ...t,
+      type: t.type.toLowerCase(),
+    }));
+
     return NextResponse.json({
       success: true,
-      data: transactions
+      data: normalized
     });
   } catch (error: any) {
     console.error('Error fetching transactions:', error);

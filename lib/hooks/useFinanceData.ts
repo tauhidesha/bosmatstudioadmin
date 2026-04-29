@@ -77,8 +77,9 @@ export function useFinanceData(daysLimit = 30, customerId?: string) {
       let expense = 0;
       
       items.forEach(item => {
-        if (item.type === 'income') income += item.amount;
-        else if (item.type === 'expense') expense += item.amount;
+        const t = item.type?.toLowerCase();
+        if (t === 'income') income += item.amount;
+        else if (t === 'expense') expense += item.amount;
       });
 
       setTransactions(items);
