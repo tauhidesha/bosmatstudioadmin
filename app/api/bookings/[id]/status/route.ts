@@ -48,12 +48,33 @@ export async function PATCH(
       }
     });
 
-    // Handle status completion - update customer lastService
+    // Handle status completion - update customer lastService + reset review flags
     if (status === 'COMPLETED' && existingBooking.status !== 'COMPLETED') {
       await prisma.customer.update({
         where: { id: existingBooking.customerId },
         data: { lastService: existingBooking.bookingDate }
       });
+
+      // Reset CustomerContext so the scheduler's review follow-up fires 3 days later
+      const customerPhone = existingBooking.customer?.phone;
+      if (customerPhone) {
+        // Derive a normalised service type for the rebooking engine
+        const raw = (existingBooking.serviceType || '').toLowerCase();
+        let serviceType: string | null = null;
+        if (raw.includes('coating'))  serviceType = 'coating';
+        else if (raw.includes('repaint') || raw.includes('cat'))  serviceType = 'repaint';
+        else if (raw.includes('detail') || raw.includes('poles') || raw.includes('cuci'))  serviceType = 'detailing';
+
+        await prisma.customerContext.updateMany({
+          where: { phone: customerPhone },
+          data: {
+            reviewFollowUpSent: false,
+            lastServiceAt: existingBooking.bookingDate,
+            ...(serviceType ? { lastServiceType: serviceType } : {}),
+          }
+        });
+        console.log(`[BookingStatus] Reset review flags for ${customerPhone} (serviceType=${serviceType})`);
+      }
     }
 
     return NextResponse.json({

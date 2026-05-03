@@ -186,11 +186,11 @@ export async function POST(
 
     } // end if (sendInvoice)
 
-    // 2. Update Booking Status to PAID
+    // 2. Update Booking Status — mark as COMPLETED (paid = work done + payment received)
     const updatedBooking = await prisma.booking.update({
       where: { id: bookingId },
       data: {
-        status: 'paid',
+        status: 'COMPLETED',
         paymentMethod,
         paymentStatus: 'PAID',
         amountPaid: totalAmount,
@@ -226,15 +226,35 @@ export async function POST(
       });
     }
 
-    // 4. Update customer totalSpending
+    // 4. Update customer totalSpending + lastService (payment = work done)
     if (booking.customerId && finalAmount > 0) {
       await prisma.customer.update({
         where: { id: booking.customerId },
         data: { 
           totalSpending: { increment: finalAmount },
-          lastService: booking.bookingDate
+          lastService: booking.bookingDate,
         }
       });
+    }
+
+    // 5. Reset CustomerContext review flags so scheduler sends review 3 days later
+    const customerPhone = booking.customer?.phone;
+    if (customerPhone) {
+      const raw = (booking.serviceType || '').toLowerCase();
+      let serviceType: string | null = null;
+      if (raw.includes('coating')) serviceType = 'coating';
+      else if (raw.includes('repaint') || raw.includes('cat')) serviceType = 'repaint';
+      else if (raw.includes('detail') || raw.includes('poles') || raw.includes('cuci')) serviceType = 'detailing';
+
+      await prisma.customerContext.updateMany({
+        where: { phone: customerPhone },
+        data: {
+          reviewFollowUpSent: false,
+          lastServiceAt: booking.bookingDate,
+          ...(serviceType ? { lastServiceType: serviceType } : {}),
+        }
+      });
+      console.log(`[Payment] Reset review flags for ${customerPhone} (serviceType=${serviceType})`);
     }
 
     return NextResponse.json({

@@ -242,8 +242,7 @@ export async function POST(req: NextRequest) {
       await prisma.customer.update({
         where: { id: customer.id },
         data: { 
-          totalSpending: { increment: downPayment },
-          lastService: bookingDateTime
+          totalSpending: { increment: downPayment }
         }
       });
     }
@@ -268,8 +267,7 @@ export async function POST(req: NextRequest) {
       await prisma.customer.update({
         where: { id: customer.id },
         data: { 
-          totalSpending: { increment: additionalPayment },
-          lastService: bookingDateTime
+          totalSpending: { increment: additionalPayment }
         }
       });
     }
@@ -519,7 +517,7 @@ export async function PUT(req: NextRequest) {
         
         await prisma.customer.update({
             where: { id: booking.customerId },
-            data: { totalSpending: { increment: dpDiff }, lastService: existingBooking.bookingDate }
+            data: { totalSpending: { increment: dpDiff } }
         });
     }
 
@@ -541,8 +539,7 @@ export async function PUT(req: NextRequest) {
         await prisma.customer.update({
             where: { id: booking.customerId },
             data: { 
-                totalSpending: { increment: regularPaymentNeeded },
-                lastService: existingBooking.bookingDate
+                totalSpending: { increment: regularPaymentNeeded }
             }
         });
     }
