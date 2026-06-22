@@ -144,7 +144,7 @@ export default function LoginPage() {
 
         {/* Footer */}
         <p className="text-center text-sm text-slate-600 mt-6">
-          Bosmat x Garasi 54
+          Bosmat Repaint and Detailing
         </p>
       </div>
     </div>

@@ -17,7 +17,7 @@
 
 import { getDb, FieldValue, Timestamp } from './firebase-admin';
 
-const DEBOUNCE_MS = parseInt(process.env.DEBOUNCE_DELAY_MS || '10000', 10);
+const DEBOUNCE_MS = parseInt(process.env.DEBOUNCE_DELAY_MS || '20000', 10);
 const COLLECTION = 'messageBuffers';
 
 export interface BufferedMessage {
