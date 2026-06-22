@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Sesi anda telah berakhir. Silakan login ulang.' }, { status: 401 });
     }
 
-    const backendUrl = (process.env.BACKEND_API_URL || process.env.NEXT_PUBLIC_API_URL || 'https://unblissful-unverdantly-stan.ngrok-free.dev').trim().replace(/\/$/, "");
+    const backendUrl = (process.env.BACKEND_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://35.203.55.157:4000').trim().replace(/\/$/, "");
 
     console.log(`[Invoice] Forwarding generate-invoice request to Backend: ${backendUrl}/generate-invoice (Auth: ${authHeader ? 'Present' : 'Missing'})`);
 

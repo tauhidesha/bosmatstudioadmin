@@ -51,7 +51,7 @@ export async function POST(
 
     // 1. Send receipt & warranty via Express Backend (if sendInvoice is true)
     if (sendInvoice) {
-      const backendUrl = (process.env.BACKEND_API_URL || process.env.NEXT_PUBLIC_API_URL || 'https://unblissful-unverdantly-stan.ngrok-free.dev').trim().replace(/\/$/, "");
+      const backendUrl = (process.env.BACKEND_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://35.203.55.157:4000').trim().replace(/\/$/, "");
       console.log(`[Payment] Calling backend for invoice: ${backendUrl}/generate-invoice`);
       console.log(`[Payment] Auth Header Present: ${!!authHeader}`);
 
