@@ -137,7 +137,7 @@ export function CustomerTable({
   onSort,
 }: CustomerTableProps) {
   return (
-    <div className="border border-[#2A2A2A] bg-[#1C1B1B] overflow-hidden">
+    <div className="border border-[#2A2A2A] bg-[#1C1B1B] overflow-hidden overflow-x-auto w-full">
       <Table>
         <TableHeader className="bg-[#131313] border-b border-[#2A2A2A]">
           <TableRow className="border-b-0 hover:bg-transparent">

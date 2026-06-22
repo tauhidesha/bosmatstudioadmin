@@ -131,7 +131,7 @@ export default function MasterDataPage() {
       {/* Content */}
       <div className="bg-[#1c1b1b] border border-white/5 rounded-sm overflow-hidden flex-1 flex flex-col">
         {activeTab === 'services' && (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto w-full max-w-full">
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-[#0e0e0e]">
@@ -216,7 +216,7 @@ export default function MasterDataPage() {
         )}
 
         {activeTab === 'models' && (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto w-full max-w-full">
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-[#0e0e0e]">
@@ -271,7 +271,7 @@ export default function MasterDataPage() {
         )}
 
         {activeTab === 'surcharges' && (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto w-full max-w-full">
              <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-[#0e0e0e]">

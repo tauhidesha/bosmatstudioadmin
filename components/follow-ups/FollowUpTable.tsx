@@ -23,7 +23,7 @@ export function FollowUpTable({ data, onSendAction }: { data: FollowUp[], onSend
   }
 
   return (
-    <div className="rounded-md border bg-white shadow-sm overflow-hidden">
+    <div className="rounded-md border bg-white shadow-sm overflow-hidden overflow-x-auto w-full">
       <Table>
         <TableHeader className="bg-slate-50">
           <TableRow>

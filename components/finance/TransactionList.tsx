@@ -83,7 +83,7 @@ export default function TransactionList({ transactions, loading, className, onEd
       </div>
 
       {/* Table */}
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto w-full max-w-full">
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-[#0e0e0e]">

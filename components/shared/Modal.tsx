@@ -80,7 +80,7 @@ export default function Modal({
       <div 
         className={cn(
           "relative bg-[#0e0e0e] shadow-[0_0_80px_rgba(0,0,0,0.8)] flex flex-col overflow-hidden animate-in zoom-in-95 duration-300 border border-white/5",
-          size !== 'full' && "max-h-[90vh]",
+          size !== 'full' && "max-h-[90dvh]",
           sizeClasses[size || 'md']
         )}
         onClick={(e) => e.stopPropagation()}

@@ -114,7 +114,7 @@ export function CustomerDetailSheet({ customer, open, onOpenChange }: Props) {
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-[400px] sm:w-[540px] overflow-y-auto bg-[#131313] border-l border-[#2A2A2A] text-white p-0">
+      <SheetContent className="w-full max-w-full sm:max-w-[540px] overflow-y-auto bg-[#131313] border-l border-[#2A2A2A] text-white p-0">
         <SheetHeader className="mb-6 bg-[#1C1B1B] p-6 border-b border-[#2A2A2A]">
           <div className="flex items-center gap-4">
             <Avatar className="h-16 w-16 rounded-sm">
