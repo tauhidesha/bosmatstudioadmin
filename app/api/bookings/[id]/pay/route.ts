@@ -60,6 +60,7 @@ export async function POST(
           method: 'POST',
           headers: { 
             'Content-Type': 'application/json',
+            'ngrok-skip-browser-warning': 'true',
             ...(authHeader ? { 'Authorization': authHeader } : {}),
           },
             body: JSON.stringify({
@@ -107,6 +108,7 @@ export async function POST(
             method: 'POST',
             headers: { 
               'Content-Type': 'application/json',
+              'ngrok-skip-browser-warning': 'true',
               ...(authHeader ? { 'Authorization': authHeader } : {}),
             },
             body: JSON.stringify({
@@ -138,6 +140,7 @@ export async function POST(
             method: 'POST',
             headers: { 
               'Content-Type': 'application/json',
+              'ngrok-skip-browser-warning': 'true',
               ...(authHeader ? { 'Authorization': authHeader } : {}),
             },
             body: JSON.stringify({
