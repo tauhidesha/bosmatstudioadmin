@@ -272,7 +272,7 @@ export default function MasterDataModal({ isOpen, onClose, type, editData, onSav
   );
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={editData ? 'EDIT_RECORD' : 'ADD_RECORD'} size="md">
+    <Modal isOpen={isOpen} onClose={onClose} title={editData ? 'EDIT_RECORD' : 'ADD_RECORD'} size="2xl">
       <form onSubmit={handleSubmit} className="flex flex-col bg-[#131313] h-full min-h-0">
         <div className="flex-1 overflow-y-auto p-8 space-y-8">
           {type === 'services' && renderServiceForm()}
