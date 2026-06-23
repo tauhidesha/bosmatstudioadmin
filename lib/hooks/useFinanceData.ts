@@ -32,7 +32,7 @@ export interface FinanceSummary {
   transactionCount: number;
 }
 
-export function useFinanceData(daysLimit = 30, customerId?: string) {
+export function useFinanceData(timeframe: string | number = 30, customerId?: string) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [summary, setSummary] = useState<FinanceSummary>({
     totalIncome: 0,
@@ -62,7 +62,19 @@ export function useFinanceData(daysLimit = 30, customerId?: string) {
     lastFetchRef.current = now;
 
     try {
-      const res = await fetch(`/api/finance?limit=500&days=${daysLimit}${customerId ? '&customerId='+customerId : ''}`, {
+      let query = `/api/finance?limit=500`;
+      if (typeof timeframe === 'string') {
+        if (timeframe !== 'all') {
+          query += `&month=${timeframe}`;
+        }
+      } else {
+        query += `&days=${timeframe}`;
+      }
+      if (customerId) {
+        query += `&customerId=${customerId}`;
+      }
+
+      const res = await fetch(query, {
         cache: 'no-store',
       });
       const json = await res.json();
@@ -97,7 +109,7 @@ export function useFinanceData(daysLimit = 30, customerId?: string) {
       setLoading(false);
       fetchingRef.current = false;
     }
-  }, [daysLimit, customerId]);
+  }, [timeframe, customerId]);
 
   // Fetch on mount + whenever Supabase emits a Transaction event
   useEffect(() => {

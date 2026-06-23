@@ -11,7 +11,16 @@ import { Transaction } from '@/lib/hooks/useFinanceData';
 import { Receipt } from 'lucide-react';
 
 export default function FinanceDashboard() {
-  const [timeframe, setTimeframe] = useState(30);
+  const months = [];
+  const today = new Date();
+  for (let i = 0; i < 12; i++) {
+    const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+    const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    const label = d.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
+    months.push({ value, label });
+  }
+
+  const [timeframe, setTimeframe] = useState<string | number>(months[0].value);
   const { transactions, summary, loading, refresh } = useFinanceData(timeframe);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
@@ -37,13 +46,13 @@ export default function FinanceDashboard() {
         <div className="flex items-center gap-3">
           <select 
             value={timeframe}
-            onChange={(e) => setTimeframe(Number(e.target.value))}
+            onChange={(e) => setTimeframe(e.target.value)}
             className="bg-[#1c1b1b] border border-white/10 text-white font-headline text-xs h-10 px-4 focus:outline-none focus:ring-1 focus:ring-[#FFFF00]/30 cursor-pointer"
           >
-            <option value={7}>7 Hari</option>
-            <option value={30}>30 Hari</option>
-            <option value={90}>3 Bulan</option>
-            <option value={0}>Semua</option>
+            {months.map(m => (
+              <option key={m.value} value={m.value}>{m.label}</option>
+            ))}
+            <option value="all">Semua Waktu</option>
           </select>
 
           <button 

@@ -73,12 +73,20 @@ export async function GET(req: NextRequest) {
     const type = searchParams.get('type');
     const customerId = searchParams.get('customerId');
     const days = parseInt(searchParams.get('days') || '0', 10);
+    const month = searchParams.get('month');
 
     const where: any = {};
     if (type) where.type = type.toLowerCase();
     if (customerId) where.customerId = customerId;
     
-    if (days > 0) {
+    if (month) {
+      const [yearStr, monthStr] = month.split('-');
+      const yearNum = parseInt(yearStr, 10);
+      const monthNum = parseInt(monthStr, 10);
+      const startDate = new Date(yearNum, monthNum - 1, 1);
+      const endDate = new Date(yearNum, monthNum, 1);
+      where.createdAt = { gte: startDate, lt: endDate };
+    } else if (days > 0) {
       const dateLimit = new Date();
       dateLimit.setDate(dateLimit.getDate() - days);
       where.createdAt = { gte: dateLimit };
