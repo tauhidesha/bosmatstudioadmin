@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const BOT_API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+const BOT_API_URL = (process.env.BACKEND_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://35.232.177.23:4000').trim().replace(/\/$/, "");
 const INTERNAL_SECRET = process.env.INTERNAL_API_SECRET || '';
 
 const proxyHeaders: Record<string, string> = {
