@@ -445,7 +445,8 @@ export default function ManualBookingForm({
               });
             }
           }
-        });
+        }
+      });
 
         // Deduce custom service price ONLY if price is still missing (Legacy support)
         const customItems = newCart.filter(i => i.isCustom);
