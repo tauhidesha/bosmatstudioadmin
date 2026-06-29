@@ -105,7 +105,7 @@ export default function Modal({
         )}
         
         {/* Child Content */}
-        <div className="flex-1 min-h-0 w-full flex flex-col">
+        <div className="flex-1 min-h-0 w-full flex flex-col overflow-y-auto">
           {children}
         </div>
       </div>
