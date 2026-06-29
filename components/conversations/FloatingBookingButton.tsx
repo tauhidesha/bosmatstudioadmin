@@ -55,7 +55,18 @@ export default function FloatingBookingButton({
             customerPhone: conversation.customerPhone,
             vehicleModel: conversation.customerContext?.motorModel,
             plateNumber: conversation.customerContext?.motorPlate,
-            services: conversation.customerContext?.targetServices,
+            services: conversation.customerContext?.targetServices?.map((svc: string) => {
+              if (conversation.customerContext?.quotedServices && Array.isArray(conversation.customerContext.quotedServices)) {
+                const quoted = conversation.customerContext.quotedServices.find((q: any) => 
+                  q.service?.toLowerCase().includes(svc.toLowerCase()) || 
+                  svc.toLowerCase().includes(q.service?.toLowerCase())
+                );
+                if (quoted && quoted.price) {
+                  return `${svc} [Rp${quoted.price}]`;
+                }
+              }
+              return svc;
+            }),
             notes: conversation.customerContext?.serviceDetail ? `Catatan Tambahan: ${conversation.customerContext.serviceDetail}` : undefined,
           }}
           allConversations={allConversations}

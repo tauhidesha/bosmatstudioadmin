@@ -423,11 +423,22 @@ export default function ManualBookingForm({
                 itemNotes
               });
             } else {
-              // Custom Service
-              newCart.push({
-                id: itemId,
-                name: serviceLine,
-                price: explicitCustomPrice || 0,
+              // Fuzzy match: if serviceLine is contained in a service name (e.g. "Repaint Bodi Halus" in "Repaint Bodi Halus - Paket Premium")
+              const fuzzyMatch = services.find(srv => srv.name.toLowerCase().includes(serviceLine.toLowerCase()) || serviceLine.toLowerCase().includes(srv.name.toLowerCase()));
+              if (fuzzyMatch) {
+                newCart.push({
+                  id: itemId,
+                  name: fuzzyMatch.name,
+                  price: explicitCustomPrice || calculateServicePrice(fuzzyMatch, effectiveMotor || foundModel || null, surcharges, itemSurcharges),
+                  surcharges: itemSurcharges,
+                  itemNotes
+                });
+              } else {
+                // Custom Service
+                newCart.push({
+                  id: itemId,
+                  name: serviceLine,
+                  price: explicitCustomPrice || 0,
                 surcharges: itemSurcharges,
                 itemNotes,
                 isCustom: explicitCustomPrice === 0 // If we have 0 and no metadata, it needs deduction
