@@ -330,7 +330,7 @@ export default function ConversationHeader({
         isOpen={showBookingModal}
         onClose={() => setShowBookingModal(false)}
         title="Buat Booking Manual"
-        size="lg"
+        size="6xl"
       >
         <ManualBookingForm
           initialData={{

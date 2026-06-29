@@ -47,7 +47,7 @@ export default function FloatingBookingButton({
         isOpen={showModal}
         onClose={() => setShowModal(false)}
         title="Buat Booking Manual"
-        size="lg"
+        size="6xl"
       >
         <ManualBookingForm
           initialData={{
