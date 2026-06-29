@@ -42,6 +42,7 @@ export async function GET(req: NextRequest) {
             status: true
           }
         },
+        customerContext: true,
         _count: {
           select: { bookings: true, messages: true }
         }
@@ -77,6 +78,7 @@ export async function GET(req: NextRequest) {
           messageCount: c._count.messages,
           status: c.status,
           aiPaused: c.aiPaused,
+          customerContext: c.customerContext,
         };
       });
 

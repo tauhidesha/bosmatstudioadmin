@@ -336,6 +336,10 @@ export default function ConversationHeader({
           initialData={{
             customerName: conversation.customerName,
             customerPhone: conversation.customerPhone,
+            vehicleModel: conversation.customerContext?.motorModel,
+            plateNumber: conversation.customerContext?.motorPlate,
+            services: conversation.customerContext?.targetServices,
+            notes: conversation.customerContext?.serviceDetail ? `Catatan Tambahan: ${conversation.customerContext.serviceDetail}` : undefined,
           }}
           allConversations={allConversations}
           apiClient={apiClient}

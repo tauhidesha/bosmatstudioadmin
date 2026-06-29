@@ -29,6 +29,7 @@ export interface Conversation {
   platformId?: string;
   profilePicUrl?: string;
   totalSpending?: number;
+  customerContext?: any;
 }
 
 interface UseRealtimeConversationsOptions {
@@ -108,6 +109,7 @@ export function useRealtimeConversations(
         platformId: item.phone,
         profilePicUrl: item.profilePicUrl,
         totalSpending: item.totalSpending || 0,
+        customerContext: item.customerContext,
       }));
 
       setConversations(mappedData);
