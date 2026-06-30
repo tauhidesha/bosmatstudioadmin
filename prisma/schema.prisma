@@ -270,3 +270,12 @@ model Surcharge {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
+
+model PushSubscription {
+  id        String   @id @default(uuid())
+  userId    String?  // Optional, if we want to tie it to a specific admin
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+}
