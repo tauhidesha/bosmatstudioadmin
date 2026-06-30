@@ -54,7 +54,8 @@ export function useConversationNotifications({
     const nextTimes: Record<string, number> = {};
 
     conversations.forEach((conversation) => {
-      const currentTime = conversation.lastMessageTime || 0;
+      // Use lastCustomerMessageTime so fast AI replies don't mask new user messages
+      const currentTime = conversation.lastCustomerMessageTime || conversation.lastMessageTime || 0;
       nextTimes[conversation.id] = currentTime;
 
       // Skip if this is the first load (initialization)
@@ -63,13 +64,12 @@ export function useConversationNotifications({
       const previousTime = previousTimes[conversation.id] || 0;
       const hasNewMessage = currentTime > previousTime;
       const isSelected = conversation.id === selectedConversationId;
-      const isFromCustomer = conversation.lastMessageRole === 'user' || conversation.lastMessageRole === 'customer';
 
-      // Only notify for new messages in unselected conversations
-      if (hasNewMessage && !isSelected && isFromCustomer) {
+      // Only notify for new customer messages in unselected conversations
+      if (hasNewMessage && !isSelected) {
         addNotification({
           customerName: conversation.customerName || 'Unknown User',
-          messagePreview: conversation.lastMessage || 'New message received',
+          messagePreview: conversation.lastMessage || 'Pesanan/Pesan baru masuk',
           timestamp: new Date(),
           customerId: conversation.id,
         });

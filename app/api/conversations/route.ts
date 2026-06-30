@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
         updatedAt: true,
         messages: {
           orderBy: { createdAt: 'desc' },
-          take: 1
+          take: 5
         },
         bookings: {
           orderBy: { bookingDate: 'desc' },
@@ -58,6 +58,7 @@ export async function GET(req: NextRequest) {
       .filter(c => c.messages.length > 0 || c.bookings.length > 0)
       .map(c => {
         const lastMessage = c.messages[0];
+        const lastCustomerMessage = c.messages.find(m => m.role === 'user' || m.role === 'customer');
         const lastBooking = c.bookings[0];
         
         // The c.phone already contains the suffix (@c.us or @lid) from DB reset
@@ -76,6 +77,7 @@ export async function GET(req: NextRequest) {
           lastMessage: lastMessage?.content || null,
           lastMessageRole: lastMessage?.role || null,
           lastMessageAt: actualLastMessageAt,
+          lastCustomerMessageAt: lastCustomerMessage?.createdAt?.toISOString() || null,
           lastBooking: lastBooking ? {
             id: lastBooking.id,
             serviceType: lastBooking.serviceType,

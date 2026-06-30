@@ -20,6 +20,7 @@ export interface Conversation {
   lastMessage: string;
   lastMessageRole?: string;
   lastMessageTime: number;
+  lastCustomerMessageTime?: number;
   unreadCount: number;
   label?: string;
   aiState?: {
@@ -101,6 +102,7 @@ export function useRealtimeConversations(
         lastMessage: item.lastMessage || 'No messages yet',
         lastMessageRole: item.lastMessageRole,
         lastMessageTime: new Date(item.lastMessageAt).getTime(),
+        lastCustomerMessageTime: item.lastCustomerMessageAt ? new Date(item.lastCustomerMessageAt).getTime() : undefined,
         unreadCount: 0,
         label: item.status,
         aiState: {
