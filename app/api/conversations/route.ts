@@ -12,9 +12,13 @@ export async function GET(req: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '100', 10);
 
     // Get customers with their latest messages
+    // NOTE: We order by updatedAt here as a rough initial sort,
+    // then re-sort by actual latest DirectMessage time in the transform step.
+    // This ensures correct ordering even when Customer.lastMessageAt is stale
+    // (e.g. after a backfill script that didn't update lastMessageAt).
     const customers = await prisma.customer.findMany({
       take: limit,
-      orderBy: { lastMessageAt: 'desc' },
+      orderBy: { updatedAt: 'desc' },
       select: {
         id: true,
         phone: true,
@@ -59,6 +63,9 @@ export async function GET(req: NextRequest) {
         // The c.phone already contains the suffix (@c.us or @lid) from DB reset
         const customerPhone = c.phone;
         
+        // Use the actual latest DirectMessage time as the source of truth
+        const actualLastMessageAt = lastMessage?.createdAt?.toISOString() || c.lastMessageAt?.toISOString() || c.updatedAt.toISOString();
+        
         return {
           id: c.id,
           customerId: c.id,
@@ -67,7 +74,7 @@ export async function GET(req: NextRequest) {
           name: c.name || c.phone,
           profilePicUrl: c.profilePicUrl,
           lastMessage: lastMessage?.content || null,
-          lastMessageAt: lastMessage?.createdAt?.toISOString() || c.updatedAt.toISOString(),
+          lastMessageAt: actualLastMessageAt,
           lastBooking: lastBooking ? {
             id: lastBooking.id,
             serviceType: lastBooking.serviceType,
@@ -80,7 +87,9 @@ export async function GET(req: NextRequest) {
           aiPaused: c.aiPaused,
           customerContext: c.customerContext,
         };
-      });
+      })
+      // Sort by actual last message time (newest first)
+      .sort((a, b) => new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime());
 
     return NextResponse.json({
       success: true,
