@@ -74,6 +74,7 @@ export async function GET(req: NextRequest) {
           name: c.name || c.phone,
           profilePicUrl: c.profilePicUrl,
           lastMessage: lastMessage?.content || null,
+          lastMessageRole: lastMessage?.role || null,
           lastMessageAt: actualLastMessageAt,
           lastBooking: lastBooking ? {
             id: lastBooking.id,

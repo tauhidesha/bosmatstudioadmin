@@ -18,6 +18,7 @@ export interface Conversation {
   customerPhone: string;
   channel: 'whatsapp' | 'instagram' | 'messenger';
   lastMessage: string;
+  lastMessageRole?: string;
   lastMessageTime: number;
   unreadCount: number;
   label?: string;
@@ -98,6 +99,7 @@ export function useRealtimeConversations(
         customerPhone: item.phone,
         channel: 'whatsapp',
         lastMessage: item.lastMessage || 'No messages yet',
+        lastMessageRole: item.lastMessageRole,
         lastMessageTime: new Date(item.lastMessageAt).getTime(),
         unreadCount: 0,
         label: item.status,

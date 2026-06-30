@@ -22,7 +22,7 @@ export function useConversationNotifications({
   selectedConversationId,
   enabled = true,
 }: UseConversationNotificationsOptions) {
-  const previousCountsRef = useRef<Record<string, number>>({});
+  const previousTimesRef = useRef<Record<string, number>>({});
   const hasInitializedRef = useRef(false);
 
   const {
@@ -50,22 +50,23 @@ export function useConversationNotifications({
   useEffect(() => {
     if (!enabled || !conversations.length) return;
 
-    const previousCounts = previousCountsRef.current;
-    const nextCounts: Record<string, number> = {};
+    const previousTimes = previousTimesRef.current;
+    const nextTimes: Record<string, number> = {};
 
     conversations.forEach((conversation) => {
-      const currentCount = conversation.unreadCount || 0;
-      nextCounts[conversation.id] = currentCount;
+      const currentTime = conversation.lastMessageTime || 0;
+      nextTimes[conversation.id] = currentTime;
 
       // Skip if this is the first load (initialization)
       if (!hasInitializedRef.current) return;
 
-      const previousCount = previousCounts[conversation.id] || 0;
-      const hasNewMessage = currentCount > previousCount;
+      const previousTime = previousTimes[conversation.id] || 0;
+      const hasNewMessage = currentTime > previousTime;
       const isSelected = conversation.id === selectedConversationId;
+      const isFromCustomer = conversation.lastMessageRole === 'user' || conversation.lastMessageRole === 'customer';
 
       // Only notify for new messages in unselected conversations
-      if (hasNewMessage && !isSelected) {
+      if (hasNewMessage && !isSelected && isFromCustomer) {
         addNotification({
           customerName: conversation.customerName || 'Unknown User',
           messagePreview: conversation.lastMessage || 'New message received',
@@ -75,7 +76,7 @@ export function useConversationNotifications({
       }
     });
 
-    previousCountsRef.current = nextCounts;
+    previousTimesRef.current = nextTimes;
     hasInitializedRef.current = true;
   }, [conversations, selectedConversationId, enabled, addNotification]);
 
