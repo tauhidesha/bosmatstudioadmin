@@ -142,8 +142,7 @@ export default function ConversationList({ conversations, selectedId, onSelect, 
           (conv.lastMessage || '').toLowerCase().includes(searchLower)
         );
       }
-      return true;
-    });
+    }).sort((a, b) => b.lastMessageTime - a.lastMessageTime);
   }, [conversations, searchQuery, activeFilter]);
 
   return (
