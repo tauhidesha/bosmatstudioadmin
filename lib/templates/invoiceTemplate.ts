@@ -110,7 +110,7 @@ export default function generateInvoiceHTML(data: any) {
         <img src="${logoBase64 || staticLogoBase64}" style="height:75px; margin-bottom:12px" crossorigin="anonymous"/>
         <div>
           <p class="text-muted" style="font-size:10px; text-transform:uppercase; letter-spacing:0.2em">Nomor Dokumen</p>
-          <p class="font-headline text-yellow" style="font-size:28px; font-weight:700">#BS-${docNumber || 'PREVIEW'}</p>
+          <p class="font-headline text-yellow" style="font-size:28px; font-weight:700">#BS-${docNumber ? (docNumber.length > 8 ? docNumber.split('-')[0].toUpperCase() : docNumber.toUpperCase()) : 'DRAFT'}</p>
         </div>
         <div style="margin-top:16px">
           <p class="text-muted" style="font-size:10px; text-transform:uppercase; letter-spacing:0.2em">Tanggal Terbit</p>
