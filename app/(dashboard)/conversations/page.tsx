@@ -58,7 +58,7 @@ async function getInitialConversations(): Promise<Conversation[]> {
           customerId: c.id,
           customerName: c.name || 'Unknown',
           customerPhone: c.phone || '',
-          channel: 'whatsapp',
+          channel: 'whatsapp' as const,
           lastMessage: c.lastMessage || lastMessage?.content || '',
           lastMessageRole: lastMessage?.role || 'assistant',
           lastMessageTime: c.lastMessageAt ? c.lastMessageAt.getTime() : (lastMessage?.createdAt.getTime() || 0),
