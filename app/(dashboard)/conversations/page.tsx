@@ -52,18 +52,16 @@ async function getInitialConversations(): Promise<Conversation[]> {
         const lastCustomerMessage = c.messages.find(m => m.role === 'user' || m.role === 'customer');
         const lastBooking = c.bookings[0];
         
-        const customerPhone = c.phone;
-        const actualLastMessageAt = lastMessage?.createdAt?.toISOString() || c.lastMessageAt?.toISOString() || c.updatedAt.toISOString();
         
         return {
           id: c.id,
           customerId: c.id,
-          customerName: c.name || c.phone,
-          customerPhone: customerPhone,
+          customerName: c.name || 'Unknown',
+          customerPhone: c.phone || '',
           channel: 'whatsapp',
-          lastMessage: lastMessage?.content || 'No messages yet',
-          lastMessageRole: lastMessage?.role,
-          lastMessageTime: new Date(actualLastMessageAt).getTime(),
+          lastMessage: c.lastMessage || lastMessage?.content || '',
+          lastMessageRole: lastMessage?.role || 'assistant',
+          lastMessageTime: c.lastMessageAt ? c.lastMessageAt.getTime() : (lastMessage?.createdAt.getTime() || 0),
           lastCustomerMessageTime: lastCustomerMessage?.createdAt ? new Date(lastCustomerMessage.createdAt).getTime() : undefined,
           unreadCount: 0,
           label: c.status || undefined,
