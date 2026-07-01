@@ -62,40 +62,22 @@ export default function generateInvoiceHTML(data: any) {
       )
     : [];
 
-  return `<!DOCTYPE html>
-<html class="dark">
-<head>
-  <meta charset="utf-8"/>
+  return `<div class="invoice-container" style="background: #131313; color: #e5e2e1; font-family: 'Manrope', sans-serif; font-weight: 600; width: 794px; margin: 0 auto; -webkit-print-color-adjust: exact;">
   <link href="https://fonts.googleapis.com/css2?family=League+Spartan:wght@100..900&family=Manrope:wght@200..800&display=swap" rel="stylesheet"/>
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
+    .invoice-container * { margin: 0; padding: 0; box-sizing: border-box; }
     @page { margin: 0; size: A4; }
-    html { background: #131313; -webkit-print-color-adjust: exact; }
-    body {
-      background: #131313;
-      color: #e5e2e1;
-      font-family: 'Manrope', sans-serif;
-      font-weight: 600;
-      padding: 0;
-      width: 794px; /* A4 width in px at 96dpi */
-      margin: 0 auto;
-      -webkit-print-color-adjust: exact;
-    }
-    .page-wrap {
-      padding: 40px;
-      background: #131313;
-    }
     .margin-top, .margin-bottom {
       height: 40px;
       background: #131313;
     }
     
     .font-headline { font-family: 'League Spartan', sans-serif; }
-    .text-yellow { color: #FFFF00; }
-    .bg-dark { background: #1c1b1b; }
-    .bg-darker { background: #0e0e0e; }
-    .text-muted { color: #cac8aa; }
-    .border-yellow { border-left: 2px solid #FFFF00; }
+    .text-yellow { color: #FFFF00 !important; }
+    .bg-dark { background: #1c1b1b !important; }
+    .bg-darker { background: #0e0e0e !important; }
+    .text-muted { color: #cac8aa !important; }
+    .border-yellow { border-left: 2px solid #FFFF00 !important; }
     
     .items-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
     .items-table thead { display: table-header-group; }
@@ -110,13 +92,7 @@ export default function generateInvoiceHTML(data: any) {
     .totals-section {
       page-break-inside: avoid;
     }
-    
-    @media print {
-      body { background: #131313; }
-    }
   </style>
-</head>
-<body>
   <table style="width:100%; border-collapse:collapse; background:#131313;">
     <thead><tr><td class="margin-top"></td></tr></thead>
     <tbody><tr><td style="padding: 0 40px; background:#131313;">
@@ -312,8 +288,7 @@ export default function generateInvoiceHTML(data: any) {
       </div>
     </div>
       </td></tr></tbody>
-    <tfoot><tr><td class="margin-bottom"></td></tr></tfoot>
-  </table>
-</body>
-</html>`;
+      <tfoot><tr><td class="margin-bottom"></td></tr></tfoot>
+    </table>
+  </div>`;
 };
