@@ -8,7 +8,7 @@ import ConversationHeader from './ConversationHeader';
 import MessageList from './MessageList';
 import MessageComposer from './MessageComposer';
 import FloatingBookingButton from './FloatingBookingButton';
-
+import { toggleAiStateAction, updateConversationLabelAction } from '@/lib/actions/conversation-actions';
 interface ConversationWindowProps {
   conversation: Conversation;
   apiClient: ApiClient;
@@ -74,10 +74,8 @@ export default function ConversationWindow({
     setTogglingAi(true);
     try {
       const targetId = conversation.customerPhone || conversation.platformId || conversation.id;
-      await apiClient.updateAiState(targetId, {
-        enabled,
-        reason,
-      });
+      const res = await toggleAiStateAction(targetId, enabled, reason);
+      if (!res.success) throw new Error(res.error);
     } catch (error) {
       console.error('Failed to update AI state:', error);
       throw error;
@@ -89,10 +87,8 @@ export default function ConversationWindow({
   const handleLabelChange = async (label: string, reason?: string) => {
     setUpdatingLabel(true);
     try {
-      await apiClient.updateLabel(conversation.id, {
-        label,
-        reason,
-      });
+      const res = await updateConversationLabelAction(conversation.id, label, reason);
+      if (!res.success) throw new Error(res.error);
     } catch (error) {
       console.error('Failed to update conversation label:', error);
       throw error;
