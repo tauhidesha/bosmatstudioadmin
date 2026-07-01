@@ -22,7 +22,7 @@ function formatDateShort(date) {
 
 import { studioMetadata } from './studioMetadata';
 
-function generateWarrantyHTML({
+export function generateWarrantyHTML({
   type = 'repaint',
   customerName = 'Pelanggan',
   customerPhone = '-',
@@ -583,4 +583,4 @@ function generateWarrantyHTML({
 </html>`;
 }
 
-export { generateWarrantyHTML };
+
