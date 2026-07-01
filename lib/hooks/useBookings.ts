@@ -37,16 +37,27 @@ export interface Booking {
   updatedAt?: string;
 }
 
-export function useBookings() {
-  const [bookings, setBookings] = useState<Booking[]>([]);
-  const [loading, setLoading] = useState(true);
+export function useBookings(options: { initialData?: Booking[] } = {}) {
+  const { initialData } = options;
+  const [bookings, setBookings] = useState<Booking[]>(() => {
+    if (initialData) return initialData;
+    if (typeof window === 'undefined') return [];
+    const cached = localStorage.getItem('cached-bookings');
+    return cached ? JSON.parse(cached) : [];
+  });
+  const [loading, setLoading] = useState(() => {
+    if (initialData) return false;
+    if (typeof window === 'undefined') return true;
+    return !localStorage.getItem('cached-bookings');
+  });
   const [error, setError] = useState<Error | null>(null);
   const { getIdToken } = useAuth();
   const fetchingRef = useRef(false);
-  const lastFetchRef = useRef(0);
+  const lastFetchRef = useRef(initialData ? Date.now() : 0);
 
-  // Load from cache initially for instant UI
+  // Load from cache initially for instant UI (skip if initialData provided)
   useEffect(() => {
+    if (initialData) return;
     try {
       const cached = localStorage.getItem('cached-bookings');
       if (cached) {
@@ -56,7 +67,7 @@ export function useBookings() {
     } catch (e) {
       console.error('Failed to parse cached bookings', e);
     }
-  }, []);
+  }, [initialData]);
 
   // Subscribe to Booking changes (INSERT, UPDATE, DELETE)
   const { revision } = useSupabaseEvent({

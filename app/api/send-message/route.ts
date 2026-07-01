@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
-import { sendText } from '@/lib/server/fonnte-client';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+
+const BOT_API_URL = (process.env.BACKEND_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://35.232.177.23:4000').trim().replace(/\/$/, "");
+const INTERNAL_SECRET = process.env.INTERNAL_API_SECRET || '';
 
 export async function POST(req: NextRequest) {
   try {
@@ -17,58 +18,36 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Send via Fonnte API
-    const response = await sendText(number, message);
+    // Proxy to Node.js backend to send via Baileys
+    const upstream = await fetch(`${BOT_API_URL}/send-message`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'ngrok-skip-browser-warning': 'true',
+        'x-internal-secret': INTERNAL_SECRET,
+      },
+      body: JSON.stringify({ number, message }),
+    });
 
-    if (response.status) {
-      // Save to Prisma
-      const normalizedPhone = number.replace(/[^0-9]/g, '');
-      
-      const customer = await prisma.customer.findUnique({
-        where: { phone: normalizedPhone }
-      });
+    const responseText = await upstream.text();
+    let responseJson;
+    try {
+      responseJson = JSON.parse(responseText);
+    } catch {
+      responseJson = { error: 'Invalid JSON from backend' };
+    }
 
-      let customerId: string;
-      
-      if (!customer) {
-        const newCustomer = await prisma.customer.create({
-          data: {
-            phone: normalizedPhone,
-            name: 'New Customer',
-            lastMessage: message,
-            lastMessageAt: new Date()
-          }
-        });
-        customerId = newCustomer.id;
-      } else {
-        customerId = customer.id;
-        await prisma.customer.update({
-          where: { id: customer.id },
-          data: {
-            lastMessage: message,
-            lastMessageAt: new Date()
-          }
-        });
-      }
-
-      await prisma.directMessage.create({
-        data: {
-          customerId: customerId,
-          senderId: number,
-          role: 'admin',
-          content: message
-        }
-      });
-
+    if (upstream.ok && responseJson.success !== false) {
+      // The Node.js backend handles saving the message to Prisma via Baileys event listeners
       return NextResponse.json({
         success: true,
         message: 'Pesan terkirim',
-        details: response
+        details: responseJson
       });
     } else {
       return NextResponse.json(
-        { success: false, error: 'Gagal mengirim pesan via Fonnte', details: response },
-        { status: 500 }
+        { success: false, error: 'Gagal mengirim pesan via Baileys', details: responseJson },
+        { status: upstream.status || 500 }
       );
     }
   } catch (error: any) {

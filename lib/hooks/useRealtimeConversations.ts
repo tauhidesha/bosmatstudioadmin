@@ -36,6 +36,7 @@ export interface Conversation {
 
 interface UseRealtimeConversationsOptions {
   enabled?: boolean;
+  initialData?: Conversation[];
 }
 
 interface UseRealtimeConversationsReturn {
@@ -47,20 +48,22 @@ interface UseRealtimeConversationsReturn {
 export function useRealtimeConversations(
   options: UseRealtimeConversationsOptions = {}
 ): UseRealtimeConversationsReturn {
-  const { enabled = true } = options;
+  const { enabled = true, initialData } = options;
 
   const [conversations, setConversations] = useState<Conversation[]>(() => {
+    if (initialData) return initialData;
     if (typeof window === 'undefined') return [];
     const cached = localStorage.getItem('cached-conversations');
     return cached ? JSON.parse(cached) : [];
   });
   const [loading, setLoading] = useState(() => {
+    if (initialData) return false;
     if (typeof window === 'undefined') return true;
     return !localStorage.getItem('cached-conversations');
   });
   const [error, setError] = useState<Error | null>(null);
   const fetchingRef = useRef(false);
-  const lastFetchRef = useRef(0);
+  const lastFetchRef = useRef(initialData ? Date.now() : 0);
 
   // Subscribe to Customer and DirectMessage changes
   const { revision: customerRevision } = useSupabaseEvent({
