@@ -601,7 +601,7 @@ export default function ManualBookingForm({
     setCustomServicePrice(0);
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (forceSendWA?: boolean) => {
     if (!invoiceName || !contactPhone || (!motorcycleModel && !modelSearchText.trim())) {
       alert('Mohon lengkapi info customer dan model motor.');
       return;
@@ -672,7 +672,7 @@ export default function ManualBookingForm({
         }
       }
 
-      if (sendInvoiceWA) {
+      if (sendInvoiceWA || forceSendWA) {
         // Prepare items with prices for the template
         const detailedItems = [
           ...cart.map((i: CartItem) => `${i.name}||${i.price}||${i.itemNotes ? `Catatan Warna: ${i.itemNotes}` : ''}`),
@@ -1520,7 +1520,7 @@ function MobileLayout(props: any) {
           <span className="font-spartan font-bold uppercase text-[10px] mt-1">{isSavingDraft ? 'SAVING...' : 'DRAFT'}</span>
         </button>
         <button
-          onClick={handleSubmit}
+          onClick={() => handleSubmit()}
           disabled={isSubmitting || cart.length === 0}
           className={cn(
             "flex-1 flex items-center justify-center gap-2 bg-[#FFFF00] text-black py-4 active:scale-95 transition-all group disabled:opacity-50 disabled:grayscale",
@@ -1566,7 +1566,7 @@ function MobileLayout(props: any) {
           documentType: docType,
         }}
         onSend={async () => {
-          await handleSave(true);
+          await handleSubmit(true);
         }}
       />
     </div>
@@ -2518,7 +2518,7 @@ function DesktopLayout(props: any) {
               Preview Invoice
             </button>
             <button
-              onClick={handleSubmit}
+              onClick={() => handleSubmit()}
               disabled={isSubmitting || cart.length === 0}
               className={cn(
                 "flex-1 md:flex-none px-12 py-4 bg-[#FFFF00] text-[#1D1D00] font-headline font-black text-sm uppercase tracking-widest transition-all flex items-center justify-center gap-3 active:scale-95",
@@ -2565,7 +2565,7 @@ function DesktopLayout(props: any) {
           documentType: docType,
         }}
         onSend={async () => {
-          await handleSave(true);
+          await handleSubmit(true);
         }}
       />
     </div>
