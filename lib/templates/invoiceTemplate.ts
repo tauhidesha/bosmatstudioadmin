@@ -38,13 +38,13 @@ export default function generateInvoiceHTML(data: any) {
       .replace(/^62/, '0');
 
   // Parse items jadi array - Split by newline ONLY
-  const itemsList = (items || '').split('\n').map(i => i.trim()).filter(Boolean);
+  const itemsList = (items || '').split('\n').map((i: string) => i.trim()).filter(Boolean);
 
   // Filter redundant notes
   let filteredNotes = notes || '-';
   if (filteredNotes && filteredNotes !== '-' && filteredNotes.match(/^Layanan:\s*/i)) {
     const headerRemoved = filteredNotes.replace(/^Layanan:\s*/i, '').trim();
-    const itemsSummary = itemsList.map(i => i.split('||')[0].trim()).join(', ');
+    const itemsSummary = itemsList.map((i: string) => i.split('||')[0].trim()).join(', ');
     if (headerRemoved === itemsSummary) {
       filteredNotes = '';
     } else {
@@ -54,25 +54,48 @@ export default function generateInvoiceHTML(data: any) {
 
   const notesList = (filteredNotes && filteredNotes !== '-')
     ? filteredNotes.split('\n')
-      .map(n => n.trim())
-      .filter(n => n
+      .map((n: string) => n.trim())
+      .filter((n: string) => n
         && !n.match(/^Layanan:?$/i)
         && !n.includes('||')              // filter raw item strings
         && !n.match(/^[●•\-*]\s*.+\|\|/) // filter bullet + item format
       )
     : [];
 
-  return `<div class="dark" style="background: #131313; color: #e5e2e1; font-family: 'Manrope', sans-serif; font-weight: 600; width: 794px; margin: 0 auto; -webkit-print-color-adjust: exact;">
+  return `<!DOCTYPE html>
+<html class="dark">
+<head>
+  <meta charset="utf-8"/>
   <link href="https://fonts.googleapis.com/css2?family=League+Spartan:wght@100..900&family=Manrope:wght@200..800&display=swap" rel="stylesheet"/>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
+    @page { margin: 0; size: A4; }
+    html { background: #131313; -webkit-print-color-adjust: exact; }
+    body {
+      background: #131313;
+      color: #e5e2e1;
+      font-family: 'Manrope', sans-serif;
+      font-weight: 600;
+      padding: 0;
+      width: 794px; /* A4 width in px at 96dpi */
+      margin: 0 auto;
+      -webkit-print-color-adjust: exact;
+    }
+    .page-wrap {
+      padding: 40px;
+      background: #131313;
+    }
+    .margin-top, .margin-bottom {
+      height: 40px;
+      background: #131313;
+    }
+    
     .font-headline { font-family: 'League Spartan', sans-serif; }
     .text-yellow { color: #FFFF00; }
     .bg-dark { background: #1c1b1b; }
     .bg-darker { background: #0e0e0e; }
     .text-muted { color: #cac8aa; }
     .border-yellow { border-left: 2px solid #FFFF00; }
-    .margin-top, .margin-bottom { height: 40px; background: #131313; }
     
     .items-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
     .items-table thead { display: table-header-group; }
@@ -87,14 +110,19 @@ export default function generateInvoiceHTML(data: any) {
     .totals-section {
       page-break-inside: avoid;
     }
+    
+    @media print {
+      body { background: #131313; }
+    }
   </style>
-
+</head>
+<body>
   <table style="width:100%; border-collapse:collapse; background:#131313;">
     <thead><tr><td class="margin-top"></td></tr></thead>
     <tbody><tr><td style="padding: 0 40px; background:#131313;">
 
     <!-- Header -->
-    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:60px">
+    <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:60px">
       <div>
         <h1 class="font-headline" style="font-size:56px; font-weight:900; line-height:0.8; text-transform:uppercase; margin-bottom:16px">
           ${documentType === 'tanda_terima' ? 'Receipt' : documentType === 'bukti_bayar' ? 'Payment' : 'Invoice'}<br/>
@@ -182,7 +210,7 @@ export default function generateInvoiceHTML(data: any) {
         </tr>
       </thead>
       <tbody>
-        ${itemsList.length > 0 ? itemsList.map(item => {
+        ${itemsList.length > 0 ? itemsList.map((item: string) => {
           const parts = item.split('||');
           const cleanTitle = (parts[0] || '').trim().replace(/^(\d+\.|[-*•●])\s*/, '');
           const price = parseInt(parts[1]) || 0;
@@ -219,13 +247,13 @@ export default function generateInvoiceHTML(data: any) {
       </tbody>
     </table>
 
-    <div class="totals-section" style="display:grid; grid-template-columns:1fr 1fr; gap:32px; margin-top:40px">
+    <div class="totals-section" style="display:grid; grid-template-columns:7fr 5fr; gap:32px; margin-top:40px">
       <div>
         ${notesList.length > 0 ? `
         <div class="bg-darker border-yellow" style="padding:32px; margin-bottom:24px">
           <p class="font-headline" style="font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.15em; margin-bottom:16px">Catatan Teknis Layanan</p>
           <div style="display:flex; flex-direction:column; gap:8px">
-            ${notesList.map(n => {
+            ${notesList.map((n: string) => {
           let icon = '●';
           if (n.toLowerCase().includes('garansi')) icon = '✓';
           else if (n.toLowerCase().match(/waktu|jam|hari/)) icon = '⏱';
@@ -265,7 +293,7 @@ export default function generateInvoiceHTML(data: any) {
         </div>` : ''}
         ${totalPaid > 0 && !(dp > 0 && dp === totalPaid) ? `
         <div style="display:flex; justify-content:space-between">
-          <span class="text-muted" style="font-size:12px; text-transform:uppercase; letter-spacing:0.1em">${documentType === 'bukti_bayar' ? 'Bayar Hari Ini' : 'Total Bayar'}</span>
+          <span class="text-muted" style="font-size:12px; text-transform:uppercase; letter-spacing:0.1em">${documentType === 'bukti_bayar' ? 'Bayar Hari Hari Ini' : 'Total Bayar'}</span>
           <span style="font-size:16px; color:#85ff7a">Rp${totalPaid.toLocaleString('id-ID')}</span>
         </div>` : ''}
         
@@ -286,5 +314,6 @@ export default function generateInvoiceHTML(data: any) {
       </td></tr></tbody>
     <tfoot><tr><td class="margin-bottom"></td></tr></tfoot>
   </table>
-</div>`;
+</body>
+</html>`;
 };
