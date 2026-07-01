@@ -80,11 +80,7 @@ export function generateWarrantyHTML({
 
   const terms = isCoating ? coatingTerms : repaintTerms;
 
-  return `<!DOCTYPE html>
-<html lang="id">
-<head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  return `<div class="dark" style="width: 210mm; background: #0e0e0e; color: #ffffff; font-family: 'Manrope', sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact;">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=League+Spartan:wght@400;700;800;900&family=Manrope:wght@400;500;600;700&display=swap');
 
@@ -100,15 +96,6 @@ export function generateWarrantyHTML({
     --text:     #ffffff;
     --muted:    rgba(255,255,255,0.4);
     --border:   rgba(255,255,255,0.06);
-  }
-
-  html, body {
-    width: 210mm;
-    background: var(--bg);
-    color: var(--text);
-    font-family: 'Manrope', sans-serif;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
   }
 
   .page {
@@ -484,7 +471,7 @@ export function generateWarrantyHTML({
       <div class="doc-subtitle">Premium Automotive Finish · ${studioMetadata.name}</div>
     </div>
     <div class="header-right">
-      <img src="${logoBase64 || '/logo.png'}" style="height:75px; margin-bottom:12px" crossorigin="anonymous"/>
+      <img src="${logoBase64 || 'https://admin.bosmatstudio.com/logo.png'}" style="height:75px; margin-bottom:12px" crossorigin="anonymous"/>
       <div class="cert-label">No. Sertifikat</div>
       <div class="cert-number">${certNumber}</div>
       <div class="validity-badge">Berlaku s/d ${formatDateShort(expiryDate)}</div>
@@ -579,8 +566,7 @@ export function generateWarrantyHTML({
     </div>
   </div>
 </div>
-</body>
-</html>`;
+</div>`;
 }
 
 
