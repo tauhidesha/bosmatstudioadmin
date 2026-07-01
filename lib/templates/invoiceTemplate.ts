@@ -94,7 +94,7 @@ export default function generateInvoiceHTML(data: any) {
     <tbody><tr><td style="padding: 0 40px; background:#131313;">
 
     <!-- Header -->
-    <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:60px">
+    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:60px">
       <div>
         <h1 class="font-headline" style="font-size:56px; font-weight:900; line-height:0.8; text-transform:uppercase; margin-bottom:16px">
           ${documentType === 'tanda_terima' ? 'Receipt' : documentType === 'bukti_bayar' ? 'Payment' : 'Invoice'}<br/>
@@ -219,7 +219,7 @@ export default function generateInvoiceHTML(data: any) {
       </tbody>
     </table>
 
-    <div class="totals-section" style="display:grid; grid-template-columns:7fr 5fr; gap:32px; margin-top:40px">
+    <div class="totals-section" style="display:grid; grid-template-columns:1fr 1fr; gap:32px; margin-top:40px">
       <div>
         ${notesList.length > 0 ? `
         <div class="bg-darker border-yellow" style="padding:32px; margin-bottom:24px">

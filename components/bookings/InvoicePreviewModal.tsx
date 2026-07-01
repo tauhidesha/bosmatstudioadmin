@@ -9,6 +9,7 @@ interface InvoicePreviewModalProps {
   onClose: () => void;
   invoiceData: {
     documentType?: string;
+    docNumber?: string | number;
     customerName: string;
     customerPhone: string;
     motorDetails: string;

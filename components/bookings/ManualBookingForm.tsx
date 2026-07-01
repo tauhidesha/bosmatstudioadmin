@@ -72,7 +72,7 @@ export default function ManualBookingForm({
   const [showAllChats, setShowAllChats] = useState(false);
 
   const isCustomModel = modelSearchText.trim().length > 0 && motorcycleModel === null;
-  const effectiveMotor = useMemo<VehicleModel | null>(() => 
+  const effectiveMotor = useMemo<VehicleModel | null>(() =>
     isCustomModel
       ? {
         id: '__custom__',
@@ -439,14 +439,14 @@ export default function ManualBookingForm({
                   id: itemId,
                   name: serviceLine,
                   price: explicitCustomPrice || 0,
-                surcharges: itemSurcharges,
-                itemNotes,
-                isCustom: explicitCustomPrice === 0 // If we have 0 and no metadata, it needs deduction
-              });
+                  surcharges: itemSurcharges,
+                  itemNotes,
+                  isCustom: explicitCustomPrice === 0 // If we have 0 and no metadata, it needs deduction
+                });
+              }
             }
           }
-        }
-      });
+        });
 
         // Deduce custom service price ONLY if price is still missing (Legacy support)
         const customItems = newCart.filter(i => i.isCustom);
@@ -696,7 +696,7 @@ export default function ManualBookingForm({
             paymentMethod: paymentMethod,
             notes: `Layanan:\n${serviceSummary.replace(/ § /g, '\n')}${additionalNotes ? `\n\nCatatan Tambahan:\n${additionalNotes}` : ''}`,
             bookingDate: entryDate,
-            docNumber: createdBookingData?.id || 'PREVIEW',
+            docNumber: isEdit ? initialData?.id : 'DRAFT',
           };
 
           const { generateBase64PDF, generateInvoiceHTML } = await import('@/lib/pdf');
@@ -716,7 +716,7 @@ export default function ManualBookingForm({
               caption: `Halo Kak ${invoiceName},\n\nBerikut terlampir detail invoice/tanda terima dari Bosmat Studio. Silakan dicek ya 🙏\n\nTerima kasih!`
             }),
           });
-          
+
           if (!invRes.ok) {
             alert('Booking tersimpan, namun GAGAL mengirim WhatsApp Invoice.');
           }
@@ -750,7 +750,7 @@ export default function ManualBookingForm({
   };
 
   const layoutProps = {
-    isEdit, currentStep, setCurrentStep,
+    isEdit, initialData, currentStep, setCurrentStep,
     selectedConversation, setSelectedConversation,
     invoiceName, setInvoiceName,
     contactPhone, setContactPhone,
@@ -797,7 +797,7 @@ export default function ManualBookingForm({
 // ── MOBILE LAYOUT ──
 function MobileLayout(props: any) {
   const {
-    isEdit, currentStep, setCurrentStep,
+    isEdit, initialData, currentStep, setCurrentStep,
     selectedConversation, invoiceName, setInvoiceName,
     contactPhone, setContactPhone, motorcycleModel, setMotorcycleModel,
     modelSearchText, setModelSearchText,
@@ -879,31 +879,31 @@ function MobileLayout(props: any) {
             {!isWalkIn && (
               <div className="relative animate-in fade-in slide-in-from-top-2 duration-300">
                 <label className="block text-[10px] font-headline text-slate-500 uppercase mb-1 ml-1">WhatsApp Quick Select</label>
-              <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
-                {(showAllChats ? allConversations : allConversations.slice(0, 5)).map((conv: Conversation) => (
+                <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+                  {(showAllChats ? allConversations : allConversations.slice(0, 5)).map((conv: Conversation) => (
+                    <button
+                      key={conv.id}
+                      onClick={() => handleSelectConversation(conv)}
+                      className={cn(
+                        "flex-shrink-0 p-3 flex flex-col gap-1 border transition-all rounded-sm min-w-32",
+                        selectedConversation?.id === conv.id
+                          ? "bg-[#FFFF00]/10 border-[#FFFF00]/50"
+                          : "bg-surface-container-low border-white/5"
+                      )}
+                    >
+                      <p className="text-[10px] font-bold text-white uppercase truncate text-left">{conv.customerName || 'No Name'}</p>
+                      <p className="text-[8px] text-slate-500">Active Chat</p>
+                    </button>
+                  ))}
                   <button
-                    key={conv.id}
-                    onClick={() => handleSelectConversation(conv)}
-                    className={cn(
-                      "flex-shrink-0 p-3 flex flex-col gap-1 border transition-all rounded-sm min-w-32",
-                      selectedConversation?.id === conv.id
-                        ? "bg-[#FFFF00]/10 border-[#FFFF00]/50"
-                        : "bg-surface-container-low border-white/5"
-                    )}
+                    onClick={() => setShowAllChats(!showAllChats)}
+                    className="flex-shrink-0 p-3 flex flex-col items-center justify-center gap-1 border border-dashed border-white/10 text-slate-500 hover:text-white transition-all rounded-sm min-w-16 bg-surface-container-low"
                   >
-                    <p className="text-[10px] font-bold text-white uppercase truncate text-left">{conv.customerName || 'No Name'}</p>
-                    <p className="text-[8px] text-slate-500">Active Chat</p>
+                    <Search className="size-4" />
+                    <span className="text-[8px] font-headline uppercase">{showAllChats ? 'Less' : 'More'}</span>
                   </button>
-                ))}
-                <button
-                  onClick={() => setShowAllChats(!showAllChats)}
-                  className="flex-shrink-0 p-3 flex flex-col items-center justify-center gap-1 border border-dashed border-white/10 text-slate-500 hover:text-white transition-all rounded-sm min-w-16 bg-surface-container-low"
-                >
-                  <Search className="size-4" />
-                  <span className="text-[8px] font-headline uppercase">{showAllChats ? 'Less' : 'More'}</span>
-                </button>
+                </div>
               </div>
-            </div>
             )}
 
             <div className="space-y-4 bg-neutral-900/40 p-4 rounded-sm border border-white/5">
@@ -1564,6 +1564,7 @@ function MobileLayout(props: any) {
           downPayment: nominalDP,
           realPhone,
           documentType: docType,
+          docNumber: isEdit ? initialData?.id : 'DRAFT',
         }}
         onSend={async () => {
           await handleSubmit(true);
@@ -1576,7 +1577,7 @@ function MobileLayout(props: any) {
 // ── DESKTOP LAYOUT ──
 function DesktopLayout(props: any) {
   const {
-    isEdit, currentStep, setCurrentStep,
+    isEdit, initialData, currentStep, setCurrentStep,
     selectedConversation, invoiceName, setInvoiceName,
     contactPhone, setContactPhone, motorcycleModel, setMotorcycleModel,
     modelSearchText, setModelSearchText,
@@ -1645,41 +1646,41 @@ function DesktopLayout(props: any) {
           <section className="animate-in fade-in slide-in-from-left-2 duration-300">
             <label className="block text-[10px] font-headline text-slate-500 uppercase tracking-widest mb-3">WhatsApp Connection</label>
             <div className="space-y-2 max-h-[400px] overflow-y-auto no-scrollbar">
-            {(showAllChats ? allConversations : allConversations.slice(0, 3)).map((conv: Conversation) => (
-              <button
-                key={conv.id}
-                onClick={() => handleSelectConversation(conv)}
-                className={cn(
-                  "w-full flex items-center gap-3 p-2 transition-colors text-left group rounded-sm border",
-                  selectedConversation?.id === conv.id
-                    ? "bg-[#2a2a2a] border-[#FFFF00]/30"
-                    : "bg-[#0e0e0e] border-white/5 hover:bg-[#2a2a2a]"
-                )}
-              >
-                <div className="w-8 h-8 bg-slate-800 flex items-center justify-center rounded-sm grayscale group-hover:grayscale-0">
-                  <Smartphone className="size-4 text-slate-400" />
-                </div>
-                <div>
-                  <p className="text-xs font-bold font-headline uppercase text-white truncate w-40">{conv.customerName || 'No Name'}</p>
-                  <p className={cn(
-                    "text-[9px] font-headline tracking-tighter",
-                    selectedConversation?.id === conv.id ? "text-[#FFFF00]" : "text-slate-500"
-                  )}>
-                    {selectedConversation?.id === conv.id ? 'ACTIVE CHAT' : `+${conv.customerPhone}`}
-                  </p>
-                </div>
-              </button>
-            ))}
-            {allConversations.length > 3 && (
-              <button
-                onClick={() => setShowAllChats(!showAllChats)}
-                className="w-full flex items-center justify-center gap-2 p-2 border border-dashed border-white/10 text-slate-500 text-[10px] font-headline uppercase hover:text-white transition-colors">
-                <Search className="size-3" />
-                {showAllChats ? 'Show Less' : 'Browse All Chats'}
-              </button>
-            )}
-          </div>
-        </section>
+              {(showAllChats ? allConversations : allConversations.slice(0, 3)).map((conv: Conversation) => (
+                <button
+                  key={conv.id}
+                  onClick={() => handleSelectConversation(conv)}
+                  className={cn(
+                    "w-full flex items-center gap-3 p-2 transition-colors text-left group rounded-sm border",
+                    selectedConversation?.id === conv.id
+                      ? "bg-[#2a2a2a] border-[#FFFF00]/30"
+                      : "bg-[#0e0e0e] border-white/5 hover:bg-[#2a2a2a]"
+                  )}
+                >
+                  <div className="w-8 h-8 bg-slate-800 flex items-center justify-center rounded-sm grayscale group-hover:grayscale-0">
+                    <Smartphone className="size-4 text-slate-400" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold font-headline uppercase text-white truncate w-40">{conv.customerName || 'No Name'}</p>
+                    <p className={cn(
+                      "text-[9px] font-headline tracking-tighter",
+                      selectedConversation?.id === conv.id ? "text-[#FFFF00]" : "text-slate-500"
+                    )}>
+                      {selectedConversation?.id === conv.id ? 'ACTIVE CHAT' : `+${conv.customerPhone}`}
+                    </p>
+                  </div>
+                </button>
+              ))}
+              {allConversations.length > 3 && (
+                <button
+                  onClick={() => setShowAllChats(!showAllChats)}
+                  className="w-full flex items-center justify-center gap-2 p-2 border border-dashed border-white/10 text-slate-500 text-[10px] font-headline uppercase hover:text-white transition-colors">
+                  <Search className="size-3" />
+                  {showAllChats ? 'Show Less' : 'Browse All Chats'}
+                </button>
+              )}
+            </div>
+          </section>
         )}
 
         {/* Total Summary Panel */}
@@ -2563,6 +2564,7 @@ function DesktopLayout(props: any) {
           downPayment: nominalDP,
           realPhone,
           documentType: docType,
+          docNumber: isEdit ? initialData?.id : 'DRAFT',
         }}
         onSend={async () => {
           await handleSubmit(true);

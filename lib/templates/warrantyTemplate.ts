@@ -38,9 +38,9 @@ export function generateWarrantyHTML({
   const displayPhone = realPhone
     ? realPhone.replace(/^62/, '0')
     : (customerPhone || '-')
-        .replace('@c.us', '')
-        .replace('@lid', '')
-        .replace(/^62/, '0');
+      .replace('@c.us', '')
+      .replace('@lid', '')
+      .replace(/^62/, '0');
 
   const issueDate = bookingDate ? new Date(bookingDate) : new Date();
   const expiryDate = addMonths(issueDate, 12);
@@ -569,5 +569,4 @@ export function generateWarrantyHTML({
 </div>
 </div>`;
 }
-
 
