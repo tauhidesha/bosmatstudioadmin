@@ -95,7 +95,23 @@ export async function clearSnoozeMode(senderNumber: string) {
   const phone = identifier.replace(/@c\.us$|@lid$/, '');
 
   try {
+    // Delete by exact ID match
     await prisma.handoverSnooze.deleteMany({ where: { id: identifier } });
+    
+    // Also delete by customerId (phone) — catches records stored under LID
+    await prisma.handoverSnooze.deleteMany({ where: { customerId: phone } });
+    
+    // If we got a @c.us identifier, also check if customer has a LID and delete that too
+    if (identifier.endsWith('@c.us')) {
+      try {
+        const customer = await prisma.customer.findUnique({ where: { phone } });
+        if (customer?.whatsappLid) {
+          await prisma.handoverSnooze.deleteMany({ where: { id: customer.whatsappLid } });
+        }
+      } catch {
+        // Ignored
+      }
+    }
 
     // Sync to Customer table
     try {

@@ -1,11 +1,48 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { headers } from 'next/headers';
+import prisma from '@/lib/prisma';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 const BOT_API_URL = (process.env.BACKEND_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://35.232.177.23:4000').trim().replace(/\/$/, "");
-const INTERNAL_SECRET = process.env.INTERNAL_API_SECRET || '';
+
+/**
+ * Resolves the correct WhatsApp recipient number.
+ * 
+ * The old /generate-invoice endpoint did a DB lookup to find the customer's
+ * whatsappLid. We replicate that here so the PDF goes to the right person.
+ */
+async function resolveRecipientNumber(number: string): Promise<string> {
+  if (!number) return number;
+  
+  const cleanNumber = number.replace(/[^0-9]/g, '');
+  
+  try {
+    const customer = await prisma.customer.findFirst({
+      where: {
+        OR: [
+          { phone: cleanNumber },
+          { whatsappLid: number },
+          ...(cleanNumber ? [{ phone: cleanNumber.replace(/^0/, '62') }] : []),
+        ]
+      },
+      select: { whatsappLid: true, phone: true }
+    });
+    
+    if (customer?.whatsappLid) {
+      console.log(`[send-document] Resolved LID: ${customer.whatsappLid} for ${number}`);
+      return customer.whatsappLid;
+    }
+  } catch (err: any) {
+    console.warn(`[send-document] Failed to resolve LID for ${number}:`, err.message);
+  }
+  
+  // Fallback: ensure proper suffix
+  if (number.includes('@')) return number;
+  const digits = cleanNumber.startsWith('0') ? '62' + cleanNumber.slice(1) : cleanNumber;
+  return `${digits}@c.us`;
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -32,6 +69,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Sesi anda telah berakhir. Silakan login ulang.' }, { status: 401 });
     }
 
+    // Resolve the correct WhatsApp number (handle LID)
+    const resolvedNumber = await resolveRecipientNumber(number);
+    console.log(`[send-document] Sending to resolved: ${resolvedNumber} (original: ${number})`);
+
     // Proxy to Node.js backend to send via Baileys
     const upstream = await fetch(`${BOT_API_URL}/send-media`, {
       method: 'POST',
@@ -40,7 +81,13 @@ export async function POST(req: NextRequest) {
         'ngrok-skip-browser-warning': 'true',
         'Authorization': authHeader,
       },
-      body: JSON.stringify({ number, base64, mimetype: mimetype || 'application/pdf', filename: filename || 'document.pdf', caption }),
+      body: JSON.stringify({
+        number: resolvedNumber,
+        base64,
+        mimetype: mimetype || 'application/pdf',
+        filename: filename || 'document.pdf',
+        caption,
+      }),
     });
 
     const responseText = await upstream.text();
@@ -48,7 +95,7 @@ export async function POST(req: NextRequest) {
     try {
       responseJson = JSON.parse(responseText);
     } catch {
-      responseJson = { error: 'Invalid JSON from backend' };
+      responseJson = { error: 'Invalid JSON from backend', raw: responseText.substring(0, 200) };
     }
 
     if (upstream.ok && responseJson.success !== false) {
@@ -58,13 +105,14 @@ export async function POST(req: NextRequest) {
         details: responseJson
       });
     } else {
+      console.error(`[send-document] Backend error:`, responseJson);
       return NextResponse.json(
         { success: false, error: 'Gagal mengirim dokumen', details: responseJson },
         { status: upstream.status || 500 }
       );
     }
   } catch (error: any) {
-    console.error('Error sending document:', error);
+    console.error('[send-document] Error:', error);
     return NextResponse.json(
       { success: false, error: 'Internal server error', details: error.message },
       { status: 500 }

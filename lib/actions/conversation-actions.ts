@@ -4,16 +4,85 @@ import { setSnoozeMode, clearSnoozeMode } from '@/lib/server/human-handover';
 import prisma from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 
+/**
+ * Resolves the correct HandoverSnooze identifier for a customer.
+ * 
+ * Problem: HandoverSnooze records can be stored under either:
+ *   - "628xxx@c.us" (phone-based)
+ *   - "4570264641602@lid" (LID-based)
+ * 
+ * The admin dashboard only knows the plain phone number "628xxx".
+ * We must check the Customer table for a whatsappLid and try both.
+ */
+async function resolveSnoozeIdentifiers(number: string): Promise<string[]> {
+  const identifiers: string[] = [];
+  
+  // 1. Always try phone-based identifier
+  const digits = number.replace(/\D/g, '').replace(/^0/, '62');
+  identifiers.push(`${digits}@c.us`);
+  
+  // 2. Look up customer for whatsappLid
+  try {
+    const customer = await prisma.customer.findFirst({
+      where: {
+        OR: [
+          { phone: digits },
+          { phone: number },
+          { whatsappLid: number.includes('@') ? number : undefined },
+        ].filter(c => c.phone !== undefined || c.whatsappLid !== undefined)
+      },
+      select: { whatsappLid: true, phone: true }
+    });
+    
+    if (customer?.whatsappLid) {
+      identifiers.push(customer.whatsappLid);
+    }
+  } catch (err) {
+    console.warn('[toggleAiState] Failed to look up customer LID:', err);
+  }
+  
+  return [...new Set(identifiers)]; // dedupe
+}
+
 export async function toggleAiStateAction(number: string, enabled: boolean, reason?: string) {
   try {
     if (!number) {
       return { success: false, error: 'Nomor WhatsApp tidak valid' };
     }
 
+    const identifiers = await resolveSnoozeIdentifiers(number);
+    console.log(`[toggleAiState] number=${number}, enabled=${enabled}, identifiers=${identifiers.join(', ')}`);
+
     if (enabled) {
-      await clearSnoozeMode(number);
+      // Clear ALL possible snooze records (both @c.us and @lid)
+      for (const id of identifiers) {
+        await clearSnoozeMode(id);
+      }
+      
+      // Also directly update the Customer table as a safety net
+      const digits = number.replace(/\D/g, '').replace(/^0/, '62');
+      await prisma.customer.updateMany({
+        where: {
+          OR: [
+            { phone: digits },
+            { phone: number },
+          ]
+        },
+        data: {
+          aiPaused: false,
+          aiPausedUntil: null,
+          aiPauseReason: null,
+          updatedAt: new Date(),
+        }
+      });
     } else {
-      await setSnoozeMode(number, 60, { manual: true, reason });
+      // Set snooze using the primary identifier
+      await setSnoozeMode(identifiers[0], 60, { manual: true, reason });
+      
+      // If there's a LID, also set snooze for LID
+      if (identifiers.length > 1) {
+        await setSnoozeMode(identifiers[1], 60, { manual: true, reason });
+      }
     }
 
     // Revalidate paths that might display AI state
