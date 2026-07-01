@@ -1,6 +1,6 @@
-import { studioMetadata } from '../constants/studioMetadata';
+import { studioMetadata } from './studioMetadata';
 
-export function generateInvoiceHTML(data: any) {
+export default function generateInvoiceHTML(data: any) {
   const {
     documentType, customerName, motorDetails, items,
     finalTotal, amountPaid, paymentMethod, notes,
