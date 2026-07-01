@@ -305,10 +305,19 @@ export default function AddTransactionModal({ isOpen, onClose, onSuccess, editDa
             bookingDate: new Date().toISOString()
           };
 
-          fetch('/api/bookings/invoice', {
+          const { generateBase64PDF, generateInvoiceHTML } = await import('@/lib/pdf');
+          const invoiceHtml = generateInvoiceHTML(invoicePayload);
+          const invoiceBase64 = await generateBase64PDF(invoiceHtml);
+
+          fetch('/api/send-document', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(invoicePayload)
+            body: JSON.stringify({
+              number: selectedCustomer.phoneReal || selectedCustomer.phone,
+              base64: invoiceBase64,
+              filename: `Bukti-Bayar-Bosmat-${selectedCustomer.name.replace(/\s+/g, '-')}.pdf`,
+              caption: `Halo Kak ${selectedCustomer.name},\n\nBerikut terlampir bukti pembayaran untuk transaksi di Bosmat Studio. Terima kasih!`
+            })
           }).catch(err => console.error('[Finance] Error sending receipt:', err));
         } catch (err) {
           console.error('[Finance] Failed to trigger receipt generation:', err);

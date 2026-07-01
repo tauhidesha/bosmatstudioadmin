@@ -681,27 +681,39 @@ export default function ManualBookingForm({
 
         const token = await getIdToken();
         try {
-          const invRes = await fetch('/api/bookings/invoice', {
+          const invoicePayload = {
+            documentType: docType,
+            customerName: invoiceName,
+            customerPhone: contactPhone,
+            realPhone,
+            motorDetails: `${effectiveMotor?.modelName || modelSearchText.trim() || 'Motor'} (${platNomor || '-'})`,
+            items: detailedItems,
+            subtotal: servicesTotal,
+            totalAmount: finalTotal,
+            discount: computedDiscount,
+            amountPaid: amountPaid,
+            downPayment: nominalDP,
+            paymentMethod: paymentMethod,
+            notes: `Layanan:\n${serviceSummary.replace(/ § /g, '\n')}${additionalNotes ? `\n\nCatatan Tambahan:\n${additionalNotes}` : ''}`,
+            bookingDate: entryDate,
+            docNumber: createdBookingData?.id || 'PREVIEW',
+          };
+
+          const { generateBase64PDF, generateInvoiceHTML } = await import('@/lib/pdf');
+          const invoiceHtml = generateInvoiceHTML(invoicePayload);
+          const invoiceBase64 = await generateBase64PDF(invoiceHtml);
+
+          const invRes = await fetch('/api/send-document', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
               ...(token ? { 'Authorization': `Bearer ${token}` } : {})
             },
             body: JSON.stringify({
-              documentType: docType,
-              customerName: invoiceName,
-              customerPhone: contactPhone,
-              realPhone,
-              motorDetails: `${effectiveMotor?.modelName || modelSearchText.trim() || 'Motor'} (${platNomor || '-'})`,
-              items: detailedItems,
-              subtotal: servicesTotal,
-              totalAmount: finalTotal,
-              discount: computedDiscount,
-              amountPaid: amountPaid,
-              downPayment: nominalDP,
-              paymentMethod: paymentMethod,
-              notes: `Layanan:\n${serviceSummary.replace(/ § /g, '\n')}${additionalNotes ? `\n\nCatatan Tambahan:\n${additionalNotes}` : ''}`,
-              bookingDate: entryDate,
+              number: realPhone || contactPhone,
+              base64: invoiceBase64,
+              filename: `Invoice-Bosmat-${invoiceName.replace(/\s+/g, '-')}.pdf`,
+              caption: `Halo Kak ${invoiceName},\n\nBerikut terlampir detail invoice/tanda terima dari Bosmat Studio. Silakan dicek ya 🙏\n\nTerima kasih!`
             }),
           });
           
@@ -1567,28 +1579,36 @@ function MobileLayout(props: any) {
             if (i.itemNotes) result += ` (Warna: ${i.itemNotes})`;
             return result;
           }).join('\n');
-          await fetch('/api/bookings/invoice', {
+          const invoicePayload = {
+            documentType: docType,
+            customerName: invoiceName,
+            customerPhone: contactPhone,
+            realPhone,
+            motorDetails: `${effectiveMotor?.modelName || modelSearchText.trim() || 'Motor'} (${platNomor || '-'})`,
+            items: detailedItems,
+            subtotal: servicesTotal,
+            totalAmount: finalTotal,
+            discount: computedDiscount,
+            amountPaid: amountPaid,
+            downPayment: nominalDP,
+            paymentMethod: paymentMethod,
+            notes: `Layanan:\n${serviceSummary}${additionalNotes ? `\n\nCatatan Tambahan:\n${additionalNotes}` : ''}`,
+            bookingDate: entryDate,
+            docNumber: 'PREVIEW'
+          };
+          const { generateBase64PDF, generateInvoiceHTML } = await import('@/lib/pdf');
+          const invoiceHtml = generateInvoiceHTML(invoicePayload);
+          const invoiceBase64 = await generateBase64PDF(invoiceHtml);
+
+          await fetch('/api/send-document', {
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-            },
+            headers: { 'Content-Type': 'application/json', ...(token ? { 'Authorization': `Bearer ${token}` } : {}) },
             body: JSON.stringify({
-              documentType: docType,
-              customerName: invoiceName,
-              customerPhone: contactPhone,
-              realPhone,
-              motorDetails: `${effectiveMotor?.modelName || modelSearchText.trim() || 'Motor'} (${platNomor || '-'})`,
-              items: detailedItems,
-              subtotal: servicesTotal,
-              totalAmount: finalTotal,
-              discount: computedDiscount,
-              amountPaid: amountPaid,
-              downPayment: nominalDP,
-              paymentMethod: paymentMethod,
-              notes: `Layanan:\n${serviceSummary}${additionalNotes ? `\n\nCatatan Tambahan:\n${additionalNotes}` : ''}`,
-              bookingDate: entryDate,
-            }),
+              number: realPhone || contactPhone,
+              base64: invoiceBase64,
+              filename: `Invoice-Bosmat-${invoiceName.replace(/\s+/g, '-')}.pdf`,
+              caption: `Halo Kak ${invoiceName},\n\nBerikut terlampir dokumen untuk transaksi di Bosmat Studio. Terima kasih!`
+            })
           });
         }}
       />
@@ -2601,28 +2621,36 @@ function DesktopLayout(props: any) {
             if (i.itemNotes) result += ` (Warna: ${i.itemNotes})`;
             return result;
           }).join('\n');
-          await fetch('/api/bookings/invoice', {
+          const invoicePayload = {
+            documentType: docType,
+            customerName: invoiceName,
+            customerPhone: contactPhone,
+            realPhone,
+            motorDetails: `${effectiveMotor?.modelName || modelSearchText.trim() || 'Motor'} (${platNomor || '-'})`,
+            items: detailedItems,
+            subtotal: servicesTotal,
+            totalAmount: finalTotal,
+            discount: computedDiscount,
+            amountPaid: amountPaid,
+            downPayment: nominalDP,
+            paymentMethod: paymentMethod,
+            notes: `Layanan:\n${serviceSummary}${additionalNotes ? `\n\nCatatan Tambahan:\n${additionalNotes}` : ''}`,
+            bookingDate: entryDate,
+            docNumber: 'PREVIEW'
+          };
+          const { generateBase64PDF, generateInvoiceHTML } = await import('@/lib/pdf');
+          const invoiceHtml = generateInvoiceHTML(invoicePayload);
+          const invoiceBase64 = await generateBase64PDF(invoiceHtml);
+
+          await fetch('/api/send-document', {
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-            },
+            headers: { 'Content-Type': 'application/json', ...(token ? { 'Authorization': `Bearer ${token}` } : {}) },
             body: JSON.stringify({
-              documentType: docType,
-              customerName: invoiceName,
-              customerPhone: contactPhone,
-              realPhone,
-              motorDetails: `${effectiveMotor?.modelName || modelSearchText.trim() || 'Motor'} (${platNomor || '-'})`,
-              items: detailedItems,
-              subtotal: servicesTotal,
-              totalAmount: finalTotal,
-              discount: computedDiscount,
-              amountPaid: amountPaid,
-              downPayment: nominalDP,
-              paymentMethod: paymentMethod,
-              notes: `Layanan:\n${serviceSummary}${additionalNotes ? `\n\nCatatan Tambahan:\n${additionalNotes}` : ''}`,
-              bookingDate: entryDate,
-            }),
+              number: realPhone || contactPhone,
+              base64: invoiceBase64,
+              filename: `Invoice-Bosmat-${invoiceName.replace(/\s+/g, '-')}.pdf`,
+              caption: `Halo Kak ${invoiceName},\n\nBerikut terlampir dokumen untuk transaksi di Bosmat Studio. Terima kasih!`
+            })
           });
         }}
       />
