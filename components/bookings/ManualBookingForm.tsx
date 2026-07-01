@@ -699,22 +699,13 @@ export default function ManualBookingForm({
             docNumber: isEdit ? initialData?.id : 'DRAFT',
           };
 
-          const { generateBase64PDF, generateInvoiceHTML } = await import('@/lib/pdf');
-          const invoiceHtml = generateInvoiceHTML(invoicePayload);
-          const invoiceBase64 = await generateBase64PDF(invoiceHtml);
-
-          const invRes = await fetch('/api/send-document', {
+          const invRes = await fetch('/api/bookings/invoice', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
               ...(token ? { 'Authorization': `Bearer ${token}` } : {})
             },
-            body: JSON.stringify({
-              number: realPhone || contactPhone,
-              base64: invoiceBase64,
-              filename: `Invoice-Bosmat-${invoiceName.replace(/\s+/g, '-')}.pdf`,
-              caption: `Halo Kak ${invoiceName},\n\nBerikut terlampir detail invoice/tanda terima dari Bosmat Studio. Silakan dicek ya 🙏\n\nTerima kasih!`
-            }),
+            body: JSON.stringify(invoicePayload),
           });
 
           if (!invRes.ok) {
