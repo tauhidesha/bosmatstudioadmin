@@ -21,6 +21,7 @@ function formatDateShort(date) {
 }
 
 import { studioMetadata } from './studioMetadata';
+import { logoBase64 as staticLogoBase64 } from './logoBase64';
 
 export function generateWarrantyHTML({
   type = 'repaint',
@@ -63,7 +64,7 @@ export function generateWarrantyHTML({
 
   const logoSrc = logoBase64
     ? `data:image/png;base64,${logoBase64}`
-    : '';
+    : staticLogoBase64;
 
   // ─── WARRANTY TERMS ───
   const repaintTerms = [
@@ -471,7 +472,7 @@ export function generateWarrantyHTML({
       <div class="doc-subtitle">Premium Automotive Finish · ${studioMetadata.name}</div>
     </div>
     <div class="header-right">
-      <img src="${logoBase64 || 'https://admin.bosmatstudio.com/logo.png'}" style="height:75px; margin-bottom:12px" crossorigin="anonymous"/>
+      <img src="${logoBase64 ? `data:image/png;base64,${logoBase64}` : staticLogoBase64}" style="height:75px; margin-bottom:12px" crossorigin="anonymous"/>
       <div class="cert-label">No. Sertifikat</div>
       <div class="cert-number">${certNumber}</div>
       <div class="validity-badge">Berlaku s/d ${formatDateShort(expiryDate)}</div>

@@ -1,4 +1,5 @@
 import { studioMetadata } from './studioMetadata';
+import { logoBase64 as staticLogoBase64 } from './logoBase64';
 
 export default function generateInvoiceHTML(data: any) {
   const {
@@ -106,7 +107,7 @@ export default function generateInvoiceHTML(data: any) {
         </div>
       </div>
       <div style="text-align:right">
-        <img src="${logoBase64 || 'https://admin.bosmatstudio.com/logo.png'}" style="height:75px; margin-bottom:12px" crossorigin="anonymous"/>
+        <img src="${logoBase64 || staticLogoBase64}" style="height:75px; margin-bottom:12px" crossorigin="anonymous"/>
         <div>
           <p class="text-muted" style="font-size:10px; text-transform:uppercase; letter-spacing:0.2em">Nomor Dokumen</p>
           <p class="font-headline text-yellow" style="font-size:28px; font-weight:700">#BS-${docNumber || 'PREVIEW'}</p>

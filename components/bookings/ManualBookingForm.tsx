@@ -1566,50 +1566,7 @@ function MobileLayout(props: any) {
           documentType: docType,
         }}
         onSend={async () => {
-          const token = await getIdToken();
-          const detailedItems = [
-            ...cart.map((i: CartItem) => `${i.name}||${i.price}||${i.itemNotes ? `Catatan Warna: ${i.itemNotes}` : ''}`),
-            spotCount > 0 ? `Spot Repair (${spotCount} spots)||${spotCount * spotPrice}||` : null
-          ].filter(Boolean).join('\n');
-          const serviceSummary = cart.map((i: CartItem) => {
-            const isKnown = services.some(s => s.name === i.name) || i.name === 'Spot Repair';
-            const baseName = isKnown ? i.name : `${i.name} [Rp${i.price}]`;
-            let result = baseName;
-            if (i.surcharges.length > 0) result += ` (+${i.surcharges.join(', ')})`;
-            if (i.itemNotes) result += ` (Warna: ${i.itemNotes})`;
-            return result;
-          }).join('\n');
-          const invoicePayload = {
-            documentType: docType,
-            customerName: invoiceName,
-            customerPhone: contactPhone,
-            realPhone,
-            motorDetails: `${effectiveMotor?.modelName || modelSearchText.trim() || 'Motor'} (${platNomor || '-'})`,
-            items: detailedItems,
-            subtotal: servicesTotal,
-            totalAmount: finalTotal,
-            discount: computedDiscount,
-            amountPaid: amountPaid,
-            downPayment: nominalDP,
-            paymentMethod: paymentMethod,
-            notes: `Layanan:\n${serviceSummary}${additionalNotes ? `\n\nCatatan Tambahan:\n${additionalNotes}` : ''}`,
-            bookingDate: entryDate,
-            docNumber: 'PREVIEW'
-          };
-          const { generateBase64PDF, generateInvoiceHTML } = await import('@/lib/pdf');
-          const invoiceHtml = generateInvoiceHTML(invoicePayload);
-          const invoiceBase64 = await generateBase64PDF(invoiceHtml);
-
-          await fetch('/api/send-document', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', ...(token ? { 'Authorization': `Bearer ${token}` } : {}) },
-            body: JSON.stringify({
-              number: realPhone || contactPhone,
-              base64: invoiceBase64,
-              filename: `Invoice-Bosmat-${invoiceName.replace(/\s+/g, '-')}.pdf`,
-              caption: `Halo Kak ${invoiceName},\n\nBerikut terlampir dokumen untuk transaksi di Bosmat Studio. Terima kasih!`
-            })
-          });
+          await handleSave(true);
         }}
       />
     </div>
@@ -2608,50 +2565,7 @@ function DesktopLayout(props: any) {
           documentType: docType,
         }}
         onSend={async () => {
-          const token = await getIdToken();
-          const detailedItems = [
-            ...cart.map((i: CartItem) => `${i.name}||${i.price}||${i.itemNotes ? `Catatan Warna: ${i.itemNotes}` : ''}`),
-            spotCount > 0 ? `Spot Repair (${spotCount} spots)||${spotCount * spotPrice}||` : null
-          ].filter(Boolean).join('\n');
-          const serviceSummary = cart.map((i: CartItem) => {
-            const isKnown = services.some(s => s.name === i.name) || i.name === 'Spot Repair';
-            const baseName = isKnown ? i.name : `${i.name} [Rp${i.price}]`;
-            let result = baseName;
-            if (i.surcharges.length > 0) result += ` (+${i.surcharges.join(', ')})`;
-            if (i.itemNotes) result += ` (Warna: ${i.itemNotes})`;
-            return result;
-          }).join('\n');
-          const invoicePayload = {
-            documentType: docType,
-            customerName: invoiceName,
-            customerPhone: contactPhone,
-            realPhone,
-            motorDetails: `${effectiveMotor?.modelName || modelSearchText.trim() || 'Motor'} (${platNomor || '-'})`,
-            items: detailedItems,
-            subtotal: servicesTotal,
-            totalAmount: finalTotal,
-            discount: computedDiscount,
-            amountPaid: amountPaid,
-            downPayment: nominalDP,
-            paymentMethod: paymentMethod,
-            notes: `Layanan:\n${serviceSummary}${additionalNotes ? `\n\nCatatan Tambahan:\n${additionalNotes}` : ''}`,
-            bookingDate: entryDate,
-            docNumber: 'PREVIEW'
-          };
-          const { generateBase64PDF, generateInvoiceHTML } = await import('@/lib/pdf');
-          const invoiceHtml = generateInvoiceHTML(invoicePayload);
-          const invoiceBase64 = await generateBase64PDF(invoiceHtml);
-
-          await fetch('/api/send-document', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', ...(token ? { 'Authorization': `Bearer ${token}` } : {}) },
-            body: JSON.stringify({
-              number: realPhone || contactPhone,
-              base64: invoiceBase64,
-              filename: `Invoice-Bosmat-${invoiceName.replace(/\s+/g, '-')}.pdf`,
-              caption: `Halo Kak ${invoiceName},\n\nBerikut terlampir dokumen untuk transaksi di Bosmat Studio. Terima kasih!`
-            })
-          });
+          await handleSave(true);
         }}
       />
     </div>
