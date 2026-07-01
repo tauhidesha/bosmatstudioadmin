@@ -123,12 +123,12 @@ export default function generateInvoiceHTML(data: any) {
     <!-- Header -->
     <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:60px">
       <div>
-        <h1 class="font-headline" style="font-size:42px; font-weight:900; line-height:0.8; text-transform:uppercase; margin-bottom:16px">
+        <h1 class="font-headline" style="font-size:56px; font-weight:900; line-height:0.8; text-transform:uppercase; margin-bottom:16px">
           ${documentType === 'tanda_terima' ? 'Receipt' : documentType === 'bukti_bayar' ? 'Payment' : 'Invoice'}<br/>
           <span class="text-yellow">Repaint &<br/>Detailing</span>
         </h1>
         <div style="display:flex; gap:12px; margin-top:20px">
-          <span style="background:#676700; color:#e6e67a; padding:6px 14px; font-size:8px; font-weight:700; text-transform:uppercase; letter-spacing:0.1em">
+          <span style="background:#676700; color:#e6e67a; padding:6px 14px; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.1em">
             Status: ${actualTotalPaid >= grandTotal ? 'Lunas' : actualTotalPaid > 0 ? 'DP' : 'Belum Bayar'}
           </span>
         </div>
@@ -136,12 +136,12 @@ export default function generateInvoiceHTML(data: any) {
       <div style="text-align:right">
         <img src="${logoBase64}" style="height:75px; margin-bottom:12px"/>
         <div>
-          <p class="text-muted" style="font-size:8px; text-transform:uppercase; letter-spacing:0.2em">Nomor Dokumen</p>
-          <p class="font-headline text-yellow" style="font-size:21px; font-weight:700">#BS-${docNumber || 'PREVIEW'}</p>
+          <p class="text-muted" style="font-size:10px; text-transform:uppercase; letter-spacing:0.2em">Nomor Dokumen</p>
+          <p class="font-headline text-yellow" style="font-size:28px; font-weight:700">#BS-${docNumber || 'PREVIEW'}</p>
         </div>
         <div style="margin-top:16px">
-          <p class="text-muted" style="font-size:8px; text-transform:uppercase; letter-spacing:0.2em">Tanggal Terbit</p>
-          <p style="font-size:12px; font-weight:500">${now instanceof Date ? now.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : (new Date()).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+          <p class="text-muted" style="font-size:10px; text-transform:uppercase; letter-spacing:0.2em">Tanggal Terbit</p>
+          <p style="font-size:16px; font-weight:500">${now instanceof Date ? now.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : (new Date()).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
         </div>
       </div>
     </div>
@@ -149,17 +149,17 @@ export default function generateInvoiceHTML(data: any) {
     <!-- Info Section -->
     <div style="display:grid; grid-template-columns:1fr 1fr; gap:1px; background:#484831; margin-bottom:60px">
       <div class="bg-dark" style="padding:28px">
-        <p class="text-yellow" style="font-size:8px; font-weight:700; text-transform:uppercase; letter-spacing:0.2em; margin-bottom:20px">Informasi Pelanggan</p>
-        <p class="font-headline" style="font-size:18px; font-weight:700; text-transform:uppercase; margin-bottom:8px">${customerName || '-'}</p>
-        <p class="text-muted" style="font-size:10px; line-height:1.8">
+        <p class="text-yellow" style="font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.2em; margin-bottom:20px">Informasi Pelanggan</p>
+        <p class="font-headline" style="font-size:24px; font-weight:700; text-transform:uppercase; margin-bottom:8px">${customerName || '-'}</p>
+        <p class="text-muted" style="font-size:14px; line-height:1.8">
           WhatsApp: ${displayPhone}<br/>
           Kendaraan: ${motorDetails || '-'}
         </p>
       </div>
       <div class="bg-dark" style="padding:28px">
-        <p class="text-yellow" style="font-size:8px; font-weight:700; text-transform:uppercase; letter-spacing:0.2em; margin-bottom:20px">Studio Layanan</p>
-        <p class="font-headline" style="font-size:18px; font-weight:700; text-transform:uppercase; margin-bottom:8px">${studioMetadata.name.toUpperCase()}</p>
-        <p class="text-muted" style="font-size:10px; line-height:1.8">
+        <p class="text-yellow" style="font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.2em; margin-bottom:20px">Studio Layanan</p>
+        <p class="font-headline" style="font-size:24px; font-weight:700; text-transform:uppercase; margin-bottom:8px">${studioMetadata.name.toUpperCase()}</p>
+        <p class="text-muted" style="font-size:14px; line-height:1.8">
           ${studioMetadata.location.address}<br/>
           WA: ${studioMetadata.contact.phone}
         </p>
@@ -177,10 +177,10 @@ export default function generateInvoiceHTML(data: any) {
     }
       </div>
       <div>
-        <p style="font-size:10px; font-weight:800; color:#FFFF00; text-transform:uppercase; letter-spacing:0.1em; margin-bottom:4px;">
+        <p style="font-size:14px; font-weight:800; color:#FFFF00; text-transform:uppercase; letter-spacing:0.1em; margin-bottom:4px;">
           ${documentType === 'tanda_terima' ? 'KENDARAAN DITERIMA' : documentType === 'bukti_bayar' ? 'PEMBAYARAN DIVALIDASI' : 'RINGKASAN ESTIMASI'}
         </p>
-        <p style="font-size:9px; color:#cac8aa; line-height:1.6; margin:0; font-weight:400;">
+        <p style="font-size:13px; color:#cac8aa; line-height:1.6; margin:0; font-weight:400;">
           ${documentType === 'tanda_terima'
       ? `Halo! Unit kendaraan <b>${motorDetails || '-'}</b> telah kami terima dengan aman di Studio untuk proses treatment. Terima kasih telah mempercayakan kendaraan Anda kepada kami.`
       : documentType === 'bukti_bayar'
@@ -195,16 +195,16 @@ export default function generateInvoiceHTML(data: any) {
       <thead>
         <tr style="border-bottom:1px solid #484831;">
           <th style="width:50%; text-align:left; padding-bottom:12px">
-            <span class="text-muted" style="font-size:8px; text-transform:uppercase; letter-spacing:0.2em">Deskripsi Layanan</span>
+            <span class="text-muted" style="font-size:10px; text-transform:uppercase; letter-spacing:0.2em">Deskripsi Layanan</span>
           </th>
           <th style="width:10%; text-align:center; padding-bottom:12px">
-            <span class="text-muted" style="font-size:8px; text-transform:uppercase; letter-spacing:0.2em">Jml</span>
+            <span class="text-muted" style="font-size:10px; text-transform:uppercase; letter-spacing:0.2em">Jml</span>
           </th>
           <th style="width:20%; text-align:right; padding-bottom:12px">
-            <span class="text-muted" style="font-size:8px; text-transform:uppercase; letter-spacing:0.2em">Harga</span>
+            <span class="text-muted" style="font-size:10px; text-transform:uppercase; letter-spacing:0.2em">Harga</span>
           </th>
           <th style="width:20%; text-align:right; padding-bottom:12px">
-            <span class="text-muted" style="font-size:8px; text-transform:uppercase; letter-spacing:0.2em">Total</span>
+            <span class="text-muted" style="font-size:10px; text-transform:uppercase; letter-spacing:0.2em">Total</span>
           </th>
         </tr>
       </thead>
@@ -229,18 +229,18 @@ export default function generateInvoiceHTML(data: any) {
           return `
           <tr class="item-row" style="page-break-inside: avoid;">
             <td>
-              <p class="font-headline" style="font-size:13px; font-weight:700; text-transform:uppercase">${cleanTitle}</p>
+              <p class="font-headline" style="font-size:18px; font-weight:700; text-transform:uppercase">${cleanTitle}</p>
               ${itemDesc ? (
               itemDesc.startsWith('Catatan Warna:')
                 ? `<div style="display:flex; align-items:center; gap:6px; margin-top:6px; padding:4px 10px; background:rgba(255,255,0,0.05); border-left:2px solid #FFFF00; width:fit-content">
-                    <span style="font-size:8px; color:#FFFF00; font-weight:800; text-transform:uppercase; letter-spacing:0.1em">🎨 ${itemDesc}</span>
+                    <span style="font-size:10px; color:#FFFF00; font-weight:800; text-transform:uppercase; letter-spacing:0.1em">🎨 ${itemDesc}</span>
                    </div>`
-                : `<p class="text-muted" style="font-size:9px; line-height:1.4; margin-top:4px">${itemDesc}</p>`
+                : `<p class="text-muted" style="font-size:12px; line-height:1.4; margin-top:4px">${itemDesc}</p>`
             ) : ''}
             </td>
-            <td style="text-align:center"><p class="font-headline" style="font-size:13px; font-weight:700">01</p></td>
+            <td style="text-align:center"><p class="font-headline" style="font-size:18px; font-weight:700">01</p></td>
             <td style="text-align:right"><p class="text-muted" style="font-size:14px">${priceStr}</p></td>
-            <td style="text-align:right"><p class="font-headline text-yellow" style="font-size:13px; font-weight:700">${priceStr}</p></td>
+            <td style="text-align:right"><p class="font-headline text-yellow" style="font-size:18px; font-weight:700">${priceStr}</p></td>
           </tr>`;
         }).join('') : '<tr><td colspan="4" style="text-align:center; padding:40px; color:#666;">Belum ada layanan ditambahkan</td></tr>'}
       </tbody>
@@ -250,26 +250,26 @@ export default function generateInvoiceHTML(data: any) {
       <div>
         ${notesList.length > 0 ? `
         <div class="bg-darker border-yellow" style="padding:32px; margin-bottom:24px">
-          <p class="font-headline" style="font-size:8px; font-weight:700; text-transform:uppercase; letter-spacing:0.15em; margin-bottom:16px">Catatan Teknis Layanan</p>
+          <p class="font-headline" style="font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.15em; margin-bottom:16px">Catatan Teknis Layanan</p>
           <div style="display:flex; flex-direction:column; gap:8px">
             ${notesList.map(n => {
           let icon = '●';
           if (n.toLowerCase().includes('garansi')) icon = '✓';
           else if (n.toLowerCase().match(/waktu|jam|hari/)) icon = '⏱';
-          return `<div style="display:flex; gap:10px; align-items:flex-start"><span style="color:#FFFF00; font-size:10px; margin-top:2px">${icon}</span><p class="text-muted" style="font-size:10px; line-height:1.5">${n}</p></div>`;
+          return `<div style="display:flex; gap:10px; align-items:flex-start"><span style="color:#FFFF00; font-size:14px; margin-top:2px">${icon}</span><p class="text-muted" style="font-size:14px; line-height:1.5">${n}</p></div>`;
         }).join('')}
           </div>
         </div>` : ''}
 
         <div style="padding:24px; border:1px solid #484831; background:#1c1b1b">
-          <p class="text-yellow" style="font-size:8px; font-weight:700; text-transform:uppercase; letter-spacing:0.15em; margin-bottom:16px">Informasi Pembayaran</p>
+          <p class="text-yellow" style="font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.15em; margin-bottom:16px">Informasi Pembayaran</p>
           <div style="display:flex; align-items:center; gap:16px">
             <div style="background:rgba(255,255,255,0.05); padding:12px; display:flex; align-items:center; justify-content:center">
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M3 21H21M3 10H21M5 6L12 3L19 6M4 10V21M8 10V21M12 10V21M16 10V21M20 10V21" stroke="#FFFF00" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </div>
             <div>
-              <p class="font-headline" style="font-size:13px; font-weight:700; text-transform:uppercase">Blu BCA Digital: 0901 1180 1695</p>
-              <p class="text-muted" style="font-size:9px; text-transform:uppercase">A/N Muhammad Tauhid Haryadesa</p>
+              <p class="font-headline" style="font-size:18px; font-weight:700; text-transform:uppercase">Blu BCA Digital: 0901 1180 1695</p>
+              <p class="text-muted" style="font-size:13px; text-transform:uppercase">A/N Muhammad Tauhid Haryadesa</p>
             </div>
           </div>
         </div>
@@ -277,34 +277,34 @@ export default function generateInvoiceHTML(data: any) {
 
       <div style="background:#2a2a2a; padding:40px; display:flex; flex-direction:column; gap:20px">
         <div style="display:flex; justify-content:space-between">
-          <span class="text-muted" style="font-size:9px; text-transform:uppercase; letter-spacing:0.1em">Subtotal</span>
+          <span class="text-muted" style="font-size:12px; text-transform:uppercase; letter-spacing:0.1em">Subtotal</span>
           <span style="font-size:16px">Rp${subtotal.toLocaleString('id-ID')}</span>
         </div>
         ${discountAmount > 0 ? `
         <div style="display:flex; justify-content:space-between">
-          <span class="text-muted" style="font-size:9px; text-transform:uppercase; letter-spacing:0.1em">Diskon</span>
-          <span style="font-size:12px; color:#ffb4ab">- Rp${discountAmount.toLocaleString('id-ID')}</span>
+          <span class="text-muted" style="font-size:12px; text-transform:uppercase; letter-spacing:0.1em">Diskon</span>
+          <span style="font-size:16px; color:#ffb4ab">- Rp${discountAmount.toLocaleString('id-ID')}</span>
         </div>` : ''}
         ${dp > 0 ? `
         <div style="display:flex; justify-content:space-between">
-          <span class="text-muted" style="font-size:9px; text-transform:uppercase; letter-spacing:0.1em">Down Payment (DP)</span>
-          <span style="font-size:12px; color:#ffb4ab">- Rp${dp.toLocaleString('id-ID')}</span>
+          <span class="text-muted" style="font-size:12px; text-transform:uppercase; letter-spacing:0.1em">Down Payment (DP)</span>
+          <span style="font-size:16px; color:#ffb4ab">- Rp${dp.toLocaleString('id-ID')}</span>
         </div>` : ''}
         ${totalPaid > 0 && !(dp > 0 && dp === totalPaid) ? `
         <div style="display:flex; justify-content:space-between">
-          <span class="text-muted" style="font-size:9px; text-transform:uppercase; letter-spacing:0.1em">${documentType === 'bukti_bayar' ? 'Bayar Hari Ini' : 'Total Bayar'}</span>
-          <span style="font-size:12px; color:#85ff7a">Rp${totalPaid.toLocaleString('id-ID')}</span>
+          <span class="text-muted" style="font-size:12px; text-transform:uppercase; letter-spacing:0.1em">${documentType === 'bukti_bayar' ? 'Bayar Hari Ini' : 'Total Bayar'}</span>
+          <span style="font-size:16px; color:#85ff7a">Rp${totalPaid.toLocaleString('id-ID')}</span>
         </div>` : ''}
         
         <div style="border-top:1px solid #484831; padding-top:24px; margin-top:8px">
-          <span class="text-muted" style="font-size:8px; text-transform:uppercase; letter-spacing:0.2em; display:block; margin-bottom:8px">Total Keseluruhan</span>
-          <span class="font-headline" style="font-size:27px; font-weight:900">Rp${grandTotal.toLocaleString('id-ID')}</span>
+          <span class="text-muted" style="font-size:10px; text-transform:uppercase; letter-spacing:0.2em; display:block; margin-bottom:8px">Total Keseluruhan</span>
+          <span class="font-headline" style="font-size:36px; font-weight:900">Rp${grandTotal.toLocaleString('id-ID')}</span>
         </div>
 
         <div style="background:#FFFF00; padding:20px 24px; margin:0 -40px -40px; display:flex; justify-content:space-between; align-items:center">
           <div>
-            <span style="color:#1d1d00; font-size:8px; font-weight:700; text-transform:uppercase; letter-spacing:0.2em; display:block; margin-bottom:4px">Sisa Tagihan</span>
-            <span class="font-headline" style="color:#1d1d00; font-size:33px; font-weight:900">Rp${balance.toLocaleString('id-ID')}</span>
+            <span style="color:#1d1d00; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.2em; display:block; margin-bottom:4px">Sisa Tagihan</span>
+            <span class="font-headline" style="color:#1d1d00; font-size:44px; font-weight:900">Rp${balance.toLocaleString('id-ID')}</span>
           </div>
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none"><rect x="2" y="5" width="20" height="14" rx="2" stroke="#1d1d00" stroke-width="2"/><path d="M2 10H22" stroke="#1d1d00" stroke-width="2"/><path d="M6 15H10" stroke="#1d1d00" stroke-width="2" stroke-linecap="round"/></svg>
         </div>
