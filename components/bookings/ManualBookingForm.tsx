@@ -2550,7 +2550,7 @@ function DesktopLayout(props: any) {
         </div>
 
         {/* Fixed Footer: Submit Actions */}
-        <div className="p-6 bg-[#1c1b1b] border-t border-white/5 flex items-center justify-between min-h-[100px] flex-shrink-0 z-30">
+        <div className="p-6 bg-[#1c1b1b] border-t border-white/5 flex flex-wrap items-center justify-between gap-4 min-h-[100px] flex-shrink-0 z-30">
           <div className="flex items-center gap-6">
             <label className="flex items-center gap-3 cursor-pointer group">
               <div className="relative flex items-center">
@@ -2579,7 +2579,7 @@ function DesktopLayout(props: any) {
               <option value="garansi_coating">Garansi Coating</option>
             </select>
           </div>
-          <div className="flex gap-4 w-full md:w-auto">
+          <div className="flex flex-wrap gap-4 w-full xl:w-auto">
             <button
               onClick={handleClearDraft}
               className="hidden md:flex px-6 py-4 font-headline text-[10px] font-bold uppercase tracking-widest text-red-500 hover:bg-red-500/10 transition-colors items-center gap-2"
@@ -2649,7 +2649,7 @@ function DesktopLayout(props: any) {
               onClick={() => handleSubmit()}
               disabled={isSubmitting || cart.length === 0}
               className={cn(
-                "flex-1 md:flex-none px-12 py-4 bg-[#FFFF00] text-[#1D1D00] font-headline font-black text-sm uppercase tracking-widest transition-all flex items-center justify-center gap-3 active:scale-95",
+                "flex-1 md:flex-none px-6 py-4 lg:px-8 bg-[#FFFF00] text-[#1D1D00] font-headline font-black text-sm uppercase tracking-widest transition-all flex items-center justify-center gap-3 active:scale-95",
                 (isSubmitting || cart.length === 0) && "opacity-50 cursor-not-allowed"
               )}
             >
