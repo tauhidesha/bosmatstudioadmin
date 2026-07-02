@@ -43,7 +43,8 @@ interface CartItem {
   price: number;
   surcharges: string[]; // Independent surcharges per item
   itemNotes?: string;
-  discountAmount?: number;
+  discountType?: 'nominal' | 'percentage';
+  discountValue?: number;
 }
 
 export default function ManualBookingForm({
@@ -525,8 +526,16 @@ export default function ManualBookingForm({
     setCart(prev => prev.map(item => item.id === itemId ? { ...item, itemNotes: notes } : item));
   };
 
-  const setItemDiscount = (itemId: string, discount: number) => {
-    setCart(prev => prev.map(item => item.id === itemId ? { ...item, discountAmount: discount } : item));
+  const setItemDiscount = (itemId: string, type: 'nominal' | 'percentage', value: number) => {
+    setCart(prev => prev.map(item => item.id === itemId ? { ...item, discountType: type, discountValue: value } : item));
+  };
+
+  const getItemDiscount = (item: CartItem) => {
+    if (!item.discountValue) return 0;
+    if (item.discountType === 'percentage') {
+      return Math.round(item.price * (item.discountValue / 100));
+    }
+    return item.discountValue;
   };
 
   // --- COMPUTED TOTALS ---
@@ -537,7 +546,7 @@ export default function ManualBookingForm({
   }, [cart, spotCount, spotPrice]);
 
   const computedDiscount = useMemo(() => {
-    const itemDiscounts = cart.reduce((sum: number, item: CartItem) => sum + (item.discountAmount || 0), 0);
+    const itemDiscounts = cart.reduce((sum: number, item: CartItem) => sum + getItemDiscount(item), 0);
     let globalDiscount = discountAmount;
     if (discountPercent > 0) {
       globalDiscount = Math.round(servicesTotal * (discountPercent / 100));
@@ -664,7 +673,11 @@ export default function ManualBookingForm({
           let result = baseName;
           if (i.surcharges.length > 0) result += ` (+${i.surcharges.join(', ')})`;
           if (i.itemNotes) result += ` (Warna: ${i.itemNotes})`;
-          if (i.discountAmount) result += ` (Diskon: -Rp${i.discountAmount.toLocaleString('id-ID')})`;
+          const discountAmt = i.discountValue ? (i.discountType === 'percentage' ? Math.round(i.price * (i.discountValue / 100)) : i.discountValue) : 0;
+          if (discountAmt > 0) {
+            const discText = i.discountType === 'percentage' ? `${i.discountValue}% (Rp${discountAmt.toLocaleString('id-ID')})` : `Rp${discountAmt.toLocaleString('id-ID')}`;
+            result += ` (Diskon: -${discText})`;
+          }
           return result;
         }).join(', ')} ${spotCount > 0 ? `| Spot Repair (${spotCount} spots)` : ''} | DP: ${paymentMethod} \n\nCatatan Tambahan: ${additionalNotes}${isCustomModel ? `\n\n[Custom Model - Size: ${customModelSize}]` : ''}`,
       };
@@ -696,7 +709,11 @@ export default function ManualBookingForm({
         const detailedItems = [
           ...cart.map((i: CartItem) => {
             let notes = i.itemNotes ? `Catatan Warna: ${i.itemNotes}` : '';
-            if (i.discountAmount) notes = notes ? `${notes} (Diskon: -Rp${i.discountAmount.toLocaleString('id-ID')})` : `Diskon: -Rp${i.discountAmount.toLocaleString('id-ID')}`;
+            const discountAmt = i.discountValue ? (i.discountType === 'percentage' ? Math.round(i.price * (i.discountValue / 100)) : i.discountValue) : 0;
+            if (discountAmt > 0) {
+              const discText = i.discountType === 'percentage' ? `${i.discountValue}% (Rp${discountAmt.toLocaleString('id-ID')})` : `Rp${discountAmt.toLocaleString('id-ID')}`;
+              notes = notes ? `${notes} (Diskon: -${discText})` : `Diskon: -${discText}`;
+            }
             return `${i.name}||${i.price}||${notes}`;
           }),
           spotCount > 0 ? `Spot Repair (${spotCount} spots)||${spotCount * spotPrice}||` : null
@@ -1437,16 +1454,30 @@ function MobileLayout(props: any) {
                     {item.name !== 'Spot Repair' && (
                       <div className="flex justify-between items-center text-[10px] pl-6 mt-1">
                         <span className="text-neutral-500 font-headline uppercase tracking-widest">Diskon per Item</span>
-                        <input
-                          type="text"
-                          value={item.discountAmount > 0 ? item.discountAmount.toLocaleString('id-ID') : ''}
-                          onChange={e => {
-                            const valStr = e.target.value.replace(/\./g, '').replace(/[^0-9]/g, '');
-                            setItemDiscount(item.id, valStr ? Number(valStr) : 0);
-                          }}
-                          className="w-24 bg-neutral-950 border border-white/5 focus:border-[#FFFF00]/50 rounded-sm focus:ring-0 text-[10px] py-1 px-2 text-[#FFFF00] text-right font-mono"
-                          placeholder="0"
-                        />
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => setItemDiscount(item.id, 'percentage', item.discountValue || 0)}
+                            className={cn("px-1.5 py-0.5 rounded-sm border text-[9px] transition-colors font-headline", item.discountType === 'percentage' ? "bg-[#FFFF00]/10 border-[#FFFF00]/50 text-[#FFFF00]" : "bg-transparent border-white/5 text-slate-500")}
+                          >%</button>
+                          <button
+                            type="button"
+                            onClick={() => setItemDiscount(item.id, 'nominal', item.discountValue || 0)}
+                            className={cn("px-1.5 py-0.5 rounded-sm border text-[9px] transition-colors font-headline", item.discountType !== 'percentage' ? "bg-[#FFFF00]/10 border-[#FFFF00]/50 text-[#FFFF00]" : "bg-transparent border-white/5 text-slate-500")}
+                          >Rp</button>
+                          <input
+                            type="text"
+                            value={item.discountValue > 0 ? (item.discountType === 'percentage' ? item.discountValue : item.discountValue.toLocaleString('id-ID')) : ''}
+                            onChange={e => {
+                              const valStr = e.target.value.replace(/\./g, '').replace(/[^0-9]/g, '');
+                              let val = valStr ? Number(valStr) : 0;
+                              if (item.discountType === 'percentage' && val > 100) val = 100;
+                              setItemDiscount(item.id, item.discountType || 'nominal', val);
+                            }}
+                            className="w-20 bg-neutral-950 border border-white/5 focus:border-[#FFFF00]/50 rounded-sm focus:ring-0 text-[10px] py-1 px-2 text-[#FFFF00] text-right font-mono"
+                            placeholder="0"
+                          />
+                        </div>
                       </div>
                     )}
                   </div>
@@ -1471,7 +1502,11 @@ function MobileLayout(props: any) {
                 const detailedItems = [
                   ...cart.map((i: CartItem) => {
                     let notes = i.itemNotes ? `Catatan Warna: ${i.itemNotes}` : '';
-                    if (i.discountAmount) notes = notes ? `${notes} (Diskon: -Rp${i.discountAmount.toLocaleString('id-ID')})` : `Diskon: -Rp${i.discountAmount.toLocaleString('id-ID')}`;
+                    const discountAmt = i.discountValue ? (i.discountType === 'percentage' ? Math.round(i.price * (i.discountValue / 100)) : i.discountValue) : 0;
+                    if (discountAmt > 0) {
+                      const discText = i.discountType === 'percentage' ? `${i.discountValue}% (Rp${discountAmt.toLocaleString('id-ID')})` : `Rp${discountAmt.toLocaleString('id-ID')}`;
+                      notes = notes ? `${notes} (Diskon: -${discText})` : `Diskon: -${discText}`;
+                    }
                     return `${i.name}||${i.price}||${notes}`;
                   }),
                   spotCount > 0 ? `Spot Repair (${spotCount} spots)||${spotCount * spotPrice}||` : null
@@ -1765,16 +1800,30 @@ function DesktopLayout(props: any) {
                       {item.name !== 'Spot Repair' && (
                         <div className="flex justify-between items-center text-[10px] pl-6 mt-1 mb-2">
                           <span className="text-neutral-500 font-headline uppercase tracking-widest">Diskon per Item</span>
-                          <input
-                            type="text"
-                            value={item.discountAmount > 0 ? item.discountAmount.toLocaleString('id-ID') : ''}
-                            onChange={e => {
-                              const valStr = e.target.value.replace(/\./g, '').replace(/[^0-9]/g, '');
-                              setItemDiscount(item.id, valStr ? Number(valStr) : 0);
-                            }}
-                            className="w-24 bg-neutral-950 border border-white/5 focus:border-[#FFFF00]/50 rounded-sm focus:ring-0 text-[10px] py-1 px-2 text-[#FFFF00] text-right font-mono"
-                            placeholder="0"
-                          />
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => setItemDiscount(item.id, 'percentage', item.discountValue || 0)}
+                              className={cn("px-1.5 py-0.5 rounded-sm border text-[9px] transition-colors font-headline", item.discountType === 'percentage' ? "bg-[#FFFF00]/10 border-[#FFFF00]/50 text-[#FFFF00]" : "bg-transparent border-white/5 text-slate-500")}
+                            >%</button>
+                            <button
+                              type="button"
+                              onClick={() => setItemDiscount(item.id, 'nominal', item.discountValue || 0)}
+                              className={cn("px-1.5 py-0.5 rounded-sm border text-[9px] transition-colors font-headline", item.discountType !== 'percentage' ? "bg-[#FFFF00]/10 border-[#FFFF00]/50 text-[#FFFF00]" : "bg-transparent border-white/5 text-slate-500")}
+                            >Rp</button>
+                            <input
+                              type="text"
+                              value={item.discountValue > 0 ? (item.discountType === 'percentage' ? item.discountValue : item.discountValue.toLocaleString('id-ID')) : ''}
+                              onChange={e => {
+                                const valStr = e.target.value.replace(/\./g, '').replace(/[^0-9]/g, '');
+                                let val = valStr ? Number(valStr) : 0;
+                                if (item.discountType === 'percentage' && val > 100) val = 100;
+                                setItemDiscount(item.id, item.discountType || 'nominal', val);
+                              }}
+                              className="w-20 bg-neutral-950 border border-white/5 focus:border-[#FFFF00]/50 rounded-sm focus:ring-0 text-[10px] py-1 px-2 text-[#FFFF00] text-right font-mono"
+                              placeholder="0"
+                            />
+                          </div>
                         </div>
                       )}
 
@@ -2550,7 +2599,11 @@ function DesktopLayout(props: any) {
                 const detailedItems = [
                   ...cart.map((i: CartItem) => {
                     let notes = i.itemNotes ? `Catatan Warna: ${i.itemNotes}` : '';
-                    if (i.discountAmount) notes = notes ? `${notes} (Diskon: -Rp${i.discountAmount.toLocaleString('id-ID')})` : `Diskon: -Rp${i.discountAmount.toLocaleString('id-ID')}`;
+                    const discountAmt = i.discountValue ? (i.discountType === 'percentage' ? Math.round(i.price * (i.discountValue / 100)) : i.discountValue) : 0;
+                    if (discountAmt > 0) {
+                      const discText = i.discountType === 'percentage' ? `${i.discountValue}% (Rp${discountAmt.toLocaleString('id-ID')})` : `Rp${discountAmt.toLocaleString('id-ID')}`;
+                      notes = notes ? `${notes} (Diskon: -${discText})` : `Diskon: -${discText}`;
+                    }
                     return `${i.name}||${i.price}||${notes}`;
                   }),
                   spotCount > 0 ? `Spot Repair (${spotCount} spots)||${spotCount * spotPrice}||` : null
@@ -2561,7 +2614,11 @@ function DesktopLayout(props: any) {
                   let result = baseName;
                   if (i.surcharges.length > 0) result += ` (+${i.surcharges.join(', ')})`;
                   if (i.itemNotes) result += ` (Warna: ${i.itemNotes})`;
-                  if (i.discountAmount) result += ` (Diskon: -Rp${i.discountAmount.toLocaleString('id-ID')})`;
+                  const discountAmt = i.discountValue ? (i.discountType === 'percentage' ? Math.round(i.price * (i.discountValue / 100)) : i.discountValue) : 0;
+                  if (discountAmt > 0) {
+                    const discText = i.discountType === 'percentage' ? `${i.discountValue}% (Rp${discountAmt.toLocaleString('id-ID')})` : `Rp${discountAmt.toLocaleString('id-ID')}`;
+                    result += ` (Diskon: -${discText})`;
+                  }
                   return result;
                 }).join('\n');
                 // @ts-ignore
