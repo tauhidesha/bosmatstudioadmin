@@ -43,6 +43,7 @@ interface CartItem {
   price: number;
   surcharges: string[]; // Independent surcharges per item
   itemNotes?: string;
+  discountAmount?: number;
 }
 
 export default function ManualBookingForm({
@@ -173,6 +174,14 @@ export default function ManualBookingForm({
       } catch (e) { /* ignore parse errors */ }
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleClearDraft = () => {
+    if (confirm('Yakin ingin menghapus draft? Form akan di-reset.')) {
+      localStorage.removeItem('booking-draft');
+      alert('Draft berhasil dihapus');
+      window.location.reload();
+    }
+  };
 
   const handleSaveDraft = () => {
     setIsSavingDraft(true);
@@ -516,6 +525,10 @@ export default function ManualBookingForm({
     setCart(prev => prev.map(item => item.id === itemId ? { ...item, itemNotes: notes } : item));
   };
 
+  const setItemDiscount = (itemId: string, discount: number) => {
+    setCart(prev => prev.map(item => item.id === itemId ? { ...item, discountAmount: discount } : item));
+  };
+
   // --- COMPUTED TOTALS ---
   const servicesTotal = useMemo(() => {
     const baseTotal = cart.reduce((sum: number, item: CartItem) => sum + item.price, 0);
@@ -524,9 +537,13 @@ export default function ManualBookingForm({
   }, [cart, spotCount, spotPrice]);
 
   const computedDiscount = useMemo(() => {
-    if (discountPercent > 0) return Math.round(servicesTotal * (discountPercent / 100));
-    return discountAmount;
-  }, [servicesTotal, discountPercent, discountAmount]);
+    const itemDiscounts = cart.reduce((sum: number, item: CartItem) => sum + (item.discountAmount || 0), 0);
+    let globalDiscount = discountAmount;
+    if (discountPercent > 0) {
+      globalDiscount = Math.round(servicesTotal * (discountPercent / 100));
+    }
+    return globalDiscount + itemDiscounts;
+  }, [servicesTotal, discountPercent, discountAmount, cart]);
 
   const finalTotal = Math.max(0, servicesTotal - computedDiscount);
   const remainingBalance = Math.max(0, finalTotal - Math.max(amountPaid, dpRequired ? nominalDP : 0));
@@ -647,6 +664,7 @@ export default function ManualBookingForm({
           let result = baseName;
           if (i.surcharges.length > 0) result += ` (+${i.surcharges.join(', ')})`;
           if (i.itemNotes) result += ` (Warna: ${i.itemNotes})`;
+          if (i.discountAmount) result += ` (Diskon: -Rp${i.discountAmount.toLocaleString('id-ID')})`;
           return result;
         }).join(', ')} ${spotCount > 0 ? `| Spot Repair (${spotCount} spots)` : ''} | DP: ${paymentMethod} \n\nCatatan Tambahan: ${additionalNotes}${isCustomModel ? `\n\n[Custom Model - Size: ${customModelSize}]` : ''}`,
       };
@@ -656,6 +674,7 @@ export default function ManualBookingForm({
       if (isEdit) {
         if (onUpdate) await onUpdate(initialData.id, payload);
       } else {
+        localStorage.removeItem('booking-draft');
         const token = await getIdToken();
         const res = await fetch('/api/bookings', {
           method: 'POST',
@@ -675,7 +694,11 @@ export default function ManualBookingForm({
       if (sendInvoiceWA || forceSendWA) {
         // Prepare items with prices for the template
         const detailedItems = [
-          ...cart.map((i: CartItem) => `${i.name}||${i.price}||${i.itemNotes ? `Catatan Warna: ${i.itemNotes}` : ''}`),
+          ...cart.map((i: CartItem) => {
+            let notes = i.itemNotes ? `Catatan Warna: ${i.itemNotes}` : '';
+            if (i.discountAmount) notes = notes ? `${notes} (Diskon: -Rp${i.discountAmount.toLocaleString('id-ID')})` : `Diskon: -Rp${i.discountAmount.toLocaleString('id-ID')}`;
+            return `${i.name}||${i.price}||${notes}`;
+          }),
           spotCount > 0 ? `Spot Repair (${spotCount} spots)||${spotCount * spotPrice}||` : null
         ].filter(Boolean).join('\n');
 
@@ -764,7 +787,7 @@ export default function ManualBookingForm({
     isSubmitting, paymentMethod, setPaymentMethod,
     sendInvoiceWA, setSendInvoiceWA,
     showInvoicePreview, setShowInvoicePreview,
-    isSavingDraft, handleSaveDraft,
+    isSavingDraft, handleSaveDraft, handleClearDraft,
     foundVehicle, setFoundVehicle, isSearching,
     handleSubmit, handleDelete, handleSelectConversation, toggleSurchargeForItem, setItemNotesForItem,
     onCancel, servicesTotal, computedDiscount, finalTotal, remainingBalance,
@@ -778,7 +801,7 @@ export default function ManualBookingForm({
     modelSearchText, setModelSearchText,
     isWalkIn, handleToggleWalkIn,
     isCustomModel, customModelSize, setCustomModelSize, effectiveMotor, setCart,
-    getIdToken,
+    getIdToken, setItemDiscount,
   };
 
   const isMobile = useMediaQuery('(max-width: 768px)');
@@ -799,7 +822,7 @@ function MobileLayout(props: any) {
     entryDate, setEntryDate, timeSlot, setTimeSlot, homeService, setHomeService,
     dpRequired, setDpRequired, nominalDP, setNominalDP, isSubmitting, paymentMethod, setPaymentMethod,
     sendInvoiceWA, setSendInvoiceWA, showInvoicePreview, setShowInvoicePreview,
-    isSavingDraft, handleSaveDraft,
+    isSavingDraft, handleSaveDraft, handleClearDraft,
     foundVehicle, setFoundVehicle, isSearching,
     handleSubmit, handleDelete, handleSelectConversation, onCancel, getIdToken,
     servicesTotal, computedDiscount, finalTotal, remainingBalance, allConversations,
@@ -810,7 +833,7 @@ function MobileLayout(props: any) {
     toggleSurchargeForItem, setItemNotesForItem, additionalNotes, setAdditionalNotes,
     realPhone, setRealPhone,
     isWalkIn, handleToggleWalkIn,
-    isCustomModel, customModelSize, setCustomModelSize, effectiveMotor, setCart
+    isCustomModel, customModelSize, setCustomModelSize, effectiveMotor, setCart, setItemDiscount
   } = props;
 
 
@@ -1394,21 +1417,38 @@ function MobileLayout(props: any) {
             {cart.length > 0 && (
               <div className="space-y-2 mb-3 pb-3 border-b border-white/10">
                 {cart.map((item: any, idx: number) => (
-                  <div key={idx} className="flex justify-between items-center text-[10px]">
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => addServiceToCart({ name: item.name } as any)}
-                        className="text-red-500 bg-red-500/10 p-0.5 rounded-sm"
-                      >
-                        <X size={10} />
-                      </button>
-                      <span className="text-neutral-300 font-headline uppercase truncate max-w-[180px]">
-                        {item.name} {item.name === 'Spot Repair' && spotCount > 0 ? `(${spotCount}x)` : ''}
+                  <div key={idx} className="flex flex-col gap-2 bg-neutral-900/30 p-2 rounded-sm border border-white/5">
+                    <div className="flex justify-between items-center text-[10px]">
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => addServiceToCart({ name: item.name } as any)}
+                          className="text-red-500 bg-red-500/10 p-0.5 rounded-sm"
+                        >
+                          <X size={10} />
+                        </button>
+                        <span className="text-neutral-300 font-headline uppercase truncate max-w-[180px]">
+                          {item.name} {item.name === 'Spot Repair' && spotCount > 0 ? `(${spotCount}x)` : ''}
+                        </span>
+                      </div>
+                      <span className="text-neutral-400 font-medium font-mono">
+                        {item.name === 'Spot Repair' ? formatRupiah(spotCount * spotPrice) : formatRupiah(item.price)}
                       </span>
                     </div>
-                    <span className="text-neutral-400 font-medium font-mono">
-                      {item.name === 'Spot Repair' ? formatRupiah(spotCount * spotPrice) : formatRupiah(item.price)}
-                    </span>
+                    {item.name !== 'Spot Repair' && (
+                      <div className="flex justify-between items-center text-[10px] pl-6 mt-1">
+                        <span className="text-neutral-500 font-headline uppercase tracking-widest">Diskon per Item</span>
+                        <input
+                          type="text"
+                          value={item.discountAmount > 0 ? item.discountAmount.toLocaleString('id-ID') : ''}
+                          onChange={e => {
+                            const valStr = e.target.value.replace(/\./g, '').replace(/[^0-9]/g, '');
+                            setItemDiscount(item.id, valStr ? Number(valStr) : 0);
+                          }}
+                          className="w-24 bg-neutral-950 border border-white/5 focus:border-[#FFFF00]/50 rounded-sm focus:ring-0 text-[10px] py-1 px-2 text-[#FFFF00] text-right font-mono"
+                          placeholder="0"
+                        />
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -1429,7 +1469,11 @@ function MobileLayout(props: any) {
               type="button"
               onClick={() => {
                 const detailedItems = [
-                  ...cart.map((i: CartItem) => `${i.name}||${i.price}||${i.itemNotes ? `Catatan Warna: ${i.itemNotes}` : ''}`),
+                  ...cart.map((i: CartItem) => {
+                    let notes = i.itemNotes ? `Catatan Warna: ${i.itemNotes}` : '';
+                    if (i.discountAmount) notes = notes ? `${notes} (Diskon: -Rp${i.discountAmount.toLocaleString('id-ID')})` : `Diskon: -Rp${i.discountAmount.toLocaleString('id-ID')}`;
+                    return `${i.name}||${i.price}||${notes}`;
+                  }),
                   spotCount > 0 ? `Spot Repair (${spotCount} spots)||${spotCount * spotPrice}||` : null
                 ].filter(Boolean).join('\n');
 
@@ -1501,6 +1545,13 @@ function MobileLayout(props: any) {
         <button onClick={onCancel} className="flex-[0.25] flex flex-col items-center justify-center text-neutral-500 py-3 active:scale-95 transition-all">
           <X className="size-5" />
           <span className="font-spartan font-bold uppercase text-[10px] mt-1">CANCEL</span>
+        </button>
+        <button
+          onClick={handleClearDraft}
+          className="flex-[0.25] flex flex-col items-center justify-center text-red-500 py-3 active:scale-95 transition-all disabled:opacity-50"
+        >
+          <Trash2 className="size-5" />
+          <span className="font-spartan font-bold uppercase text-[10px] mt-1">CLEAR</span>
         </button>
         <button
           onClick={handleSaveDraft}
@@ -1579,7 +1630,7 @@ function DesktopLayout(props: any) {
     entryDate, setEntryDate, timeSlot, setTimeSlot, homeService, setHomeService,
     dpRequired, setDpRequired, nominalDP, setNominalDP, isSubmitting, paymentMethod, setPaymentMethod,
     sendInvoiceWA, setSendInvoiceWA, showInvoicePreview, setShowInvoicePreview,
-    isSavingDraft, handleSaveDraft,
+    isSavingDraft, handleSaveDraft, handleClearDraft,
     foundVehicle, setFoundVehicle, isSearching,
     handleSubmit, handleDelete, handleSelectConversation, onCancel, getIdToken,
     servicesTotal, computedDiscount, finalTotal, remainingBalance, allConversations,
@@ -1590,7 +1641,7 @@ function DesktopLayout(props: any) {
     toggleSurchargeForItem, setItemNotesForItem, additionalNotes, setAdditionalNotes,
     realPhone, setRealPhone,
     isWalkIn, handleToggleWalkIn,
-    isCustomModel, customModelSize, setCustomModelSize, effectiveMotor, setCart
+    isCustomModel, customModelSize, setCustomModelSize, effectiveMotor, setCart, setItemDiscount
   } = props;
 
   const isSpotRepairSelected = cart.some((item: CartItem) => item.name === 'Spot Repair');
@@ -1710,6 +1761,22 @@ function DesktopLayout(props: any) {
                           {item.name === 'Spot Repair' ? formatRupiah(spotCount * spotPrice) : formatRupiah(item.price)}
                         </span>
                       </div>
+
+                      {item.name !== 'Spot Repair' && (
+                        <div className="flex justify-between items-center text-[10px] pl-6 mt-1 mb-2">
+                          <span className="text-neutral-500 font-headline uppercase tracking-widest">Diskon per Item</span>
+                          <input
+                            type="text"
+                            value={item.discountAmount > 0 ? item.discountAmount.toLocaleString('id-ID') : ''}
+                            onChange={e => {
+                              const valStr = e.target.value.replace(/\./g, '').replace(/[^0-9]/g, '');
+                              setItemDiscount(item.id, valStr ? Number(valStr) : 0);
+                            }}
+                            className="w-24 bg-neutral-950 border border-white/5 focus:border-[#FFFF00]/50 rounded-sm focus:ring-0 text-[10px] py-1 px-2 text-[#FFFF00] text-right font-mono"
+                            placeholder="0"
+                          />
+                        </div>
+                      )}
 
                       {/* Independent Surcharge select in Desktop Summary */}
                       {(isBodiHalus || isVelg || isCvtArm) && availableSurcharges.length > 0 && (
@@ -2465,6 +2532,13 @@ function DesktopLayout(props: any) {
           </div>
           <div className="flex gap-4 w-full md:w-auto">
             <button
+              onClick={handleClearDraft}
+              className="hidden md:flex px-6 py-4 font-headline text-[10px] font-bold uppercase tracking-widest text-red-500 hover:bg-red-500/10 transition-colors items-center gap-2"
+            >
+              <Trash2 className="size-4" />
+              Clear Draft
+            </button>
+            <button
               onClick={handleSaveDraft}
               disabled={isSavingDraft}
               className="hidden md:block px-6 py-4 font-headline text-[10px] font-bold uppercase tracking-widest text-slate-500 hover:text-white transition-colors disabled:opacity-50"
@@ -2474,7 +2548,11 @@ function DesktopLayout(props: any) {
             <button
               onClick={() => {
                 const detailedItems = [
-                  ...cart.map((i: CartItem) => `${i.name}||${i.price}||${i.itemNotes ? `Catatan Warna: ${i.itemNotes}` : ''}`),
+                  ...cart.map((i: CartItem) => {
+                    let notes = i.itemNotes ? `Catatan Warna: ${i.itemNotes}` : '';
+                    if (i.discountAmount) notes = notes ? `${notes} (Diskon: -Rp${i.discountAmount.toLocaleString('id-ID')})` : `Diskon: -Rp${i.discountAmount.toLocaleString('id-ID')}`;
+                    return `${i.name}||${i.price}||${notes}`;
+                  }),
                   spotCount > 0 ? `Spot Repair (${spotCount} spots)||${spotCount * spotPrice}||` : null
                 ].filter(Boolean).join('\n');
                 const serviceSummary = cart.map((i: CartItem) => {
@@ -2483,6 +2561,7 @@ function DesktopLayout(props: any) {
                   let result = baseName;
                   if (i.surcharges.length > 0) result += ` (+${i.surcharges.join(', ')})`;
                   if (i.itemNotes) result += ` (Warna: ${i.itemNotes})`;
+                  if (i.discountAmount) result += ` (Diskon: -Rp${i.discountAmount.toLocaleString('id-ID')})`;
                   return result;
                 }).join('\n');
                 // @ts-ignore
