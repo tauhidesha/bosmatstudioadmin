@@ -68,10 +68,18 @@ export async function setSnoozeMode(
 
   // 2. Sync to Customer table
   try {
-    let customer = await prisma.customer.findUnique({ where: { phone } });
-    if (!customer && identifier.endsWith('@lid')) {
-      customer = await prisma.customer.findFirst({ where: { whatsappLid: identifier } });
-    }
+    const normalizedPhone = phone.replace(/\D/g, '');
+    let customer = await prisma.customer.findFirst({
+      where: {
+        OR: [
+          { phone: identifier },
+          { phone },
+          { phone: { startsWith: normalizedPhone } },
+          ...(identifier.endsWith('@lid') ? [{ whatsappLid: identifier }] : [])
+        ]
+      }
+    });
+
     if (customer) {
       await prisma.customer.update({
         where: { id: customer.id },
@@ -115,10 +123,17 @@ export async function clearSnoozeMode(senderNumber: string) {
 
     // Sync to Customer table
     try {
-      let customer = await prisma.customer.findUnique({ where: { phone } });
-      if (!customer && identifier.endsWith('@lid')) {
-        customer = await prisma.customer.findFirst({ where: { whatsappLid: identifier } });
-      }
+      const normalizedPhone = phone.replace(/\D/g, '');
+      let customer = await prisma.customer.findFirst({
+        where: {
+          OR: [
+            { phone: identifier },
+            { phone },
+            { phone: { startsWith: normalizedPhone } },
+            ...(identifier.endsWith('@lid') ? [{ whatsappLid: identifier }] : [])
+          ]
+        }
+      });
       if (customer) {
         await prisma.customer.update({
           where: { id: customer.id },

@@ -20,7 +20,7 @@ export default function FinanceDashboard() {
     months.push({ value, label });
   }
 
-  const [timeframe, setTimeframe] = useState<string | number>(months[0].value);
+  const [timeframe, setTimeframe] = useState<string | number>('all');
   const { transactions, summary, loading, refresh } = useFinanceData(timeframe);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
