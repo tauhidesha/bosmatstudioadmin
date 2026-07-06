@@ -69,7 +69,7 @@ export async function setSnoozeMode(
   // 2. Sync to Customer table
   try {
     const normalizedPhone = phone.replace(/\D/g, '');
-    let customer = await prisma.customer.findFirst({
+    await prisma.customer.updateMany({
       where: {
         OR: [
           { phone: identifier },
@@ -77,20 +77,14 @@ export async function setSnoozeMode(
           { phone: { startsWith: normalizedPhone } },
           ...(identifier.endsWith('@lid') ? [{ whatsappLid: identifier }] : [])
         ]
+      },
+      data: {
+        aiPaused: true,
+        aiPausedUntil: expiresAtDate,
+        aiPauseReason: reason || (manual ? 'manual-toggle' : 'timed-toggle'),
+        updatedAt: new Date(),
       }
     });
-
-    if (customer) {
-      await prisma.customer.update({
-        where: { id: customer.id },
-        data: {
-          aiPaused: true,
-          aiPausedUntil: expiresAtDate,
-          aiPauseReason: reason || (manual ? 'manual-toggle' : 'timed-toggle'),
-          updatedAt: new Date(),
-        }
-      });
-    }
   } catch (err: any) {
     console.warn('[Handover] Failed to sync snooze to Customer:', err.message);
   }
@@ -124,7 +118,7 @@ export async function clearSnoozeMode(senderNumber: string) {
     // Sync to Customer table
     try {
       const normalizedPhone = phone.replace(/\D/g, '');
-      let customer = await prisma.customer.findFirst({
+      await prisma.customer.updateMany({
         where: {
           OR: [
             { phone: identifier },
@@ -132,23 +126,18 @@ export async function clearSnoozeMode(senderNumber: string) {
             { phone: { startsWith: normalizedPhone } },
             ...(identifier.endsWith('@lid') ? [{ whatsappLid: identifier }] : [])
           ]
+        },
+        data: {
+          aiPaused: false,
+          aiPausedUntil: null,
+          aiPauseReason: null,
+          updatedAt: new Date(),
         }
       });
-      if (customer) {
-        await prisma.customer.update({
-          where: { id: customer.id },
-          data: {
-            aiPaused: false,
-            aiPausedUntil: null,
-            aiPauseReason: null,
-            updatedAt: new Date(),
-          }
-        });
-      }
-    } catch {
-      // Ignored
+      console.log(`[Handover] Synced clear snooze to Customer(s) for ${identifier}`);
+    } catch (err: any) {
+      console.warn('[Handover] Failed to clear snooze:', err.message);
     }
-    console.log(`[Handover] Snooze OFF for ${identifier}`);
   } catch (err: any) {
     console.warn('[Handover] Failed to clear snooze:', err.message);
   }
