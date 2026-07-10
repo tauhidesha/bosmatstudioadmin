@@ -28,7 +28,7 @@ export async function POST(
       return NextResponse.json({ error: 'Sesi anda telah berakhir. Silakan login ulang.' }, { status: 401 });
     }
 
-    const { paymentMethod = 'Transfer BCA', amountPaid, sendInvoice = true, sendRepaintWarranty = false, sendCoatingWarranty = false } = body;
+    const { paymentMethod = 'Transfer BCA', amountPaid, sendInvoice = true, sendRepaintWarranty = false, sendCoatingWarranty = false, status } = body;
 
     // Check if booking exists
     const booking = await prisma.booking.findUnique({
@@ -115,11 +115,11 @@ export async function POST(
       if (sendCoatingWarranty) await generateDoc('garansi_coating');
     } // end if (sendInvoice)
 
-    // 2. Update Booking Status — mark as COMPLETED (paid = work done + payment received)
+    // 2. Update Booking Status
     const updatedBooking = await prisma.booking.update({
       where: { id: bookingId },
       data: {
-        status: 'COMPLETED',
+        status: status || 'COMPLETED',
         paymentMethod,
         paymentStatus: 'PAID',
         amountPaid: totalAmount,
