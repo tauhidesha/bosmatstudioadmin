@@ -119,7 +119,10 @@ export function useRealtimeConversations(
         customerContext: item.customerContext,
       }));
 
-      setConversations(mappedData);
+      setConversations(prev => {
+        if (JSON.stringify(prev) === JSON.stringify(mappedData)) return prev;
+        return mappedData;
+      });
       if (typeof window !== 'undefined') {
         localStorage.setItem('cached-conversations', JSON.stringify(mappedData));
       }
@@ -148,7 +151,7 @@ export function useRealtimeConversations(
     
     const interval = setInterval(() => {
       fetchConversations();
-    }, 10000);
+    }, 30000);
 
     return () => clearInterval(interval);
   }, [enabled, fetchConversations]);

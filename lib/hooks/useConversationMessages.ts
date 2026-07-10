@@ -126,7 +126,10 @@ export function useConversationMessages(
         timestamp: new Date(item.timestamp).getTime(),
       }));
 
-      setMessages(mappedData);
+      setMessages(prev => {
+        if (JSON.stringify(prev) === JSON.stringify(mappedData)) return prev;
+        return mappedData;
+      });
       if (typeof window !== 'undefined' && conversationId) {
         localStorage.setItem(`cached-messages-${conversationId}`, JSON.stringify(mappedData));
       }
@@ -168,7 +171,7 @@ export function useConversationMessages(
     
     const interval = setInterval(() => {
       fetchMessages();
-    }, 5000);
+    }, 30000);
 
     return () => clearInterval(interval);
   }, [conversationId, enabled, fetchMessages]);

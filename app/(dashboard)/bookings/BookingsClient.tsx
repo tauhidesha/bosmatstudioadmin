@@ -89,75 +89,17 @@ export default function BookingsClient({ initialBookings }: { initialBookings?: 
     if (!paymentModal) return;
     setIsProcessing(true);
     try {
-      const documents: any[] = [];
-      
-      if (sendInvoice) {
-        // Dynamically import the PDF functions to keep the initial bundle small
-        const { generateBase64PDF, generateInvoiceHTML, generateWarrantyHTML } = await import('@/lib/pdf');
-        
+      let sendRepaintWarranty = false;
+      let sendCoatingWarranty = false;
+
+      if (sendInvoice && typeof window !== 'undefined') {
         const booking = paymentModal;
-        const finalAmount = nominalDP;
-        const discountAmount = (Number(booking.subtotal) || 0) - (Number(booking.totalAmount || booking.subtotal) || 0);
-        
-        const invoiceData = {
-          documentType: 'bukti_bayar',
-          customerName: booking.customerName,
-          customerPhone: booking.customerPhone,
-          motorDetails: booking.vehicleInfo,
-          items: booking.services ? (Array.isArray(booking.services) ? booking.services.join('\n') : booking.services) : '',
-          subtotal: Number(booking.subtotal) || 0,
-          totalAmount: Number(booking.totalAmount || booking.subtotal) || 0,
-          discount: discountAmount,
-          downPayment: Number(booking.downPayment) || 0,
-          amountPaid: finalAmount,
-          paymentMethod: metodePembayaran,
-          notes: booking.notes || '',
-          bookingDate: booking.bookingDate,
-          now: new Date()
-        };
-
-        const invoiceHtml = generateInvoiceHTML(invoiceData);
-        const invoiceBase64 = await generateBase64PDF(invoiceHtml);
-        
-        documents.push({
-          base64: invoiceBase64,
-          filename: `Invoice-Bosmat-${booking.customerName.replace(/\s+/g, '-')}.pdf`,
-          caption: `Halo Kak ${booking.customerName}! ✨\n\nPembayaran untuk treatment motor ${booking.vehicleInfo}-nya sudah Zoya terima ya. Berikut Zoya lampirkan Bukti Pembayaran resminya.\n\nTerima kasih banyak ya Kak udah mempercayakan kendaraannya di boS Mat Studio! 🙏`
-        });
-
-        // Determine if we need to send warranty
         const servicesString = (Array.isArray(booking.services) ? booking.services.join(' ') : booking.services || '').toLowerCase();
         
-        const includesRepaint = servicesString.includes('repaint');
-        const includesCoating = servicesString.includes('coating') || 
+        sendRepaintWarranty = servicesString.includes('repaint');
+        sendCoatingWarranty = servicesString.includes('coating') || 
                                servicesString.includes('glossy') || 
                                servicesString.includes('nano ceramic');
-
-        if (includesRepaint) {
-          const repaintHtml = generateWarrantyHTML({
-            ...invoiceData,
-            type: 'repaint'
-          });
-          const repaintBase64 = await generateBase64PDF(repaintHtml);
-          documents.push({
-            base64: repaintBase64,
-            filename: `Garansi-Repaint-${booking.customerName.replace(/\s+/g, '-')}.pdf`,
-            caption: `Treatment selesai! ✨ Berikut perlindungan ekstra berupa Dokumen Garansi Resmi Repaint dari boS Mat Studio. Simpan baik-baik ya Kak ${booking.customerName}! 🛡️`
-          });
-        }
-
-        if (includesCoating) {
-          const coatingHtml = generateWarrantyHTML({
-            ...invoiceData,
-            type: 'coating'
-          });
-          const coatingBase64 = await generateBase64PDF(coatingHtml);
-          documents.push({
-            base64: coatingBase64,
-            filename: `Garansi-Coating-${booking.customerName.replace(/\s+/g, '-')}.pdf`,
-            caption: `Treatment selesai! ✨ Berikut perlindungan ekstra berupa Dokumen Garansi Resmi Coating dari boS Mat Studio. Simpan baik-baik dan jangan lupa jadwal maintenance berkalanya ya Kak ${booking.customerName}! 🛡️`
-          });
-        }
       }
 
       const res = await fetch(`/api/bookings/${paymentModal.id}/pay`, {
@@ -167,7 +109,8 @@ export default function BookingsClient({ initialBookings }: { initialBookings?: 
           paymentMethod: metodePembayaran,
           amountPaid: nominalDP || undefined,
           sendInvoice,
-          documents
+          sendRepaintWarranty,
+          sendCoatingWarranty
         }),
       });
 

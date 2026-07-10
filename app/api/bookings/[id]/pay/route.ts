@@ -28,7 +28,7 @@ export async function POST(
       return NextResponse.json({ error: 'Sesi anda telah berakhir. Silakan login ulang.' }, { status: 401 });
     }
 
-    const { paymentMethod = 'Transfer BCA', amountPaid, sendInvoice = true } = body;
+    const { paymentMethod = 'Transfer BCA', amountPaid, sendInvoice = true, sendRepaintWarranty = false, sendCoatingWarranty = false } = body;
 
     // Check if booking exists
     const booking = await prisma.booking.findUnique({
@@ -48,15 +48,16 @@ export async function POST(
     const totalAmount = booking.totalAmount || subtotal;
     const remainingBalance = Math.max(0, totalAmount - dp);
     const finalAmount = amountPaid !== undefined ? amountPaid : remainingBalance;
+    const discountAmount = subtotal - totalAmount;
 
-    // 1. Send receipt & warranty via Express Backend (if sendInvoice is true)
-    if (sendInvoice && body.documents?.length > 0) {
+    // 1. Send receipt & warranty via Express Backend
+    if (sendInvoice) {
       const backendUrl = (process.env.BACKEND_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://35.232.177.23:4000').trim().replace(/\/$/, "");
       console.log(`[Payment] Auth Header Present: ${!!authHeader}`);
 
-      for (const doc of body.documents) {
+      const generateDoc = async (documentType: string) => {
         try {
-          const response = await fetch(`${backendUrl}/send-media`, {
+          const response = await fetch(`${backendUrl}/generate-invoice`, {
             method: 'POST',
             headers: { 
               'Content-Type': 'application/json',
@@ -64,22 +65,30 @@ export async function POST(
               ...(authHeader ? { 'Authorization': authHeader } : {}),
             },
             body: JSON.stringify({
-              number: (booking as any).realPhone || booking.customer?.phoneReal || booking.customerPhone,
-              base64: doc.base64,
-              mimetype: 'application/pdf',
-              filename: doc.filename,
-              caption: doc.caption
+              documentType,
+              customerName: booking.customerName || booking.customer?.name || '-',
+              customerPhone: booking.customerPhone || booking.customer?.phone || '-',
+              realPhone: (booking as any).realPhone || booking.customer?.phoneReal || '',
+              motorDetails: booking.vehicleModel ? `${booking.vehicleModel}${booking.plateNumber ? ' - ' + booking.plateNumber : ''}` : booking.vehicleInfo || '-',
+              items: booking.services ? (Array.isArray(booking.services) ? booking.services.join('\n') : booking.services) : booking.serviceType || '-',
+              totalAmount: totalAmount,
+              amountPaid: finalAmount,
+              paymentMethod,
+              notes: booking.notes || '',
+              serviceType: booking.category || booking.serviceType || '-',
+              subtotal,
+              discount: discountAmount,
+              downPayment: dp,
             }),
           });
 
           if (!response.ok) {
             const errorResp = await response.json().catch(() => ({}));
-            console.error(`[Payment] Backend error ${response.status} sending ${doc.filename}:`, errorResp);
+            console.error(`[Payment] Backend error ${response.status} generating ${documentType}:`, errorResp);
           } else {
-            console.log(`[Payment] Successfully sent ${doc.filename} to booking ${bookingId}`);
+            console.log(`[Payment] Successfully generated ${documentType} for booking ${bookingId}`);
             
-            // Check if it's a coating warranty to create maintenance schedule
-            if (doc.filename.includes('Garansi-Coating')) {
+            if (documentType === 'garansi_coating') {
               const maintenanceDate = new Date();
               maintenanceDate.setMonth(maintenanceDate.getMonth() + 6);
 
@@ -95,13 +104,15 @@ export async function POST(
               });
             }
           }
-          
-          // Small delay between sending documents
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          await new Promise(resolve => setTimeout(resolve, 1000)); // Small delay between docs
         } catch (e: any) {
-          console.error(`[Payment] Critical failure in backend communication for ${doc.filename}: ${e.message}`);
+          console.error(`[Payment] Critical failure in backend communication for ${documentType}: ${e.message}`);
         }
-      }
+      };
+
+      await generateDoc('bukti_bayar');
+      if (sendRepaintWarranty) await generateDoc('garansi_repaint');
+      if (sendCoatingWarranty) await generateDoc('garansi_coating');
     } // end if (sendInvoice)
 
     // 2. Update Booking Status — mark as COMPLETED (paid = work done + payment received)
