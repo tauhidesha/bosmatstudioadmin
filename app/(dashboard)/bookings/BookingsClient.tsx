@@ -121,8 +121,8 @@ export default function BookingsClient({ initialBookings }: { initialBookings?: 
         
         documents.push({
           base64: invoiceBase64,
-          filename: `Invoice-Bosmat-${booking.customerName.replace(/\\s+/g, '-')}.pdf`,
-          caption: `Halo Kak ${booking.customerName},\\n\\nTerima kasih atas pembayarannya. Berikut kami lampirkan bukti pembayaran untuk kendaraan ${booking.vehicleInfo}.`
+          filename: `Invoice-Bosmat-${booking.customerName.replace(/\s+/g, '-')}.pdf`,
+          caption: `Halo Kak ${booking.customerName}! ✨\n\nPembayaran untuk treatment motor ${booking.vehicleInfo}-nya sudah Zoya terima ya. Berikut Zoya lampirkan Bukti Pembayaran resminya.\n\nTerima kasih banyak ya Kak udah mempercayakan kendaraannya di boS Mat Studio! 🙏`
         });
 
         // Determine if we need to send warranty
@@ -141,8 +141,8 @@ export default function BookingsClient({ initialBookings }: { initialBookings?: 
           const repaintBase64 = await generateBase64PDF(repaintHtml);
           documents.push({
             base64: repaintBase64,
-            filename: `Garansi-Repaint-${booking.customerName.replace(/\\s+/g, '-')}.pdf`,
-            caption: 'Berikut adalah Kartu Garansi Repaint Anda.'
+            filename: `Garansi-Repaint-${booking.customerName.replace(/\s+/g, '-')}.pdf`,
+            caption: `Treatment selesai! ✨ Berikut perlindungan ekstra berupa Dokumen Garansi Resmi Repaint dari boS Mat Studio. Simpan baik-baik ya Kak ${booking.customerName}! 🛡️`
           });
         }
 
@@ -154,8 +154,8 @@ export default function BookingsClient({ initialBookings }: { initialBookings?: 
           const coatingBase64 = await generateBase64PDF(coatingHtml);
           documents.push({
             base64: coatingBase64,
-            filename: `Garansi-Coating-${booking.customerName.replace(/\\s+/g, '-')}.pdf`,
-            caption: 'Berikut adalah Kartu Garansi Coating Anda. Jangan lupa jadwal maintenance berkala ya!'
+            filename: `Garansi-Coating-${booking.customerName.replace(/\s+/g, '-')}.pdf`,
+            caption: `Treatment selesai! ✨ Berikut perlindungan ekstra berupa Dokumen Garansi Resmi Coating dari boS Mat Studio. Simpan baik-baik dan jangan lupa jadwal maintenance berkalanya ya Kak ${booking.customerName}! 🛡️`
           });
         }
       }
