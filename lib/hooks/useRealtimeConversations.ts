@@ -145,16 +145,7 @@ export function useRealtimeConversations(
     fetchConversations();
   }, [enabled, customerRevision, messageRevision, fetchConversations]);
 
-  // Polling fallback every 10 seconds
-  useEffect(() => {
-    if (!enabled) return;
-    
-    const interval = setInterval(() => {
-      fetchConversations();
-    }, 30000);
 
-    return () => clearInterval(interval);
-  }, [enabled, fetchConversations]);
 
   return { conversations, loading, error };
 }

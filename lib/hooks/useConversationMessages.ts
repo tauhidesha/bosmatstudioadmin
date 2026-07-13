@@ -165,16 +165,7 @@ export function useConversationMessages(
     fetchMessages();
   }, [conversationId, enabled, revision, fetchMessages]);
 
-  // Polling fallback every 5 seconds (Just in case WebSocket misses something)
-  useEffect(() => {
-    if (!enabled || !conversationId) return;
-    
-    const interval = setInterval(() => {
-      fetchMessages();
-    }, 30000);
 
-    return () => clearInterval(interval);
-  }, [conversationId, enabled, fetchMessages]);
 
   return { messages, loading, error, addMessageLocally };
 }

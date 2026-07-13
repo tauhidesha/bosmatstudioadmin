@@ -42,14 +42,7 @@ export default function UnpaidBookingsList() {
     fetchUnpaidBookings();
   }, [revision]);
 
-  // Polling fallback every 10 seconds
-  useEffect(() => {
-    const interval = setInterval(() => {
-      fetchUnpaidBookings();
-    }, 10000);
 
-    return () => clearInterval(interval);
-  }, []);
 
   const fetchUnpaidBookings = async () => {
     // Debounce: skip if fetched within last 500ms

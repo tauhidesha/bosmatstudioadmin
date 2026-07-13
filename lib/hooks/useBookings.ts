@@ -118,14 +118,7 @@ export function useBookings(options: { initialData?: Booking[] } = {}) {
     fetchBookings();
   }, [revision, fetchBookings]);
 
-  // Polling fallback every 10 seconds
-  useEffect(() => {
-    const interval = setInterval(() => {
-      fetchBookings();
-    }, 10000);
 
-    return () => clearInterval(interval);
-  }, [fetchBookings]);
 
   const updateBookingStatus = async (id: string, newStatus: BookingStatus) => {
     try {

@@ -116,14 +116,7 @@ export function useFinanceData(timeframe: string | number = 30, customerId?: str
     fetchFinanceData();
   }, [revision, fetchFinanceData]);
 
-  // Polling fallback every 10 seconds
-  useEffect(() => {
-    const interval = setInterval(() => {
-      fetchFinanceData();
-    }, 10000);
 
-    return () => clearInterval(interval);
-  }, [fetchFinanceData]);
 
   return { transactions, summary, loading, error, refresh: fetchFinanceData };
 }

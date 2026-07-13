@@ -61,9 +61,6 @@ export async function syncBookingFinance(bookingId: string) {
   }
 }
 
-/**
- * Updates customer aggregate statistics (totalSpending, lastService, status)
- */
 export async function updateCustomerStats(customerId: string) {
   if (!customerId) return;
 
@@ -75,13 +72,15 @@ export async function updateCustomerStats(customerId: string) {
         status: 'SUCCESS'
       },
       _sum: { amount: true },
+      _count: { id: true },
       _max: { createdAt: true }
     });
 
     const totalSpending = aggregation._sum.amount || 0;
     const lastService = aggregation._max.createdAt || null;
+    const txCount = aggregation._count.id || 0;
 
-    await prisma.customer.update({
+    const customer = await prisma.customer.update({
       where: { id: customerId },
       data: {
         totalSpending,
@@ -91,7 +90,34 @@ export async function updateCustomerStats(customerId: string) {
       }
     });
 
-    console.log(`[FinanceSync] Updated Customer ${customerId}: Spending=${totalSpending}, LastService=${lastService}`);
+    // Sync context to avoid follow-ups for customers who already paid
+    if (customer.phone) {
+      const context = await prisma.customerContext.findUnique({
+        where: { phone: customer.phone }
+      });
+      
+      if (context) {
+        let label = context.customerLabel;
+        if (txCount > 1) {
+          label = 'loyal_customer';
+        } else if (txCount === 1) {
+          label = 'existing_customer';
+        }
+
+        await prisma.customerContext.update({
+          where: { phone: customer.phone },
+          data: {
+            txCount,
+            customerLabel: label,
+            lastServiceAt: lastService,
+            followUpCount: 0, // Reset follow up count for new label
+            lastFollowUpAt: null
+          }
+        });
+      }
+    }
+
+    console.log(`[FinanceSync] Updated Customer ${customerId}: Spending=${totalSpending}, LastService=${lastService}, TxCount=${txCount}`);
   } catch (error) {
     console.error(`[FinanceSync] Error updating customer stats ${customerId}:`, error);
   }
