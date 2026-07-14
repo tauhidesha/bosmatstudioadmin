@@ -274,7 +274,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Meta CAPI - Schedule event
-    sendCapiEvent({
+    await sendCapiEvent({
       eventName: 'Schedule',
       eventId: `booking_${booking.id}`,
       userData: {

@@ -188,7 +188,7 @@ export async function POST(
     }
 
     // Meta CAPI - Purchase event
-    sendCapiEvent({
+    await sendCapiEvent({
       eventName: 'Purchase',
       eventId: `pay_${booking.id}_${Date.now()}`,
       userData: {
