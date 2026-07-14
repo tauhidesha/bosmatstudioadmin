@@ -45,6 +45,7 @@ export interface CapiEventData {
 export const sendCapiEvent = async (eventData: CapiEventData) => {
   const pixelId = process.env.NEXT_PUBLIC_META_PIXEL_ID;
   const token = process.env.META_CAPI_TOKEN;
+  const testEventCode = process.env.META_CAPI_TEST_CODE;
 
   if (!pixelId || !token) {
     console.warn('[Meta CAPI] Skipping event tracking, missing PIXEL_ID or CAPI_TOKEN.');
@@ -59,7 +60,7 @@ export const sendCapiEvent = async (eventData: CapiEventData) => {
     customData,
   } = eventData;
 
-  const payload = {
+  const payload: any = {
     data: [
       {
         event_name: eventName,
@@ -78,6 +79,10 @@ export const sendCapiEvent = async (eventData: CapiEventData) => {
       }
     ],
   };
+
+  if (testEventCode) {
+    payload.test_event_code = testEventCode;
+  }
 
   try {
     const res = await fetch(`https://graph.facebook.com/v19.0/${pixelId}/events?access_token=${token}`, {
