@@ -110,8 +110,8 @@ export async function updateCustomerStats(customerId: string) {
             txCount,
             customerLabel: label,
             lastServiceAt: lastService,
-            followUpCount: 0, // Reset follow up count for new label
-            lastFollowUpAt: null
+            // Keep existing followUp history — don't reset, scheduler
+            // will use waitDays (45 days for existing_customer) from lastServiceAt
           }
         });
       }

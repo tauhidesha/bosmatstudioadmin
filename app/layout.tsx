@@ -44,6 +44,7 @@ export const metadata: Metadata = {
 };
 
 import { AuthProvider } from '@/lib/context/AuthContext';
+import { MetaPixel } from '@/components/MetaPixel';
 
 export default function RootLayout({
   children,
@@ -63,6 +64,7 @@ export default function RootLayout({
         fontHeadline.variable,
         fontTechnical.variable
       )}>
+        <MetaPixel />
         <AuthProvider>
           {children}
         </AuthProvider>

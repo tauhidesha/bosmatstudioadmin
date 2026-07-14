@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { sendCapiEvent } from '@/lib/meta-capi';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -271,6 +272,22 @@ export async function POST(req: NextRequest) {
         }
       });
     }
+
+    // Meta CAPI - Schedule event
+    sendCapiEvent({
+      eventName: 'Schedule',
+      eventId: `booking_${booking.id}`,
+      userData: {
+        phone: normalizedPhone,
+        firstName: customerName,
+      },
+      customData: {
+        value: (totalAmount !== undefined && totalAmount !== null) ? totalAmount : (subtotal || 0),
+        currency: 'IDR',
+        content_name: serviceName,
+        content_type: 'product',
+      }
+    });
 
     return NextResponse.json({
       success: true,

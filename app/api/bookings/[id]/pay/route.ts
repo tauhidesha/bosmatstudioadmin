@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { headers } from 'next/headers';
 import prisma from '@/lib/prisma';
+import { sendCapiEvent } from '@/lib/meta-capi';
 
 export const runtime = 'nodejs';
 
@@ -185,6 +186,22 @@ export async function POST(
       });
       console.log(`[Payment] Reset review flags for ${customerPhone} (serviceType=${serviceType})`);
     }
+
+    // Meta CAPI - Purchase event
+    sendCapiEvent({
+      eventName: 'Purchase',
+      eventId: `pay_${booking.id}_${Date.now()}`,
+      userData: {
+        phone: customerPhone || booking.customerPhone,
+        firstName: booking.customerName || booking.customer?.name,
+      },
+      customData: {
+        value: finalAmount,
+        currency: 'IDR',
+        content_name: booking.serviceType || 'Service',
+        content_type: 'product',
+      }
+    });
 
     return NextResponse.json({
       success: true,
