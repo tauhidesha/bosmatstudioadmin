@@ -66,14 +66,12 @@ export const sendCapiEvent = async (eventData: CapiEventData) => {
         event_name: eventName,
         event_time: eventTime,
         event_id: eventId,
-        action_source: 'website',
+        action_source: 'system_generated',
         user_data: {
           em: hashData(userData.email) ? [hashData(userData.email)] : undefined,
           ph: hashData(userData.phone) ? [hashData(userData.phone)] : undefined,
           fn: hashData(userData.firstName) ? [hashData(userData.firstName)] : undefined,
           ln: hashData(userData.lastName) ? [hashData(userData.lastName)] : undefined,
-          client_ip_address: userData.clientIpAddress,
-          client_user_agent: userData.clientUserAgent,
         },
         custom_data: customData,
       }
