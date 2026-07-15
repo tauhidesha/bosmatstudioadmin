@@ -16,11 +16,19 @@ const proxyHeaders: Record<string, string> = {
  * DELETE /api/test-ai/clear
  * Proxy to Express DELETE /test-ai/clear — wipe playground history + LangGraph state.
  */
-export async function DELETE(_req: NextRequest) {
+export async function DELETE(req: NextRequest) {
   try {
+    let payload = {};
+    try {
+      payload = await req.json();
+    } catch {
+      // Ignore if no body
+    }
+
     const upstream = await fetch(`${BOT_API_URL}/test-ai/clear`, {
       method: 'DELETE',
       headers: proxyHeaders,
+      body: Object.keys(payload).length > 0 ? JSON.stringify(payload) : undefined,
     });
 
     const text = await upstream.text();

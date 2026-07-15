@@ -269,7 +269,11 @@ export default function PlaygroundChat() {
 
     // Wipe backend data
     try {
-      await fetch('/api/test-ai/clear', { method: 'DELETE' });
+      await fetch('/api/test-ai/clear', { 
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode })
+      });
     } catch {
       /* ignore */
     }
