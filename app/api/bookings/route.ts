@@ -94,6 +94,8 @@ export async function GET(req: NextRequest) {
 // Create a new booking
 export async function POST(req: NextRequest) {
   try {
+    const userAgent = req.headers.get('user-agent') || '';
+    const ip = req.headers.get('x-forwarded-for')?.split(',')[0] || req.ip || '';
     const body = await req.json();
     const { 
       customerId,
@@ -280,6 +282,8 @@ export async function POST(req: NextRequest) {
       userData: {
         phone: normalizedPhone,
         firstName: customerName,
+        clientIpAddress: ip,
+        clientUserAgent: userAgent,
       },
       customData: {
         value: (totalAmount !== undefined && totalAmount !== null) ? totalAmount : (subtotal || 0),
