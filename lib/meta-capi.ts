@@ -4,15 +4,14 @@ import crypto from 'crypto';
  * Hash user data (email, phone, etc.) as required by Meta CAPI.
  * Data must be lowercase and hashed with SHA-256.
  */
-const hashData = (data?: string | null) => {
+const hashData = (data?: string | null, isPhone: boolean = false) => {
   if (!data) return undefined;
   
-  // Basic normalization: trim, remove non-alphanumeric for phone numbers if needed
   let normalized = data.trim().toLowerCase();
   
-  // If it's a phone number, keep only digits (and maybe +)
-  if (/^[+0-9\s-]+$/.test(normalized)) {
-    normalized = normalized.replace(/[^\d]/g, '');
+  if (isPhone) {
+    // Aggressively strip everything except digits (e.g. remove @lid, @c.us, spaces, plus signs)
+    normalized = normalized.replace(/\D/g, '');
   }
 
   if (!normalized) return undefined;
@@ -68,10 +67,10 @@ export const sendCapiEvent = async (eventData: CapiEventData) => {
         event_id: eventId,
         action_source: 'system_generated',
         user_data: {
-          em: hashData(userData.email) ? [hashData(userData.email)] : undefined,
-          ph: hashData(userData.phone) ? [hashData(userData.phone)] : undefined,
-          fn: hashData(userData.firstName) ? [hashData(userData.firstName)] : undefined,
-          ln: hashData(userData.lastName) ? [hashData(userData.lastName)] : undefined,
+          em: hashData(userData.email) ? [hashData(userData.email)!] : undefined,
+          ph: hashData(userData.phone, true) ? [hashData(userData.phone, true)!] : undefined,
+          fn: hashData(userData.firstName) ? [hashData(userData.firstName)!] : undefined,
+          ln: hashData(userData.lastName) ? [hashData(userData.lastName)!] : undefined,
         },
         custom_data: customData,
       }

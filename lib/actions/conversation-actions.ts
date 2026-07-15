@@ -23,7 +23,7 @@ async function resolveSnoozeIdentifiers(number: string): Promise<string[]> {
   
   // 2. Look up customer for whatsappLid
   try {
-    const customer = await prisma.customer.findFirst({
+    const customers = await prisma.customer.findMany({
       where: {
         OR: [
           { phone: digits },
@@ -34,8 +34,10 @@ async function resolveSnoozeIdentifiers(number: string): Promise<string[]> {
       select: { whatsappLid: true, phone: true }
     });
     
-    if (customer?.whatsappLid) {
-      identifiers.push(customer.whatsappLid);
+    for (const customer of customers) {
+      if (customer.whatsappLid) {
+        identifiers.push(customer.whatsappLid);
+      }
     }
   } catch (err) {
     console.warn('[toggleAiState] Failed to look up customer LID:', err);

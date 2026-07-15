@@ -278,7 +278,7 @@ export async function POST(req: NextRequest) {
       eventName: 'Schedule',
       eventId: `booking_${booking.id}`,
       userData: {
-        phone: normalizedPhone,
+        phone: customer.phoneReal || normalizedPhone,
         firstName: customerName,
       },
       customData: {
