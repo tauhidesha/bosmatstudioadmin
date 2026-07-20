@@ -29,7 +29,7 @@ export async function POST(
       return NextResponse.json({ error: 'Sesi anda telah berakhir. Silakan login ulang.' }, { status: 401 });
     }
 
-    const { paymentMethod = 'Transfer BCA', amountPaid, sendInvoice = true, sendRepaintWarranty = false, sendCoatingWarranty = false, status } = body;
+    const { paymentMethod = 'Transfer BCA', amountPaid, sendInvoice = true, sendRepaintWarranty = false, sendCoatingWarranty = false, status, eventId } = body;
 
     // Check if booking exists
     const booking = await prisma.booking.findUnique({
@@ -190,9 +190,9 @@ export async function POST(
     // Meta CAPI - Purchase event
     await sendCapiEvent({
       eventName: 'Purchase',
-      eventId: `pay_${booking.id}_${Date.now()}`,
+      eventId: eventId || `pay_${booking.id}_${Date.now()}`,
       userData: {
-        phone: customerPhone || booking.customerPhone,
+        phone: booking.customer?.phoneReal || customerPhone || booking.customerPhone,
         firstName: booking.customerName || booking.customer?.name,
       },
       customData: {

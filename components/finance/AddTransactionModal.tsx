@@ -271,10 +271,18 @@ export default function AddTransactionModal({ isOpen, onClose, onSuccess, editDa
       const finalDesc = cart.length > 0 ? `[CAR] ${formData.description || finalServiceType}` : formData.description;
       const finalAmount = formData.type === 'expense' ? (parseInt(formData.amount) || 0) : grandTotal;
 
+      let eventId = undefined;
+      if (!editData && formData.type === 'income') {
+        eventId = `pay_tx_${Date.now()}`;
+        if (typeof window !== 'undefined' && (window as any).fbq) {
+          (window as any).fbq('track', 'Purchase', { currency: 'IDR', value: finalAmount }, { eventID: eventId });
+        }
+      }
+
       const res = await fetch(editData ? `/api/finance/${editData.id}` : '/api/finance', {
         method: editData ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...formData, amount: finalAmount, serviceType: finalServiceType, description: finalDesc }),
+        body: JSON.stringify({ ...formData, amount: finalAmount, serviceType: finalServiceType, description: finalDesc, eventId }),
       });
 
       const resData = await res.json();

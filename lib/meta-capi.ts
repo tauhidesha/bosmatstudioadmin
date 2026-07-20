@@ -77,10 +77,7 @@ export const sendCapiEvent = async (eventData: CapiEventData) => {
     ],
   };
 
-  if (testEventCode) {
-    payload.test_event_code = testEventCode;
-  }
-
+  // Test event code removed for production.
   try {
     const res = await fetch(`https://graph.facebook.com/v19.0/${pixelId}/events?access_token=${token}`, {
       method: 'POST',

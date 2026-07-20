@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { sendCapiEvent } from '@/lib/meta-capi';
 import { syncBookingFinance, updateCustomerStats } from '@/lib/services/financeSync';
 
 export const runtime = 'nodejs';
@@ -10,7 +11,7 @@ export const dynamic = 'force-dynamic';
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { type, amount, category, description, paymentMethod, customerId, bookingId, vehicleId, plateNumber, serviceType, customerName } = body;
+    const { type, amount, category, description, paymentMethod, customerId, bookingId, vehicleId, plateNumber, serviceType, customerName, eventId } = body;
 
     if (!type || !amount || (!category && type === 'expense')) {
       return NextResponse.json(
@@ -44,6 +45,29 @@ export async function POST(req: NextRequest) {
     // Handle data correlation
     if (customerId && type.toLowerCase() === 'income') {
       await updateCustomerStats(customerId);
+      
+      // Meta CAPI - Purchase event
+      try {
+        const customer = await prisma.customer.findUnique({ where: { id: customerId } });
+        if (customer) {
+          await sendCapiEvent({
+            eventName: 'Purchase',
+            eventId: eventId || `pay_tx_${transaction.id}`,
+            userData: {
+              phone: customer.phoneReal || customer.phone,
+              firstName: customerName || customer.name,
+            },
+            customData: {
+              value: Number(amount),
+              currency: 'IDR',
+              content_name: category || serviceType || 'Finance Income',
+              content_type: 'product',
+            }
+          });
+        }
+      } catch (err) {
+        console.error('[Meta CAPI] Error sending Purchase event:', err);
+      }
     }
 
     if (bookingId) {

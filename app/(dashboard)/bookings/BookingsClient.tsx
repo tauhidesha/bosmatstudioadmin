@@ -102,6 +102,14 @@ export default function BookingsClient({ initialBookings }: { initialBookings?: 
                                servicesString.includes('nano ceramic');
       }
 
+      const eventId = `pay_${paymentModal.id}_${Date.now()}`;
+
+      // Trigger frontend Pixel event for deduplication with CAPI
+      if (typeof window !== 'undefined' && (window as any).fbq) {
+        const value = nominalDP || Number(paymentModal.totalAmount || paymentModal.subtotal || 0);
+        (window as any).fbq('track', 'Purchase', { currency: 'IDR', value }, { eventID: eventId });
+      }
+
       const res = await fetch(`/api/bookings/${paymentModal.id}/pay`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -110,7 +118,8 @@ export default function BookingsClient({ initialBookings }: { initialBookings?: 
           amountPaid: nominalDP || undefined,
           sendInvoice,
           sendRepaintWarranty,
-          sendCoatingWarranty
+          sendCoatingWarranty,
+          eventId
         }),
       });
 
