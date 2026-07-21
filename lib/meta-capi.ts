@@ -34,6 +34,7 @@ export interface CapiEventData {
   eventName: string;
   eventId?: string;
   eventTime?: number;
+  actionSource?: string;     // e.g. 'business_messaging', 'system_generated', 'website'
   userData: {
     email?: string;
     phone?: string;
@@ -68,11 +69,19 @@ export const sendCapiEvent = async (eventData: CapiEventData) => {
     eventName,
     eventId,
     eventTime = Math.floor(Date.now() / 1000),
+    actionSource: customActionSource,
     userData,
     customData,
   } = eventData;
 
   const cleanedLeadId = cleanLeadId(userData.leadId);
+
+  // Meta business_messaging action_source only allows specific event names like 'Purchase', 'LeadSubmitted', 'Contact', 'Lead'
+  // For other events (like 'Schedule'), fallback to 'system_generated' unless actionSource is explicitly provided.
+  const validBusinessMessagingEvents = ['Purchase', 'LeadSubmitted', 'Lead', 'Contact'];
+  const actionSource = customActionSource || (
+    validBusinessMessagingEvents.includes(eventName) ? 'business_messaging' : 'system_generated'
+  );
 
   const payload: any = {
     data: [
@@ -80,8 +89,8 @@ export const sendCapiEvent = async (eventData: CapiEventData) => {
         event_name: eventName,
         event_time: eventTime,
         event_id: eventId,
-        action_source: 'business_messaging',   // Required for WhatsApp/CTWA events
-        messaging_channel: 'whatsapp',          // Distinguishes WhatsApp from Messenger/IG Direct
+        action_source: actionSource,
+        ...(actionSource === 'business_messaging' ? { messaging_channel: 'whatsapp' } : {}),
         user_data: {
           em: hashData(userData.email) ? [hashData(userData.email)!] : undefined,
           ph: hashData(userData.phone, true) ? [hashData(userData.phone, true)!] : undefined,
