@@ -41,6 +41,7 @@ export interface CapiEventData {
     firstName?: string;
     lastName?: string;
     leadId?: string;          // whatsappLid — will be stripped of @lid suffix automatically
+    pageId?: string;          // Facebook Page ID required for business_messaging
     clientIpAddress?: string;
     clientUserAgent?: string;
   };
@@ -75,12 +76,15 @@ export const sendCapiEvent = async (eventData: CapiEventData) => {
   } = eventData;
 
   const cleanedLeadId = cleanLeadId(userData.leadId);
+  const pageId = userData.pageId || process.env.META_PAGE_ID || process.env.NEXT_PUBLIC_META_PAGE_ID;
 
-  // Meta business_messaging action_source only allows specific event names like 'Purchase', 'LeadSubmitted', 'Contact', 'Lead'
-  // For other events (like 'Schedule'), fallback to 'system_generated' unless actionSource is explicitly provided.
+  // Meta business_messaging action_source requires a valid page_id in user_data and allowed event_name (e.g. Purchase, LeadSubmitted)
+  // If page_id is missing, fallback to 'system_generated' to prevent error 2804069
   const validBusinessMessagingEvents = ['Purchase', 'LeadSubmitted', 'Lead', 'Contact'];
+  const canUseBusinessMessaging = validBusinessMessagingEvents.includes(eventName) && !!pageId;
+
   const actionSource = customActionSource || (
-    validBusinessMessagingEvents.includes(eventName) ? 'business_messaging' : 'system_generated'
+    canUseBusinessMessaging ? 'business_messaging' : 'system_generated'
   );
 
   const payload: any = {
@@ -96,6 +100,7 @@ export const sendCapiEvent = async (eventData: CapiEventData) => {
           ph: hashData(userData.phone, true) ? [hashData(userData.phone, true)!] : undefined,
           fn: hashData(userData.firstName) ? [hashData(userData.firstName)!] : undefined,
           ln: hashData(userData.lastName) ? [hashData(userData.lastName)!] : undefined,
+          ...(pageId ? { page_id: pageId } : {}),
           // lead_id must NOT be hashed — sent plain per Meta docs
           ...(cleanedLeadId ? { lead_id: cleanedLeadId } : {}),
         },
