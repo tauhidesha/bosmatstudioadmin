@@ -48,7 +48,10 @@ export async function POST(req: NextRequest) {
       
       // Meta CAPI - Purchase event
       try {
-        const customer = await prisma.customer.findUnique({ where: { id: customerId } });
+        const customer = await prisma.customer.findUnique({
+          where: { id: customerId },
+          select: { name: true, phone: true, phoneReal: true, whatsappLid: true },
+        });
         if (customer) {
           await sendCapiEvent({
             eventName: 'Purchase',
@@ -56,12 +59,14 @@ export async function POST(req: NextRequest) {
             userData: {
               phone: customer.phoneReal || customer.phone,
               firstName: customerName || customer.name,
+              leadId: customer.whatsappLid,
             },
             customData: {
               value: Number(amount),
               currency: 'IDR',
               content_name: category || serviceType || 'Finance Income',
               content_type: 'product',
+              order_id: transaction.id,
             }
           });
         }

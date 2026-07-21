@@ -276,16 +276,18 @@ export async function POST(req: NextRequest) {
     // Meta CAPI - Schedule event
     await sendCapiEvent({
       eventName: 'Schedule',
-      eventId: `booking_${booking.id}`,
+      eventId: `schedule_${booking.id}`,
       userData: {
         phone: customer.phoneReal || normalizedPhone,
         firstName: customerName,
+        leadId: customer.whatsappLid,
       },
       customData: {
         value: (totalAmount !== undefined && totalAmount !== null) ? totalAmount : (subtotal || 0),
         currency: 'IDR',
         content_name: serviceName,
         content_type: 'product',
+        order_id: booking.id,
       }
     });
 

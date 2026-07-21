@@ -19,6 +19,17 @@ const hashData = (data?: string | null, isPhone: boolean = false) => {
   return crypto.createHash('sha256').update(normalized).digest('hex');
 };
 
+/**
+ * Strip WhatsApp suffixes (@lid, @c.us) from lead_id.
+ * Meta expects a plain numeric lead ID without any suffix.
+ */
+const cleanLeadId = (leadId?: string | null): string | undefined => {
+  if (!leadId) return undefined;
+  // Remove @lid, @c.us, or any @xxx suffix
+  const cleaned = leadId.replace(/@\S+$/, '').trim();
+  return cleaned || undefined;
+};
+
 export interface CapiEventData {
   eventName: string;
   eventId?: string;
@@ -28,12 +39,14 @@ export interface CapiEventData {
     phone?: string;
     firstName?: string;
     lastName?: string;
+    leadId?: string;          // whatsappLid — will be stripped of @lid suffix automatically
     clientIpAddress?: string;
     clientUserAgent?: string;
   };
   customData?: {
     value?: number;
     currency?: string;
+    order_id?: string;
     content_ids?: string[];
     content_name?: string;
     content_type?: string;
@@ -44,7 +57,6 @@ export interface CapiEventData {
 export const sendCapiEvent = async (eventData: CapiEventData) => {
   const pixelId = process.env.NEXT_PUBLIC_META_PIXEL_ID;
   const token = process.env.META_CAPI_TOKEN;
-  const testEventCode = process.env.META_CAPI_TEST_CODE;
 
   if (!pixelId || !token) {
     console.warn('[Meta CAPI] Skipping event tracking, missing PIXEL_ID or CAPI_TOKEN.');
@@ -59,25 +71,29 @@ export const sendCapiEvent = async (eventData: CapiEventData) => {
     customData,
   } = eventData;
 
+  const cleanedLeadId = cleanLeadId(userData.leadId);
+
   const payload: any = {
     data: [
       {
         event_name: eventName,
         event_time: eventTime,
         event_id: eventId,
-        action_source: 'system_generated',
+        action_source: 'business_messaging',   // Required for WhatsApp/CTWA events
+        messaging_channel: 'whatsapp',          // Distinguishes WhatsApp from Messenger/IG Direct
         user_data: {
           em: hashData(userData.email) ? [hashData(userData.email)!] : undefined,
           ph: hashData(userData.phone, true) ? [hashData(userData.phone, true)!] : undefined,
           fn: hashData(userData.firstName) ? [hashData(userData.firstName)!] : undefined,
           ln: hashData(userData.lastName) ? [hashData(userData.lastName)!] : undefined,
+          // lead_id must NOT be hashed — sent plain per Meta docs
+          ...(cleanedLeadId ? { lead_id: cleanedLeadId } : {}),
         },
         custom_data: customData,
       }
     ],
   };
 
-  // Test event code removed for production.
   try {
     const res = await fetch(`https://graph.facebook.com/v19.0/${pixelId}/events?access_token=${token}`, {
       method: 'POST',

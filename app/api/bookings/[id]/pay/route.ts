@@ -194,12 +194,14 @@ export async function POST(
       userData: {
         phone: booking.customer?.phoneReal || customerPhone || booking.customerPhone,
         firstName: booking.customerName || booking.customer?.name,
+        leadId: booking.customer?.whatsappLid,
       },
       customData: {
         value: finalAmount,
         currency: 'IDR',
         content_name: booking.serviceType || 'Service',
         content_type: 'product',
+        order_id: booking.id,
       }
     });
 
