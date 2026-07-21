@@ -76,7 +76,7 @@ export const sendCapiEvent = async (eventData: CapiEventData) => {
   } = eventData;
 
   const cleanedLeadId = cleanLeadId(userData.leadId);
-  const pageId = userData.pageId || process.env.META_PAGE_ID || process.env.NEXT_PUBLIC_META_PAGE_ID;
+  const pageId = userData.pageId || process.env.META_PAGE_ID || process.env.NEXT_PUBLIC_META_PAGE_ID || '1491064727874575';
 
   // Meta business_messaging action_source requires a valid page_id in user_data and allowed event_name (e.g. Purchase, LeadSubmitted)
   // If page_id is missing, fallback to 'system_generated' to prevent error 2804069
