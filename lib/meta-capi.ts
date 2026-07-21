@@ -57,6 +57,7 @@ export interface CapiEventData {
 export const sendCapiEvent = async (eventData: CapiEventData) => {
   const pixelId = process.env.NEXT_PUBLIC_META_PIXEL_ID;
   const token = process.env.META_CAPI_TOKEN;
+  const testEventCode = process.env.META_CAPI_TEST_CODE; // e.g. TEST85453
 
   if (!pixelId || !token) {
     console.warn('[Meta CAPI] Skipping event tracking, missing PIXEL_ID or CAPI_TOKEN.');
@@ -92,6 +93,8 @@ export const sendCapiEvent = async (eventData: CapiEventData) => {
         custom_data: customData,
       }
     ],
+    // Test event code — remove from payload before going to production
+    ...(testEventCode ? { test_event_code: testEventCode } : {}),
   };
 
   try {
