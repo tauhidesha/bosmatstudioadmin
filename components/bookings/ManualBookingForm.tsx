@@ -598,10 +598,13 @@ export default function ManualBookingForm({
 
         if (json.success && json.vehicles && json.vehicles.length > 0) {
           const v = json.vehicles[0];
+          if (v.customer?.phoneReal && !initialReal) {
+            setRealPhone(v.customer.phoneReal);
+          }
           setFoundVehicle({
             model: v.modelName,
             owner: v.customer?.name || conv.customerName || 'Unknown',
-            phone: v.customer?.phone || conv.customerPhone,
+            phone: v.customer?.phoneReal || v.customer?.phone || conv.customerPhone,
             plate: v.plateNumber || ''
           });
         } else {
