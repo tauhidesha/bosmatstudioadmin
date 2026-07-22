@@ -836,7 +836,7 @@ export default function ManualBookingForm({
     modelSearchText, setModelSearchText,
     isWalkIn, handleToggleWalkIn,
     isCustomModel, customModelSize, setCustomModelSize, effectiveMotor, setCart,
-    getIdToken, setItemDiscount,
+    getIdToken, setItemDiscount, matchingModels,
   };
 
   const isMobile = useMediaQuery('(max-width: 768px)');
@@ -868,7 +868,8 @@ function MobileLayout(props: any) {
     toggleSurchargeForItem, setItemNotesForItem, additionalNotes, setAdditionalNotes,
     realPhone, setRealPhone,
     isWalkIn, handleToggleWalkIn,
-    isCustomModel, customModelSize, setCustomModelSize, effectiveMotor, setCart, setItemDiscount
+    isCustomModel, customModelSize, setCustomModelSize, effectiveMotor, setCart, setItemDiscount,
+    matchingModels
   } = props;
 
 
@@ -1725,7 +1726,8 @@ function DesktopLayout(props: any) {
     toggleSurchargeForItem, setItemNotesForItem, additionalNotes, setAdditionalNotes,
     realPhone, setRealPhone,
     isWalkIn, handleToggleWalkIn,
-    isCustomModel, customModelSize, setCustomModelSize, effectiveMotor, setCart, setItemDiscount
+    isCustomModel, customModelSize, setCustomModelSize, effectiveMotor, setCart, setItemDiscount,
+    matchingModels
   } = props;
 
   const isSpotRepairSelected = cart.some((item: CartItem) => item.name === 'Spot Repair');
