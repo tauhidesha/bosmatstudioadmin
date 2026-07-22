@@ -102,6 +102,7 @@ export function useRealtimeConversations(
         customerId: item.customerId,
         customerName: item.name,
         customerPhone: item.phone,
+        phoneReal: item.phoneReal || '',
         channel: 'whatsapp',
         lastMessage: item.lastMessage || 'No messages yet',
         lastMessageRole: item.lastMessageRole,

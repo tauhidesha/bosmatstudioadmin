@@ -14,6 +14,7 @@ async function getInitialConversations(): Promise<Conversation[]> {
       select: {
         id: true,
         phone: true,
+        phoneReal: true,
         name: true,
         status: true,
         lastMessage: true,
@@ -58,6 +59,7 @@ async function getInitialConversations(): Promise<Conversation[]> {
           customerId: c.id,
           customerName: c.name || 'Unknown',
           customerPhone: c.phone || '',
+          phoneReal: c.phoneReal || '',
           channel: 'whatsapp' as const,
           lastMessage: c.lastMessage || lastMessage?.content || '',
           lastMessageRole: lastMessage?.role || 'assistant',

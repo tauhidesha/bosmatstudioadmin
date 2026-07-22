@@ -581,7 +581,7 @@ export default function ManualBookingForm({
     setSelectedConversation(conv);
     setContactPhone(conv.customerPhone);
     setInvoiceName(conv.customerName || '');
-    const initialReal = (conv as any).realPhone || (conv as any).customer?.phoneReal || (conv.customerPhone && !conv.customerPhone.endsWith('@lid') ? conv.customerPhone : '');
+    const initialReal = conv.phoneReal || (conv as any).realPhone || (conv as any).customer?.phoneReal || (conv.customerPhone && !conv.customerPhone.endsWith('@lid') ? conv.customerPhone : '');
     setRealPhone(initialReal);
 
     // AKTIFKAN TAMENG: Jangan pedulikan perubahan platNomor setelah ini
