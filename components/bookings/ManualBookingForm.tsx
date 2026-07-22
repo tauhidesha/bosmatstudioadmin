@@ -1056,7 +1056,8 @@ function MobileLayout(props: any) {
                       <button
                         key={m.id}
                         type="button"
-                        onClick={() => {
+                        onMouseDown={(e) => {
+                          e.preventDefault();
                           setMotorcycleModel(m);
                           setModelSearchText(m.modelName);
                         }}
@@ -2086,7 +2087,8 @@ function DesktopLayout(props: any) {
                         <button
                           key={m.id}
                           type="button"
-                          onClick={() => {
+                          onMouseDown={(e) => {
+                            e.preventDefault();
                             setMotorcycleModel(m);
                             setModelSearchText(m.modelName);
                           }}
