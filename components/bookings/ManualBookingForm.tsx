@@ -973,12 +973,16 @@ function MobileLayout(props: any) {
               </div>
               <div className="group">
                 <label className="block text-[10px] font-headline text-slate-500 uppercase mb-1">
-                  {isWalkIn ? 'Nomor HP (Manual)' : 'Contact Phone (WA ID)'}
+                  {isWalkIn ? 'Nomor HP (Manual)' : 'Contact Phone (WA ID - Terkunci)'}
                 </label>
                 <input
                   value={contactPhone}
                   onChange={e => setContactPhone(e.target.value)}
-                  className="w-full bg-neutral-900 border-none focus:ring-0 text-sm py-3 px-4 text-white placeholder-neutral-700 font-mono"
+                  readOnly={!isWalkIn}
+                  className={cn(
+                    "w-full border-none focus:ring-0 text-sm py-3 px-4 font-mono transition-all",
+                    !isWalkIn ? "bg-neutral-900/50 text-slate-400 cursor-not-allowed" : "bg-neutral-900 text-white placeholder-neutral-700"
+                  )}
                   type="tel"
                 />
               </div>
@@ -1996,13 +2000,17 @@ function DesktopLayout(props: any) {
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-headline text-slate-500 uppercase tracking-widest">
-                  {isWalkIn ? 'Nomor HP (Manual)' : 'Contact Phone (WA ID)'}
+                  {isWalkIn ? 'Nomor HP (Manual)' : 'Contact Phone (WA ID - Terkunci)'}
                 </label>
                 <div className="relative">
                   <input
                     value={contactPhone}
                     onChange={e => setContactPhone(e.target.value)}
-                    className="w-full bg-[#0e0e0e] border-none focus:ring-0 text-sm py-4 px-4 font-headline text-white"
+                    readOnly={!isWalkIn}
+                    className={cn(
+                      "w-full border-none focus:ring-0 text-sm py-4 px-4 font-headline transition-all",
+                      !isWalkIn ? "bg-[#0e0e0e]/50 text-slate-400 cursor-not-allowed" : "bg-[#0e0e0e] text-white"
+                    )}
                     placeholder="628..."
                   />
                   {contactPhone.length > 8 && !isWalkIn && (

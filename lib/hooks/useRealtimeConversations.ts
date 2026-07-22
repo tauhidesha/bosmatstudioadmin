@@ -16,6 +16,7 @@ export interface Conversation {
   customerId: string;
   customerName: string;
   customerPhone: string;
+  phoneReal?: string;
   channel: 'whatsapp' | 'instagram' | 'messenger';
   lastMessage: string;
   lastMessageRole?: string;

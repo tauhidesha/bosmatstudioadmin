@@ -22,6 +22,7 @@ export async function GET(req: NextRequest) {
       select: {
         id: true,
         phone: true,
+        phoneReal: true,
         name: true,
         status: true,
         lastMessage: true,
@@ -72,6 +73,7 @@ export async function GET(req: NextRequest) {
           customerId: c.id,
           phone: customerPhone,
           customerPhone: customerPhone,
+          phoneReal: c.phoneReal || '',
           name: c.name || c.phone,
           profilePicUrl: c.profilePicUrl,
           lastMessage: lastMessage?.content || null,
