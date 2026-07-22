@@ -112,8 +112,6 @@ export const sendCapiEvent = async (eventData: CapiEventData) => {
           ...(ctwaClid ? { ctwa_clid: ctwaClid } : {}),
           // lead_id must NOT be hashed — sent plain per Meta docs
           ...(cleanedLeadId ? { lead_id: cleanedLeadId } : {}),
-          ...(userData.clientIpAddress ? { client_ip_address: userData.clientIpAddress } : {}),
-          ...(userData.clientUserAgent ? { client_user_agent: userData.clientUserAgent } : {}),
         },
         custom_data: customData,
       }

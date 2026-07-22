@@ -10,8 +10,6 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
-    const clientIpAddress = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || req.ip || undefined;
-    const clientUserAgent = req.headers.get('user-agent') || undefined;
     const { id: bookingId } = params;
     const body = await req.json();
     const headersList = headers();
@@ -198,8 +196,6 @@ export async function POST(
         firstName: booking.customer?.name || undefined,
         leadId: booking.customer?.whatsappLid || undefined,
         ctwaClid: booking.customer?.ctwaClid || undefined,
-        clientIpAddress,
-        clientUserAgent,
       },
       customData: {
         value: finalAmount,

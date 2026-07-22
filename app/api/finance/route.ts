@@ -10,8 +10,6 @@ export const dynamic = 'force-dynamic';
 // Create a new transaction
 export async function POST(req: NextRequest) {
   try {
-    const clientIpAddress = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || req.ip || undefined;
-    const clientUserAgent = req.headers.get('user-agent') || undefined;
     const body = await req.json();
     const { type, amount, category, description, paymentMethod, customerId, bookingId, vehicleId, plateNumber, serviceType, customerName, eventId } = body;
 
@@ -63,8 +61,6 @@ export async function POST(req: NextRequest) {
               firstName: customerName || customer.name,
               leadId: customer.whatsappLid,
               ctwaClid: customer.ctwaClid,
-              clientIpAddress,
-              clientUserAgent,
             },
             customData: {
               value: Number(amount),
