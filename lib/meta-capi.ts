@@ -12,6 +12,12 @@ const hashData = (data?: string | null, isPhone: boolean = false) => {
   if (isPhone) {
     // Aggressively strip everything except digits (e.g. remove @lid, @c.us, spaces, plus signs)
     normalized = normalized.replace(/\D/g, '');
+    // Meta requires stripping leading zeros and including country code
+    normalized = normalized.replace(/^0+/, '');
+    // If it's an Indonesian number (starts with 8) and missing country code, prepend 62
+    if (normalized.startsWith('8') && normalized.length >= 9) {
+      normalized = '62' + normalized;
+    }
   }
 
   if (!normalized) return undefined;
@@ -106,6 +112,8 @@ export const sendCapiEvent = async (eventData: CapiEventData) => {
           ...(ctwaClid ? { ctwa_clid: ctwaClid } : {}),
           // lead_id must NOT be hashed — sent plain per Meta docs
           ...(cleanedLeadId ? { lead_id: cleanedLeadId } : {}),
+          ...(userData.clientIpAddress ? { client_ip_address: userData.clientIpAddress } : {}),
+          ...(userData.clientUserAgent ? { client_user_agent: userData.clientUserAgent } : {}),
         },
         custom_data: customData,
       }
