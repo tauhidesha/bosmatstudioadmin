@@ -88,6 +88,15 @@ export default function ManualBookingForm({
     [isCustomModel, modelSearchText, customModelSize, motorcycleModel]
   );
 
+  const matchingModels = useMemo(() => {
+    const query = modelSearchText.trim().toLowerCase();
+    if (!query) return [];
+    return vehicleModels.filter(m =>
+      m.modelName.toLowerCase().includes(query) ||
+      (m.aliases && m.aliases.some(a => a.toLowerCase().includes(query)))
+    );
+  }, [modelSearchText, vehicleModels]);
+
   useEffect(() => {
     if (motorcycleModel?.modelName) {
       setModelSearchText(motorcycleModel.modelName);
@@ -1018,6 +1027,37 @@ function MobileLayout(props: any) {
                 </datalist>
                 <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-500 size-3 pointer-events-none" />
               </div>
+
+              {/* Status Terpilih (Badge Indicator) */}
+              {motorcycleModel && (
+                <div className="mt-1.5 flex items-center gap-1 text-[9px] font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-500/40 px-2 py-1 rounded-sm w-fit animate-in fade-in duration-200">
+                  <Verified className="size-3 text-emerald-400 fill-emerald-500/20" />
+                  <span>Terpilih: <strong className="text-white">{motorcycleModel.modelName}</strong> ({motorcycleModel.category.toUpperCase()})</span>
+                </div>
+              )}
+
+              {/* Tombol Klik Cepat (Quick Pills) untuk rekomendasi model */}
+              {modelSearchText.trim() && matchingModels.length > 0 && (!motorcycleModel || motorcycleModel.modelName.toLowerCase() !== modelSearchText.trim().toLowerCase()) && (
+                <div className="mt-1.5 space-y-1">
+                  <p className="text-[8px] font-bold text-[#FFFF00] uppercase tracking-wider">Klik untuk Pilih Model:</p>
+                  <div className="flex flex-wrap gap-1 max-h-28 overflow-y-auto no-scrollbar border border-white/10 p-1.5 bg-neutral-950 rounded-sm">
+                    {matchingModels.slice(0, 8).map(m => (
+                      <button
+                        key={m.id}
+                        type="button"
+                        onClick={() => {
+                          setMotorcycleModel(m);
+                          setModelSearchText(m.modelName);
+                        }}
+                        className="text-[9px] font-bold bg-[#FFFF00]/15 hover:bg-[#FFFF00]/30 active:scale-95 text-[#FFFF00] border border-[#FFFF00]/40 px-2 py-1 rounded-sm flex items-center gap-1 transition-all"
+                      >
+                        <Check size={10} className="text-[#FFFF00]" />
+                        {m.modelName}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
               {isCustomModel && !motorcycleModel && (
                 <button
                   type="button"
@@ -2012,6 +2052,37 @@ function DesktopLayout(props: any) {
                   </datalist>
                   <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500 size-5" />
                 </div>
+
+                {/* Status Terpilih (Badge Indicator) */}
+                {motorcycleModel && (
+                  <div className="mt-1.5 flex items-center gap-1.5 text-[10px] font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-500/40 px-2.5 py-1 rounded-sm w-fit animate-in fade-in duration-200">
+                    <Verified className="size-3 text-emerald-400 fill-emerald-500/20" />
+                    <span>Terpilih: <strong className="text-white">{motorcycleModel.modelName}</strong> ({motorcycleModel.category.toUpperCase()})</span>
+                  </div>
+                )}
+
+                {/* Tombol Klik Cepat (Quick Pills) untuk rekomendasi model */}
+                {modelSearchText.trim() && matchingModels.length > 0 && (!motorcycleModel || motorcycleModel.modelName.toLowerCase() !== modelSearchText.trim().toLowerCase()) && (
+                  <div className="mt-2 space-y-1">
+                    <p className="text-[9px] font-bold text-[#FFFF00] uppercase tracking-wider">Klik untuk Pilih Model:</p>
+                    <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto no-scrollbar border border-white/10 p-2 bg-neutral-950 rounded-sm">
+                      {matchingModels.slice(0, 10).map(m => (
+                        <button
+                          key={m.id}
+                          type="button"
+                          onClick={() => {
+                            setMotorcycleModel(m);
+                            setModelSearchText(m.modelName);
+                          }}
+                          className="text-[10px] font-bold bg-[#FFFF00]/15 hover:bg-[#FFFF00]/30 active:scale-95 text-[#FFFF00] border border-[#FFFF00]/40 px-2.5 py-1 rounded-sm flex items-center gap-1.5 transition-all"
+                        >
+                          <Check size={12} className="text-[#FFFF00]" />
+                          {m.modelName} ({m.category.toUpperCase()})
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 {isCustomModel && !motorcycleModel && (
                   <div className="mt-2 animate-in fade-in slide-in-from-left-2 duration-300">
                     <button
