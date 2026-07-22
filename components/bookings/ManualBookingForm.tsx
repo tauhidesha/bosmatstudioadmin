@@ -99,9 +99,16 @@ export default function ManualBookingForm({
   const [additionalNotes, setAdditionalNotes] = useState('');
   const [realPhone, setRealPhone] = useState('');
 
-  // Sync realPhone if empty in Walk-In mode
+  // Sync realPhone if contactPhone is a valid phone number (08xx / 628xx)
   useEffect(() => {
-    if (isWalkIn && contactPhone && !realPhone) {
+    if (contactPhone && !contactPhone.includes('@lid')) {
+      const clean = contactPhone.replace(/\D/g, '');
+      if (clean.length >= 8 && clean.length <= 14) {
+        if (!realPhone || realPhone.includes('@lid')) {
+          setRealPhone(contactPhone);
+        }
+      }
+    } else if (isWalkIn && contactPhone && !realPhone) {
       setRealPhone(contactPhone);
     }
   }, [isWalkIn, contactPhone, realPhone]);
@@ -562,6 +569,8 @@ export default function ManualBookingForm({
     setSelectedConversation(conv);
     setContactPhone(conv.customerPhone);
     setInvoiceName(conv.customerName || '');
+    const initialReal = (conv as any).realPhone || (conv as any).customer?.phoneReal || (conv.customerPhone && !conv.customerPhone.endsWith('@lid') ? conv.customerPhone : '');
+    setRealPhone(initialReal);
 
     // AKTIFKAN TAMENG: Jangan pedulikan perubahan platNomor setelah ini
     setSkipNextSearch(true);
@@ -960,8 +969,8 @@ function MobileLayout(props: any) {
                   type="tel"
                 />
               </div>
-              <div className={cn("group animate-in fade-in slide-in-from-top-1 duration-300", isWalkIn ? "block" : "hidden")}>
-                <label className="block text-[10px] font-headline text-slate-500 uppercase mb-1">No. WA untuk Invoice</label>
+              <div className="group animate-in fade-in slide-in-from-top-1 duration-300">
+                <label className="block text-[10px] font-headline text-slate-500 uppercase mb-1">No. WA untuk Invoice (Phone Real)</label>
                 <input
                   value={realPhone}
                   onChange={e => setRealPhone(e.target.value)}
@@ -1956,8 +1965,8 @@ function DesktopLayout(props: any) {
                   )}
                 </div>
               </div>
-              <div className={cn("space-y-1 animate-in fade-in slide-in-from-top-1 duration-300", isWalkIn ? "block" : "hidden")}>
-                <label className="text-[10px] font-headline text-slate-500 uppercase tracking-widest">No. WA untuk Invoice</label>
+              <div className="space-y-1 animate-in fade-in slide-in-from-top-1 duration-300">
+                <label className="text-[10px] font-headline text-slate-500 uppercase tracking-widest">No. WA untuk Invoice (Phone Real)</label>
                 <input
                   value={realPhone}
                   onChange={e => setRealPhone(e.target.value)}

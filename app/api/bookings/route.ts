@@ -161,11 +161,24 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    const cleanRealPhone = realPhone ? realPhone.replace(/\D/g, '') : '';
+    const cleanCustomerPhone = customerPhone ? customerPhone.replace(/@.*$/, '').replace(/\D/g, '') : '';
+    const isRealPhoneCandidate = (num: string) => num.length >= 8 && num.length <= 14;
+
+    let targetPhoneReal = '';
+    if (cleanRealPhone && isRealPhoneCandidate(cleanRealPhone)) {
+      targetPhoneReal = cleanRealPhone;
+    } else if (cleanCustomerPhone && isRealPhoneCandidate(cleanCustomerPhone)) {
+      targetPhoneReal = cleanCustomerPhone;
+    } else {
+      targetPhoneReal = cleanRealPhone || existingCustomer?.phoneReal || cleanCustomerPhone;
+    }
+
     const customer = existingCustomer
       ? await prisma.customer.update({
           where: { id: existingCustomer.id },
           data: { 
-            phoneReal: realPhone ? realPhone.replace(/\D/g, '') : (existingCustomer.phoneReal || normalizedPhone),
+            phoneReal: targetPhoneReal,
             // Sync name if different (prevents split identities like "Arul" vs "Rully")
             ...(customerName && existingCustomer.name !== customerName ? { name: customerName } : {})
           }
@@ -173,7 +186,7 @@ export async function POST(req: NextRequest) {
       : await prisma.customer.create({
           data: { 
             phone: customerPhone, // Keep original with suffix if provided
-            phoneReal: realPhone ? realPhone.replace(/\D/g, '') : normalizedPhone,
+            phoneReal: targetPhoneReal,
             name: customerName,
             status: 'new',
             totalSpending: 0,
