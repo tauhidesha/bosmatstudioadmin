@@ -89,12 +89,15 @@ export default function ManualBookingForm({
   );
 
   const matchingModels = useMemo(() => {
-    const query = modelSearchText.trim().toLowerCase();
-    if (!query) return [];
-    return vehicleModels.filter(m =>
-      m.modelName.toLowerCase().includes(query) ||
-      (m.aliases && m.aliases.some(a => a.toLowerCase().includes(query)))
-    );
+    const query = (modelSearchText || '').trim().toLowerCase();
+    if (!query || !Array.isArray(vehicleModels)) return [];
+    return vehicleModels.filter(m => {
+      if (!m || !m.modelName) return false;
+      const nameMatch = m.modelName.toLowerCase().includes(query);
+      const brandMatch = typeof m.brand === 'string' && m.brand.toLowerCase().includes(query);
+      const aliasMatch = Array.isArray(m.aliases) && m.aliases.some(a => typeof a === 'string' && a.toLowerCase().includes(query));
+      return nameMatch || brandMatch || aliasMatch;
+    });
   }, [modelSearchText, vehicleModels]);
 
   useEffect(() => {
@@ -1033,7 +1036,7 @@ function MobileLayout(props: any) {
               {motorcycleModel && (
                 <div className="mt-1.5 flex items-center gap-1 text-[9px] font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-500/40 px-2 py-1 rounded-sm w-fit animate-in fade-in duration-200">
                   <Verified className="size-3 text-emerald-400 fill-emerald-500/20" />
-                  <span>Terpilih: <strong className="text-white">{motorcycleModel.modelName}</strong> ({motorcycleModel.category.toUpperCase()})</span>
+                  <span>Terpilih: <strong className="text-white">{motorcycleModel.modelName}</strong> ({motorcycleModel.brand || motorcycleModel.repaintSize || 'MOTOR'})</span>
                 </div>
               )}
 
@@ -2059,7 +2062,7 @@ function DesktopLayout(props: any) {
                 {motorcycleModel && (
                   <div className="mt-1.5 flex items-center gap-1.5 text-[10px] font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-500/40 px-2.5 py-1 rounded-sm w-fit animate-in fade-in duration-200">
                     <Verified className="size-3 text-emerald-400 fill-emerald-500/20" />
-                    <span>Terpilih: <strong className="text-white">{motorcycleModel.modelName}</strong> ({motorcycleModel.category.toUpperCase()})</span>
+                    <span>Terpilih: <strong className="text-white">{motorcycleModel.modelName}</strong> ({motorcycleModel.brand || motorcycleModel.repaintSize || 'MOTOR'})</span>
                   </div>
                 )}
 
@@ -2079,7 +2082,7 @@ function DesktopLayout(props: any) {
                           className="text-[10px] font-bold bg-[#FFFF00]/15 hover:bg-[#FFFF00]/30 active:scale-95 text-[#FFFF00] border border-[#FFFF00]/40 px-2.5 py-1 rounded-sm flex items-center gap-1.5 transition-all"
                         >
                           <Check size={12} className="text-[#FFFF00]" />
-                          {m.modelName} ({m.category.toUpperCase()})
+                          {m.modelName} ({m.brand || m.repaintSize || 'MOTOR'})
                         </button>
                       ))}
                     </div>
