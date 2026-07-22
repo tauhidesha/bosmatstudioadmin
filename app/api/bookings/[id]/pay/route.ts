@@ -195,6 +195,7 @@ export async function POST(
         phone: booking.customer?.phoneReal || customerPhone || booking.customerPhone,
         firstName: booking.customerName || booking.customer?.name,
         leadId: booking.customer?.whatsappLid,
+        ctwaClid: booking.customer?.ctwaClid,
       },
       customData: {
         value: finalAmount,

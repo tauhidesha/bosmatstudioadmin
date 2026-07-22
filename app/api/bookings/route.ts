@@ -281,6 +281,7 @@ export async function POST(req: NextRequest) {
         phone: customer.phoneReal || normalizedPhone,
         firstName: customerName,
         leadId: customer.whatsappLid,
+        ctwaClid: customer.ctwaClid,
       },
       customData: {
         value: (totalAmount !== undefined && totalAmount !== null) ? totalAmount : (subtotal || 0),

@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
       try {
         const customer = await prisma.customer.findUnique({
           where: { id: customerId },
-          select: { name: true, phone: true, phoneReal: true, whatsappLid: true },
+          select: { name: true, phone: true, phoneReal: true, whatsappLid: true, ctwaClid: true },
         });
         if (customer) {
           await sendCapiEvent({
@@ -60,6 +60,7 @@ export async function POST(req: NextRequest) {
               phone: customer.phoneReal || customer.phone,
               firstName: customerName || customer.name,
               leadId: customer.whatsappLid,
+              ctwaClid: customer.ctwaClid,
             },
             customData: {
               value: Number(amount),
