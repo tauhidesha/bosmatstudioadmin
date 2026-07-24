@@ -149,21 +149,36 @@ export async function toggleFollowUpStateAction(customerIdOrPhone: string, enabl
       return { success: false, error: 'Customer tidak ditemukan' };
     }
 
-    await prisma.customerContext.upsert({
-      where: { id: customer.id },
-      update: {
-        followUpStrategy: enabled ? null : 'stop',
-        ...(enabled ? { followUpCount: 0 } : {}),
-        labelReason: enabled ? 'manual_followup_on' : 'manual_followup_off',
-        updatedAt: new Date(),
-      },
-      create: {
-        id: customer.id,
-        phone: customer.phone,
-        followUpStrategy: enabled ? null : 'stop',
-        labelReason: enabled ? 'manual_followup_on' : 'manual_followup_off',
+    const existingContext = await prisma.customerContext.findFirst({
+      where: {
+        OR: [
+          { id: customer.id },
+          { phone: customer.phone },
+        ]
       }
     });
+
+    if (existingContext) {
+      await prisma.customerContext.update({
+        where: { id: existingContext.id },
+        data: {
+          followUpStrategy: enabled ? null : 'stop',
+          ...(enabled ? { followUpCount: 0 } : {}),
+          labelReason: enabled ? 'manual_followup_on' : 'manual_followup_off',
+          updatedAt: new Date(),
+        }
+      });
+    } else {
+      await prisma.customerContext.create({
+        data: {
+          id: customer.id,
+          phone: customer.phone,
+          followUpStrategy: enabled ? null : 'stop',
+          labelReason: enabled ? 'manual_followup_on' : 'manual_followup_off',
+          updatedAt: new Date(),
+        }
+      });
+    }
 
     revalidatePath('/conversations');
 
