@@ -126,3 +126,53 @@ export async function updateConversationLabelAction(conversationId: string, labe
     return { success: false, error: error.message || 'Internal server error' };
   }
 }
+
+export async function toggleFollowUpStateAction(customerIdOrPhone: string, enabled: boolean) {
+  try {
+    if (!customerIdOrPhone) {
+      return { success: false, error: 'Customer ID / Phone tidak valid' };
+    }
+
+    const digits = customerIdOrPhone.replace(/\D/g, '').replace(/^0/, '62');
+
+    const customer = await prisma.customer.findFirst({
+      where: {
+        OR: [
+          { id: customerIdOrPhone },
+          { phone: digits },
+          { phone: customerIdOrPhone },
+        ]
+      }
+    });
+
+    if (!customer) {
+      return { success: false, error: 'Customer tidak ditemukan' };
+    }
+
+    await prisma.customerContext.upsert({
+      where: { id: customer.id },
+      update: {
+        followUpStrategy: enabled ? null : 'stop',
+        ...(enabled ? { followUpCount: 0 } : {}),
+        labelReason: enabled ? 'manual_followup_on' : 'manual_followup_off',
+        updatedAt: new Date(),
+      },
+      create: {
+        id: customer.id,
+        phone: customer.phone,
+        followUpStrategy: enabled ? null : 'stop',
+        labelReason: enabled ? 'manual_followup_on' : 'manual_followup_off',
+      }
+    });
+
+    revalidatePath('/conversations');
+
+    return {
+      success: true,
+      followUpEnabled: enabled,
+    };
+  } catch (error: any) {
+    console.error(`Error updating Follow Up state for ${customerIdOrPhone}:`, error);
+    return { success: false, error: error.message || 'Internal server error' };
+  }
+}

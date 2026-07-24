@@ -8,7 +8,7 @@ import ConversationHeader from './ConversationHeader';
 import MessageList from './MessageList';
 import MessageComposer from './MessageComposer';
 import FloatingBookingButton from './FloatingBookingButton';
-import { toggleAiStateAction, updateConversationLabelAction } from '@/lib/actions/conversation-actions';
+import { toggleAiStateAction, updateConversationLabelAction, toggleFollowUpStateAction } from '@/lib/actions/conversation-actions';
 interface ConversationWindowProps {
   conversation: Conversation;
   apiClient: ApiClient;
@@ -24,6 +24,7 @@ export default function ConversationWindow({
 }: ConversationWindowProps) {
   const [sendingMessage, setSendingMessage] = useState(false);
   const [togglingAi, setTogglingAi] = useState(false);
+  const [togglingFollowUp, setTogglingFollowUp] = useState(false);
   const [updatingLabel, setUpdatingLabel] = useState(false);
 
   // Load messages for this conversation - use customerPhone or platformId
@@ -84,6 +85,20 @@ export default function ConversationWindow({
     }
   };
 
+  const handleFollowUpStateChange = async (enabled: boolean) => {
+    setTogglingFollowUp(true);
+    try {
+      const targetId = conversation.id || conversation.customerPhone || conversation.platformId;
+      const res = await toggleFollowUpStateAction(targetId, enabled);
+      if (!res.success) throw new Error(res.error);
+    } catch (error) {
+      console.error('Failed to update Follow Up state:', error);
+      throw error;
+    } finally {
+      setTogglingFollowUp(false);
+    }
+  };
+
   const handleLabelChange = async (label: string, reason?: string) => {
     setUpdatingLabel(true);
     try {
@@ -106,9 +121,10 @@ export default function ConversationWindow({
           apiClient={apiClient}
           allConversations={allConversations}
           onAiStateChange={handleAiStateChange}
+          onFollowUpStateChange={handleFollowUpStateChange}
           onLabelChange={handleLabelChange}
           onBack={onBack}
-          loading={togglingAi || updatingLabel}
+          loading={togglingAi || togglingFollowUp || updatingLabel}
         />
       </div>
 

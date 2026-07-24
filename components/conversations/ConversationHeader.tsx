@@ -14,6 +14,7 @@ interface ConversationHeaderProps {
   apiClient: ApiClient;
   allConversations: Conversation[];
   onAiStateChange: (enabled: boolean, reason?: string) => Promise<void>;
+  onFollowUpStateChange?: (enabled: boolean) => Promise<void>;
   onLabelChange: (label: string, reason?: string) => Promise<void>;
   onBack?: () => void;
   loading?: boolean;
@@ -35,11 +36,13 @@ export default function ConversationHeader({
   apiClient,
   allConversations,
   onAiStateChange,
+  onFollowUpStateChange,
   onLabelChange,
   onBack,
   loading = false,
 }: ConversationHeaderProps) {
   const [isTogglingAi, setIsTogglingAi] = useState(false);
+  const [isTogglingFollowUp, setIsTogglingFollowUp] = useState(false);
   const [showLabelModal, setShowLabelModal] = useState(false);
   const [selectedLabel, setSelectedLabel] = useState(conversation.label || '');
   const [labelReason, setLabelReason] = useState('');
@@ -48,6 +51,7 @@ export default function ConversationHeader({
   const [imageError, setImageError] = useState(false);
 
   const aiEnabled = conversation.aiState?.enabled ?? true;
+  const followUpEnabled = conversation.customerContext?.followUpStrategy !== 'stop';
 
   const handleAiToggle = async () => {
     setIsTogglingAi(true);
@@ -59,6 +63,18 @@ export default function ConversationHeader({
       console.error('Failed to toggle AI state:', error);
     } finally {
       setIsTogglingAi(false);
+    }
+  };
+
+  const handleFollowUpToggle = async () => {
+    if (!onFollowUpStateChange) return;
+    setIsTogglingFollowUp(true);
+    try {
+      await onFollowUpStateChange(!followUpEnabled);
+    } catch (error) {
+      console.error('Failed to toggle Follow Up state:', error);
+    } finally {
+      setIsTogglingFollowUp(false);
     }
   };
 
@@ -102,32 +118,60 @@ export default function ConversationHeader({
             </div>
           </div>
 
-          {/* Zoya AI badge (Button) */}
-          <button
-            onClick={handleAiToggle}
-            disabled={isTogglingAi || loading}
-            className={cn(
-              'flex items-center gap-2 px-3 py-1 rounded-full border transition-all active:scale-95',
-              aiEnabled
-                ? 'bg-[#FFFF00]/10 border-[#FFFF00]/20'
-                : 'bg-zinc-800 border-zinc-700'
-            )}
-          >
-            <span
+          {/* Toggles (Mobile) */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleAiToggle}
+              disabled={isTogglingAi || loading}
               className={cn(
-                'w-2 h-2 rounded-full',
-                aiEnabled ? 'bg-[#FFFF00] animate-pulse' : 'bg-zinc-500'
-              )}
-            />
-            <span
-              className={cn(
-                'font-headline font-bold text-xs tracking-widest uppercase',
-                aiEnabled ? 'text-[#FFFF00]' : 'text-zinc-500'
+                'flex items-center gap-1.5 px-2.5 py-1 rounded-full border transition-all active:scale-95',
+                aiEnabled
+                  ? 'bg-[#FFFF00]/10 border-[#FFFF00]/20'
+                  : 'bg-zinc-800 border-zinc-700'
               )}
             >
-              ZOYA AI {isTogglingAi ? '...' : ''}
-            </span>
-          </button>
+              <span
+                className={cn(
+                  'w-2 h-2 rounded-full',
+                  aiEnabled ? 'bg-[#FFFF00] animate-pulse' : 'bg-zinc-500'
+                )}
+              />
+              <span
+                className={cn(
+                  'font-headline font-bold text-[10px] tracking-widest uppercase',
+                  aiEnabled ? 'text-[#FFFF00]' : 'text-zinc-500'
+                )}
+              >
+                AI {aiEnabled ? 'ON' : 'OFF'}
+              </span>
+            </button>
+
+            <button
+              onClick={handleFollowUpToggle}
+              disabled={isTogglingFollowUp || loading}
+              className={cn(
+                'flex items-center gap-1.5 px-2.5 py-1 rounded-full border transition-all active:scale-95',
+                followUpEnabled
+                  ? 'bg-[#FFFF00]/10 border-[#FFFF00]/20'
+                  : 'bg-zinc-800 border-zinc-700'
+              )}
+            >
+              <span
+                className={cn(
+                  'w-2 h-2 rounded-full',
+                  followUpEnabled ? 'bg-[#FFFF00] animate-pulse' : 'bg-zinc-500'
+                )}
+              />
+              <span
+                className={cn(
+                  'font-headline font-bold text-[10px] tracking-widest uppercase',
+                  followUpEnabled ? 'text-[#FFFF00]' : 'text-zinc-500'
+                )}
+              >
+                FU {followUpEnabled ? 'ON' : 'OFF'}
+              </span>
+            </button>
+          </div>
         </div>
 
         {/* ── DESKTOP HEADER (≥ md) ── */}
@@ -233,6 +277,37 @@ export default function ConversationHeader({
                 )}
               >
                 {aiEnabled ? 'ON' : 'OFF'}
+              </span>
+            </div>
+
+            {/* Follow Up Toggle */}
+            <div className="flex items-center gap-3 bg-[#1c1b1b] px-3 py-1.5 rounded-sm border border-white/5">
+              <span className="text-[10px] font-headline font-bold text-zinc-400 uppercase tracking-tighter">
+                Follow Up
+              </span>
+              <button
+                onClick={handleFollowUpToggle}
+                disabled={isTogglingFollowUp || loading}
+                className={cn(
+                  'relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none',
+                  followUpEnabled ? 'bg-[#FFFF00]' : 'bg-zinc-600'
+                )}
+              >
+                <span className="sr-only">Toggle Follow Up</span>
+                <span
+                  className={cn(
+                    'inline-block h-3 w-3 transform rounded-full transition-transform shadow-sm',
+                    followUpEnabled ? 'translate-x-5 bg-black' : 'translate-x-1 bg-white'
+                  )}
+                />
+              </button>
+              <span
+                className={cn(
+                  'text-[10px] font-headline font-bold',
+                  followUpEnabled ? 'text-[#FFFF00]' : 'text-zinc-500'
+                )}
+              >
+                {followUpEnabled ? 'ON' : 'OFF'}
               </span>
             </div>
 
