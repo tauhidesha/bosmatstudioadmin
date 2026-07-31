@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Conversation } from '@/lib/hooks/useRealtimeConversations';
 import { useConversationMessages } from '@/lib/hooks/useConversationMessages';
 import { ApiClient } from '@/lib/api/client';
@@ -31,19 +31,24 @@ export default function ConversationWindow({
   /**
    * localConversation: optimistic overlay on top of the server-driven `conversation` prop.
    *
-   * WHY: Server actions (toggleAiStateAction, toggleFollowUpStateAction) update the DB,
-   * then Supabase Realtime fires an event, then the hook refetches — this chain can take
-   * 1-3 seconds. Without this local state the toggle button appears stuck.
+   * WHY: Server actions update DB → Supabase Realtime fires → hook updates state.
+   * This chain takes 1-3s. Without local state, toggle appears stuck.
    *
-   * HOW: After a successful toggle we immediately update localConversation.
-   * When the parent eventually pushes a fresh `conversation` prop (from Realtime),
-   * the useEffect below syncs localConversation back to ground truth.
+   * HOW: After successful toggle → update localConversation immediately.
+   * isOptimisticRef tracks whether we're in an optimistic state.
+   * The useEffect only syncs from parent when we are NOT optimistic,
+   * preventing the parent prop from overwriting our pending optimistic update.
    */
   const [localConversation, setLocalConversation] = useState<Conversation>(conversation);
+  const isOptimisticRef = useRef(false);
 
-  // Sync whenever the parent receives a fresh conversation from Supabase Realtime
+  // Sync from parent ONLY when we are not in an optimistic state.
+  // This prevents revalidatePath() or any parent re-render from
+  // overwriting a toggle that the user just made.
   useEffect(() => {
-    setLocalConversation(conversation);
+    if (!isOptimisticRef.current) {
+      setLocalConversation(conversation);
+    }
   }, [conversation]);
 
   // Load messages for this conversation
@@ -90,6 +95,7 @@ export default function ConversationWindow({
 
   const handleAiStateChange = async (enabled: boolean, reason?: string) => {
     setTogglingAi(true);
+    isOptimisticRef.current = true;
 
     // Optimistic update — reflect change immediately in the header
     setLocalConversation(prev => ({
@@ -105,12 +111,16 @@ export default function ConversationWindow({
       const targetId = conversation.customerPhone || conversation.platformId || conversation.id;
       const res = await toggleAiStateAction(targetId, enabled, reason);
       if (!res.success) {
-        // Revert optimistic update on failure
-        setLocalConversation(conversation);
+        isOptimisticRef.current = false;
+        setLocalConversation(conversation); // revert
         throw new Error(res.error);
       }
+      // Success — Supabase Realtime will eventually deliver ground truth.
+      // Release optimistic lock after a short delay to allow realtime to arrive.
+      setTimeout(() => { isOptimisticRef.current = false; }, 3000);
     } catch (error) {
       console.error('Failed to update AI state:', error);
+      isOptimisticRef.current = false;
       setLocalConversation(conversation); // revert
       throw error;
     } finally {
@@ -120,6 +130,7 @@ export default function ConversationWindow({
 
   const handleFollowUpStateChange = async (enabled: boolean) => {
     setTogglingFollowUp(true);
+    isOptimisticRef.current = true;
 
     // Optimistic update — reflect change immediately in the header
     setLocalConversation(prev => ({
@@ -131,15 +142,20 @@ export default function ConversationWindow({
     }));
 
     try {
-      const targetId = conversation.id || conversation.customerPhone || conversation.platformId;
+      // Always prefer customerPhone for follow-up lookup — CustomerContext is
+      // indexed by phone, not by customer UUID. Passing UUID causes silent mismatch.
+      const targetId = conversation.customerPhone || conversation.platformId || conversation.id;
       const res = await toggleFollowUpStateAction(targetId, enabled);
       if (!res.success) {
-        // Revert optimistic update on failure
-        setLocalConversation(conversation);
+        isOptimisticRef.current = false;
+        setLocalConversation(conversation); // revert
         throw new Error(res.error);
       }
+      // Success — release optimistic lock after delay to let Supabase Realtime arrive
+      setTimeout(() => { isOptimisticRef.current = false; }, 3000);
     } catch (error) {
       console.error('Failed to update Follow Up state:', error);
+      isOptimisticRef.current = false;
       setLocalConversation(conversation); // revert
       throw error;
     } finally {
@@ -149,6 +165,7 @@ export default function ConversationWindow({
 
   const handleLabelChange = async (label: string, reason?: string) => {
     setUpdatingLabel(true);
+    isOptimisticRef.current = true;
 
     // Optimistic update for label
     setLocalConversation(prev => ({ ...prev, label }));
@@ -156,11 +173,14 @@ export default function ConversationWindow({
     try {
       const res = await updateConversationLabelAction(conversation.id, label, reason);
       if (!res.success) {
-        setLocalConversation(conversation);
+        isOptimisticRef.current = false;
+        setLocalConversation(conversation); // revert
         throw new Error(res.error);
       }
+      setTimeout(() => { isOptimisticRef.current = false; }, 3000);
     } catch (error) {
       console.error('Failed to update conversation label:', error);
+      isOptimisticRef.current = false;
       setLocalConversation(conversation); // revert
       throw error;
     } finally {

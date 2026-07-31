@@ -133,21 +133,32 @@ export async function toggleFollowUpStateAction(customerIdOrPhone: string, enabl
       return { success: false, error: 'Customer ID / Phone tidak valid' };
     }
 
-    const digits = customerIdOrPhone.replace(/\D/g, '').replace(/^0/, '62');
+    // Strip @c.us / @lid suffixes before extracting digits
+    // e.g. "628111000001@c.us" → "628111000001"
+    const stripped = customerIdOrPhone.split('@')[0];
+    const digits = stripped.replace(/\D/g, '').replace(/^0/, '62');
+
+    console.log(`[toggleFollowUp] input=${customerIdOrPhone} stripped=${stripped} digits=${digits} enabled=${enabled}`);
 
     const customer = await prisma.customer.findFirst({
       where: {
         OR: [
-          { id: customerIdOrPhone },
-          { phone: digits },
-          { phone: customerIdOrPhone },
+          { id: customerIdOrPhone },     // UUID match
+          { phone: customerIdOrPhone },  // exact match (628xxx@c.us)
+          { phone: stripped },           // without suffix
+          { phone: digits },             // plain digits
+          { phoneReal: stripped },       // real phone fallback
+          { phoneReal: digits },
         ]
       }
     });
 
     if (!customer) {
+      console.error(`[toggleFollowUp] Customer not found for: ${customerIdOrPhone}`);
       return { success: false, error: 'Customer tidak ditemukan' };
     }
+
+    console.log(`[toggleFollowUp] Found customer id=${customer.id} phone=${customer.phone}`);
 
     const existingContext = await prisma.customerContext.findFirst({
       where: {
@@ -168,6 +179,7 @@ export async function toggleFollowUpStateAction(customerIdOrPhone: string, enabl
           updatedAt: new Date(),
         }
       });
+      console.log(`[toggleFollowUp] Updated context id=${existingContext.id} followUpStrategy=${enabled ? null : 'stop'}`);
     } else {
       await prisma.customerContext.create({
         data: {
@@ -175,9 +187,12 @@ export async function toggleFollowUpStateAction(customerIdOrPhone: string, enabl
           phone: customer.phone,
           followUpStrategy: enabled ? null : 'stop',
           labelReason: enabled ? 'manual_followup_on' : 'manual_followup_off',
+          targetServices: [],
+          detectedIntents: [],
           updatedAt: new Date(),
         }
       });
+      console.log(`[toggleFollowUp] Created new context for customer id=${customer.id}`);
     }
 
     revalidatePath('/conversations');
