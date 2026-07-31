@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Conversation } from '@/lib/hooks/useRealtimeConversations';
 import { useConversationMessages } from '@/lib/hooks/useConversationMessages';
 import { ApiClient } from '@/lib/api/client';
@@ -9,6 +9,7 @@ import MessageList from './MessageList';
 import MessageComposer from './MessageComposer';
 import FloatingBookingButton from './FloatingBookingButton';
 import { toggleAiStateAction, updateConversationLabelAction, toggleFollowUpStateAction } from '@/lib/actions/conversation-actions';
+
 interface ConversationWindowProps {
   conversation: Conversation;
   apiClient: ApiClient;
@@ -27,19 +28,39 @@ export default function ConversationWindow({
   const [togglingFollowUp, setTogglingFollowUp] = useState(false);
   const [updatingLabel, setUpdatingLabel] = useState(false);
 
-  // Load messages for this conversation - use customerPhone or platformId
+  /**
+   * localConversation: optimistic overlay on top of the server-driven `conversation` prop.
+   *
+   * WHY: Server actions (toggleAiStateAction, toggleFollowUpStateAction) update the DB,
+   * then Supabase Realtime fires an event, then the hook refetches — this chain can take
+   * 1-3 seconds. Without this local state the toggle button appears stuck.
+   *
+   * HOW: After a successful toggle we immediately update localConversation.
+   * When the parent eventually pushes a fresh `conversation` prop (from Realtime),
+   * the useEffect below syncs localConversation back to ground truth.
+   */
+  const [localConversation, setLocalConversation] = useState<Conversation>(conversation);
+
+  // Sync whenever the parent receives a fresh conversation from Supabase Realtime
+  useEffect(() => {
+    setLocalConversation(conversation);
+  }, [conversation]);
+
+  // Load messages for this conversation
   const conversationPhone = conversation.customerPhone || conversation.platformId;
   const { messages, loading: messagesLoading, addMessageLocally } = useConversationMessages({
     conversationId: conversationPhone,
-    customerId: conversation.customerId, // Pass customerId for WebSocket optimization
+    customerId: conversation.customerId,
     enabled: !!conversationPhone,
   });
+
+  // ─── Handlers ────────────────────────────────────────────────────────────────
 
   const handleSendMessage = async (messageText: string) => {
     setSendingMessage(true);
     try {
       const targetId = conversation.customerPhone || conversation.platformId || conversation.id;
-      
+
       // Optimistic UI update
       addMessageLocally({
         id: `optimistic-${Date.now()}`,
@@ -50,8 +71,7 @@ export default function ConversationWindow({
         timestamp: Date.now(),
       });
 
-      // We do not await this, making the send "fire and forget" from UI perspective,
-      // but catching errors if any.
+      // Fire-and-forget: don't block the input
       apiClient.sendMessage({
         number: targetId,
         message: messageText,
@@ -59,26 +79,39 @@ export default function ConversationWindow({
         platformId: targetId,
       }).catch(err => {
         console.error('Failed to send message:', err);
-        // Optionally, we could show a toast here if we want to alert them of failure.
       });
-      
     } catch (error) {
       console.error('Failed to send message:', error);
       throw error;
     } finally {
-      // Because we fire and forget the actual send, we can immediately release the input block
       setSendingMessage(false);
     }
   };
 
   const handleAiStateChange = async (enabled: boolean, reason?: string) => {
     setTogglingAi(true);
+
+    // Optimistic update — reflect change immediately in the header
+    setLocalConversation(prev => ({
+      ...prev,
+      aiState: {
+        enabled,
+        pausedUntil: enabled ? undefined : prev.aiState?.pausedUntil,
+        reason: enabled ? undefined : reason,
+      },
+    }));
+
     try {
       const targetId = conversation.customerPhone || conversation.platformId || conversation.id;
       const res = await toggleAiStateAction(targetId, enabled, reason);
-      if (!res.success) throw new Error(res.error);
+      if (!res.success) {
+        // Revert optimistic update on failure
+        setLocalConversation(conversation);
+        throw new Error(res.error);
+      }
     } catch (error) {
       console.error('Failed to update AI state:', error);
+      setLocalConversation(conversation); // revert
       throw error;
     } finally {
       setTogglingAi(false);
@@ -87,12 +120,27 @@ export default function ConversationWindow({
 
   const handleFollowUpStateChange = async (enabled: boolean) => {
     setTogglingFollowUp(true);
+
+    // Optimistic update — reflect change immediately in the header
+    setLocalConversation(prev => ({
+      ...prev,
+      customerContext: {
+        ...prev.customerContext,
+        followUpStrategy: enabled ? null : 'stop',
+      },
+    }));
+
     try {
       const targetId = conversation.id || conversation.customerPhone || conversation.platformId;
       const res = await toggleFollowUpStateAction(targetId, enabled);
-      if (!res.success) throw new Error(res.error);
+      if (!res.success) {
+        // Revert optimistic update on failure
+        setLocalConversation(conversation);
+        throw new Error(res.error);
+      }
     } catch (error) {
       console.error('Failed to update Follow Up state:', error);
+      setLocalConversation(conversation); // revert
       throw error;
     } finally {
       setTogglingFollowUp(false);
@@ -101,23 +149,33 @@ export default function ConversationWindow({
 
   const handleLabelChange = async (label: string, reason?: string) => {
     setUpdatingLabel(true);
+
+    // Optimistic update for label
+    setLocalConversation(prev => ({ ...prev, label }));
+
     try {
       const res = await updateConversationLabelAction(conversation.id, label, reason);
-      if (!res.success) throw new Error(res.error);
+      if (!res.success) {
+        setLocalConversation(conversation);
+        throw new Error(res.error);
+      }
     } catch (error) {
       console.error('Failed to update conversation label:', error);
+      setLocalConversation(conversation); // revert
       throw error;
     } finally {
       setUpdatingLabel(false);
     }
   };
 
+  // ─── Render ───────────────────────────────────────────────────────────────────
+
   return (
     <div className="flex-1 flex flex-col min-w-0 h-full bg-[#131313] relative overflow-hidden">
-      {/* Header */}
+      {/* Header — receives localConversation for instant optimistic feedback */}
       <div className="shrink-0">
         <ConversationHeader
-          conversation={conversation}
+          conversation={localConversation}
           apiClient={apiClient}
           allConversations={allConversations}
           onAiStateChange={handleAiStateChange}
@@ -139,9 +197,9 @@ export default function ConversationWindow({
       </div>
 
       {/* Floating Action Button (Mobile Only) */}
-      <FloatingBookingButton 
-        conversation={conversation} 
-        apiClient={apiClient} 
+      <FloatingBookingButton
+        conversation={conversation}
+        apiClient={apiClient}
         allConversations={allConversations}
       />
 
