@@ -44,6 +44,9 @@ export interface Conversation {
 interface UseRealtimeConversationsOptions {
   enabled?: boolean;
   initialData?: Conversation[];
+  /** Passed from SSR — avoids double fetch on initial mount */
+  initialHasMore?: boolean;
+  initialTotal?: number;
 }
 
 interface UseRealtimeConversationsReturn {
@@ -94,7 +97,7 @@ const STALE_THRESHOLD_MS = 5 * 60 * 1000;
 export function useRealtimeConversations(
   options: UseRealtimeConversationsOptions = {}
 ): UseRealtimeConversationsReturn {
-  const { enabled = true, initialData } = options;
+  const { enabled = true, initialData, initialHasMore = false, initialTotal = 0 } = options;
 
   const [conversations, setConversations] = useState<Conversation[]>(() => {
     if (initialData) return initialData;
@@ -108,20 +111,23 @@ export function useRealtimeConversations(
   });
 
   const [loading, setLoading] = useState(() => {
+    // SSR provided data → no loading state on mount
     if (initialData) return false;
     if (typeof window === 'undefined') return true;
     return !localStorage.getItem('cached-conversations');
   });
 
   const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState(false);
-  const [total, setTotal] = useState(0);
+  // Bootstrap hasMore/total from SSR so the counter shows immediately
+  const [hasMore, setHasMore] = useState(initialHasMore);
+  const [total, setTotal] = useState(initialTotal || (initialData?.length ?? 0));
   const [error, setError] = useState<Error | null>(null);
 
   const fetchingRef = useRef(false);
   const lastFetchRef = useRef<number>(initialData ? Date.now() : 0);
-  // Track how many pages have been loaded so loadMore knows where to start
   const loadedCountRef = useRef<number>(initialData?.length ?? 0);
+  // Track whether we've ever fetched so we don't double-fetch when SSR provides data
+  const hasFetchedRef = useRef<boolean>(!!initialData);
 
   // ─── Supabase Realtime subscriptions ────────────────────────────────────────
 
@@ -227,6 +233,9 @@ export function useRealtimeConversations(
       setLoading(false);
       return;
     }
+    // Skip initial fetch if SSR already provided data.
+    // hasFetchedRef prevents double-fetch on mount.
+    if (hasFetchedRef.current) return;
     fetchConversations();
   }, [enabled, fetchConversations]);
 

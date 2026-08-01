@@ -32,7 +32,15 @@ function ConversationErrorBoundary({ children }: { children: React.ReactNode }) 
   );
 }
 
-function ConversationsContent({ initialConversations }: { initialConversations?: Conversation[] }) {
+function ConversationsContent({
+  initialConversations,
+  initialHasMore = false,
+  initialTotal = 0,
+}: {
+  initialConversations?: Conversation[];
+  initialHasMore?: boolean;
+  initialTotal?: number;
+}) {
   const { user, getIdToken } = useAuth();
   const searchParams = useSearchParams();
   const { setHeaderTitle, setHeaderExtra } = useLayout();
@@ -74,10 +82,14 @@ function ConversationsContent({ initialConversations }: { initialConversations?:
     }
   }, [searchParams]);
 
-  // Load conversations with error handling and real-time updates
+  // Load conversations with error handling and real-time updates.
+  // When initialData is provided from SSR, the hook skips its own fetch
+  // and uses initialHasMore/initialTotal from the server instead.
   const { conversations, loading, loadingMore, hasMore, total, error, loadMore } = useRealtimeConversations({
     enabled: !!user,
     initialData: initialConversations,
+    initialHasMore,
+    initialTotal,
   });
 
   // Filter conversations based on search query
@@ -255,12 +267,24 @@ function ConversationsContent({ initialConversations }: { initialConversations?:
   );
 }
 
-export default function ConversationsClient({ initialConversations }: { initialConversations?: Conversation[] }) {
+export default function ConversationsClient({
+  initialConversations,
+  initialHasMore,
+  initialTotal,
+}: {
+  initialConversations?: Conversation[];
+  initialHasMore?: boolean;
+  initialTotal?: number;
+}) {
   return (
     <Suspense fallback={<div className="flex-1 flex items-center justify-center bg-[#131313]">
       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#FFFF00]"></div>
     </div>}>
-      <ConversationsContent initialConversations={initialConversations} />
+      <ConversationsContent
+        initialConversations={initialConversations}
+        initialHasMore={initialHasMore}
+        initialTotal={initialTotal}
+      />
     </Suspense>
   );
 }
