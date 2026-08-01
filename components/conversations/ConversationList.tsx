@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { Conversation } from '@/lib/hooks/useRealtimeConversations';
 import { format } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
@@ -13,6 +13,10 @@ interface ConversationListProps {
   selectedId?: string;
   onSelect: (conversation: Conversation) => void;
   loading?: boolean;
+  loadingMore?: boolean;
+  hasMore?: boolean;
+  total?: number;
+  onLoadMore?: () => void;
   searchQuery?: string;
 }
 
@@ -127,8 +131,32 @@ function MobileConversationItem({ conversation, isActive, onClick }: { conversat
 }
 
 // --- MAIN COMPONENT ---
-export default function ConversationList({ conversations, selectedId, onSelect, loading = false, searchQuery = '' }: ConversationListProps) {
+export default function ConversationList({
+  conversations,
+  selectedId,
+  onSelect,
+  loading = false,
+  loadingMore = false,
+  hasMore = false,
+  total = 0,
+  onLoadMore,
+  searchQuery = '',
+}: ConversationListProps) {
   const [activeFilter, setActiveFilter] = useState<FilterStatus>('all');
+  const sentinelRef = useRef<HTMLDivElement>(null);
+
+  // Intersection Observer — trigger loadMore when sentinel enters viewport
+  useEffect(() => {
+    if (!onLoadMore || !hasMore) return;
+    const el = sentinelRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      (entries) => { if (entries[0].isIntersecting) onLoadMore(); },
+      { threshold: 0.1 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [onLoadMore, hasMore]);
 
   const filteredConversations = useMemo(() => {
     return conversations.filter((conv) => {
@@ -168,15 +196,24 @@ export default function ConversationList({ conversations, selectedId, onSelect, 
       </div>
 
       {/* HEADER DESKTOP KHUSUS */}
-      <div className="hidden md:flex p-4 gap-2 overflow-x-auto no-scrollbar shrink-0 bg-surface-container-low border-b border-white/5">
-        {[ { id: 'all', label: 'Semua' }, { id: 'unread', label: 'Belum Dibaca' }, { id: 'pending', label: 'Menunggu' } ].map((filter) => (
-          <button key={filter.id} onClick={() => setActiveFilter(filter.id as FilterStatus)} className={cn(
-            "px-4 py-1.5 text-[10px] font-headline uppercase rounded-full whitespace-nowrap transition-colors",
-            activeFilter === filter.id ? "bg-[#FFFF00] text-black" : "bg-surface-container-highest text-zinc-400 hover:text-white"
-          )}>
-            {filter.label}
-          </button>
-        ))}
+      <div className="hidden md:flex flex-col gap-2 px-4 py-3 shrink-0 bg-surface-container-low border-b border-white/5">
+        <div className="flex items-center justify-between">
+          <div className="flex gap-2 overflow-x-auto no-scrollbar">
+            {[ { id: 'all', label: 'Semua' }, { id: 'unread', label: 'Belum Dibaca' }, { id: 'pending', label: 'Menunggu' } ].map((filter) => (
+              <button key={filter.id} onClick={() => setActiveFilter(filter.id as FilterStatus)} className={cn(
+                "px-4 py-1.5 text-[10px] font-headline uppercase rounded-full whitespace-nowrap transition-colors",
+                activeFilter === filter.id ? "bg-[#FFFF00] text-black" : "bg-surface-container-highest text-zinc-400 hover:text-white"
+              )}>
+                {filter.label}
+              </button>
+            ))}
+          </div>
+          {total > 0 && (
+            <span className="text-[9px] font-technical text-zinc-500 shrink-0">
+              {conversations.length}/{total}
+            </span>
+          )}
+        </div>
       </div>
 
       {/* LIST ITEM AREA (Area ini yang bisa di-scroll berkat flex-1 min-h-0) */}
@@ -196,14 +233,32 @@ export default function ConversationList({ conversations, selectedId, onSelect, 
             ) : (
                <>
                  {filteredConversations.map((conversation) => (
-                   // WAJIB ADA w-full max-w-full overflow-hidden
-                   <div key={conversation.id} className="w-full max-w-full overflow-hidden block">
-                     {/* Render Desktop Version */}
-                     <DesktopConversationItem conversation={conversation} isActive={selectedId === conversation.id} onClick={() => onSelect(conversation)} />
-                     {/* Render Mobile Version */}
-                     <MobileConversationItem conversation={conversation} isActive={selectedId === conversation.id} onClick={() => onSelect(conversation)} />
-                   </div>
-                 ))}
+                    // WAJIB ADA w-full max-w-full overflow-hidden
+                    <div key={conversation.id} className="w-full max-w-full overflow-hidden block">
+                      {/* Render Desktop Version */}
+                      <DesktopConversationItem conversation={conversation} isActive={selectedId === conversation.id} onClick={() => onSelect(conversation)} />
+                      {/* Render Mobile Version */}
+                      <MobileConversationItem conversation={conversation} isActive={selectedId === conversation.id} onClick={() => onSelect(conversation)} />
+                    </div>
+                  ))}
+                  {/* Infinite scroll sentinel */}
+                  {hasMore && (
+                    <div ref={sentinelRef} className="w-full py-4 flex justify-center">
+                      {loadingMore ? (
+                        <div className="flex items-center gap-2 text-zinc-500">
+                          <div className="w-4 h-4 border border-zinc-600 border-t-[#FFFF00] rounded-full animate-spin" />
+                          <span className="text-[10px] font-technical uppercase tracking-widest">Memuat...</span>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={onLoadMore}
+                          className="text-[10px] font-technical text-zinc-500 hover:text-zinc-300 uppercase tracking-widest transition-colors"
+                        >
+                          Muat lebih banyak
+                        </button>
+                      )}
+                    </div>
+                  )}
                </>
             )}
           </div>

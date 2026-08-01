@@ -75,7 +75,7 @@ function ConversationsContent({ initialConversations }: { initialConversations?:
   }, [searchParams]);
 
   // Load conversations with error handling and real-time updates
-  const { conversations, loading, error } = useRealtimeConversations({
+  const { conversations, loading, loadingMore, hasMore, total, error, loadMore } = useRealtimeConversations({
     enabled: !!user,
     initialData: initialConversations,
   });
@@ -157,6 +157,10 @@ function ConversationsContent({ initialConversations }: { initialConversations?:
             selectedId={selectedConversationId}
             onSelect={handleConversationSelect}
             loading={loading}
+            loadingMore={loadingMore}
+            hasMore={hasMore}
+            total={total}
+            onLoadMore={loadMore}
           />
         </div>
 

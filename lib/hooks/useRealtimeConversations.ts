@@ -1,12 +1,13 @@
 /**
- * useRealtimeConversations Hook (Supabase Realtime — Surgical Payload Updates)
+ * useRealtimeConversations Hook (Supabase Realtime — Surgical Payload Updates + Pagination)
  *
  * Strategy:
- * - Initial load: fetch all conversations once from /api/conversations
+ * - Initial load: fetch first page (50) from /api/conversations
+ * - loadMore(): append next page (called by ConversationList infinite scroll)
  * - Customer UPDATE  → surgically update matching conversation from payload (no API call)
  * - DirectMessage INSERT → update lastMessage/lastMessageTime from payload (no API call)
  * - CustomerContext UPDATE → update followUpStrategy from payload (no API call)
- * - Tab visibility: refetch ALL only if tab was hidden for >5 minutes (rare safety net)
+ * - Tab visibility: refetch page 1 only if tab was hidden for >5 minutes
  *
  * Egress: ~1 row per event (payload) instead of 100 rows per event (full fetch)
  */
@@ -48,8 +49,15 @@ interface UseRealtimeConversationsOptions {
 interface UseRealtimeConversationsReturn {
   conversations: Conversation[];
   loading: boolean;
+  loadingMore: boolean;
+  hasMore: boolean;
+  total: number;
   error: Error | null;
+  loadMore: () => void;
 }
+
+/** Number of conversations per page */
+const PAGE_SIZE = 50;
 
 /** Map raw API response item → Conversation */
 function mapApiItem(item: any): Conversation {
@@ -105,40 +113,41 @@ export function useRealtimeConversations(
     return !localStorage.getItem('cached-conversations');
   });
 
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const [total, setTotal] = useState(0);
   const [error, setError] = useState<Error | null>(null);
 
   const fetchingRef = useRef(false);
   const lastFetchRef = useRef<number>(initialData ? Date.now() : 0);
+  // Track how many pages have been loaded so loadMore knows where to start
+  const loadedCountRef = useRef<number>(initialData?.length ?? 0);
 
   // ─── Supabase Realtime subscriptions ────────────────────────────────────────
 
-  // Customer table: UPDATE (aiPaused, status, name, lastMessage, etc.)
   const { lastPayload: customerPayload } = useSupabaseEvent({
     table: 'Customer',
     event: 'UPDATE',
     enabled,
   });
 
-  // DirectMessage table: INSERT (new messages)
   const { lastPayload: messagePayload } = useSupabaseEvent({
     table: 'DirectMessage',
     event: 'INSERT',
     enabled,
   });
 
-  // CustomerContext table: UPDATE (followUpStrategy, etc.)
   const { lastPayload: contextPayload } = useSupabaseEvent({
     table: 'CustomerContext',
     event: 'UPDATE',
     enabled,
   });
 
-  // ─── Full fetch (initial load + stale-tab safety net) ───────────────────────
+  // ─── Full fetch (initial load) ────────────────────────────────────────────
 
   const fetchConversations = useCallback(async () => {
     if (fetchingRef.current) return;
 
-    // Debounce: skip if fetched within last 500ms
     const now = Date.now();
     if (now - lastFetchRef.current < 500) return;
 
@@ -146,25 +155,24 @@ export function useRealtimeConversations(
     lastFetchRef.current = now;
 
     try {
-      const res = await fetch(`/api/conversations?limit=100&t=${now}`, { cache: 'no-store' });
+      const res = await fetch(
+        `/api/conversations?limit=${PAGE_SIZE}&skip=0&t=${now}`,
+        { cache: 'no-store' }
+      );
       const json = await res.json();
-
-      if (!json.success) {
-        throw new Error(json.error || 'Failed to fetch conversations');
-      }
+      if (!json.success) throw new Error(json.error || 'Failed to fetch conversations');
 
       const mappedData: Conversation[] = json.data.map(mapApiItem);
+      const pagination = json.pagination ?? {};
 
-      setConversations(prev => {
-        if (JSON.stringify(prev) === JSON.stringify(mappedData)) return prev;
-        return mappedData;
-      });
+      setConversations(mappedData);
+      setHasMore(pagination.hasMore ?? false);
+      setTotal(pagination.total ?? mappedData.length);
+      loadedCountRef.current = mappedData.length;
 
-      if (typeof window !== 'undefined') {
-        try {
-          localStorage.setItem('cached-conversations', JSON.stringify(mappedData));
-        } catch { /* storage might be full */ }
-      }
+      try {
+        localStorage.setItem('cached-conversations', JSON.stringify(mappedData));
+      } catch { /* storage full */ }
 
       setError(null);
     } catch (err: any) {
@@ -176,7 +184,44 @@ export function useRealtimeConversations(
     }
   }, []);
 
-  // Initial fetch
+  // ─── Load next page (called by infinite scroll) ───────────────────────────
+
+  const loadMore = useCallback(async () => {
+    if (loadingMore || !hasMore || fetchingRef.current) return;
+
+    setLoadingMore(true);
+    const skip = loadedCountRef.current;
+
+    try {
+      const res = await fetch(
+        `/api/conversations?limit=${PAGE_SIZE}&skip=${skip}&t=${Date.now()}`,
+        { cache: 'no-store' }
+      );
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error || 'Failed to load more');
+
+      const newItems: Conversation[] = json.data.map(mapApiItem);
+      const pagination = json.pagination ?? {};
+
+      setConversations(prev => {
+        // Dedupe by id (in case realtime already added some of these)
+        const existingIds = new Set(prev.map(c => c.id));
+        const fresh = newItems.filter(c => !existingIds.has(c.id));
+        return [...prev, ...fresh];
+      });
+
+      setHasMore(pagination.hasMore ?? false);
+      setTotal(pagination.total ?? 0);
+      loadedCountRef.current = skip + newItems.length;
+    } catch (err: any) {
+      console.error('[useRealtimeConversations] loadMore error:', err);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [loadingMore, hasMore]);
+
+  // ─── Initial fetch ────────────────────────────────────────────────────────
+
   useEffect(() => {
     if (!enabled) {
       setLoading(false);
@@ -185,26 +230,22 @@ export function useRealtimeConversations(
     fetchConversations();
   }, [enabled, fetchConversations]);
 
-  // ─── Surgical update: Customer UPDATE ───────────────────────────────────────
+  // ─── Surgical update: Customer UPDATE ────────────────────────────────────
 
   useEffect(() => {
     if (!customerPayload?.new) return;
     const row = customerPayload.new as any;
-
     console.log('[Realtime] Customer UPDATE →', row.id);
 
     setConversations(prev => {
       const idx = prev.findIndex(c => c.id === row.id);
-
       if (idx === -1) {
-        // Unknown conversation — fetch all to bring it in
-        console.log('[Realtime] Unknown customer, triggering full fetch');
         fetchConversations();
         return prev;
       }
-
       const existing = prev[idx];
-      const updated: Conversation = {
+      const next = [...prev];
+      next[idx] = {
         ...existing,
         customerName: row.name ?? existing.customerName,
         customerPhone: row.phone ?? existing.customerPhone,
@@ -217,26 +258,24 @@ export function useRealtimeConversations(
           ? new Date(row.lastMessageAt).getTime()
           : existing.lastMessageTime,
         aiState: {
-          enabled: typeof row.aiPaused === 'boolean' ? !row.aiPaused : (existing.aiState?.enabled ?? true),
+          enabled: typeof row.aiPaused === 'boolean'
+            ? !row.aiPaused
+            : (existing.aiState?.enabled ?? true),
           pausedUntil: row.aiPausedUntil
             ? new Date(row.aiPausedUntil).getTime()
             : undefined,
           reason: row.aiPauseReason ?? existing.aiState?.reason,
         },
       };
-
-      const next = [...prev];
-      next[idx] = updated;
       return next;
     });
   }, [customerPayload, fetchConversations]);
 
-  // ─── Surgical update: DirectMessage INSERT ───────────────────────────────────
+  // ─── Surgical update: DirectMessage INSERT ───────────────────────────────
 
   useEffect(() => {
     if (!messagePayload?.new) return;
     const msg = messagePayload.new as any;
-
     console.log('[Realtime] DirectMessage INSERT → customerId:', msg.customerId);
 
     setConversations(prev =>
@@ -254,17 +293,15 @@ export function useRealtimeConversations(
     );
   }, [messagePayload]);
 
-  // ─── Surgical update: CustomerContext UPDATE (followUpStrategy, etc.) ────────
+  // ─── Surgical update: CustomerContext UPDATE ─────────────────────────────
 
   useEffect(() => {
     if (!contextPayload?.new) return;
     const ctx = contextPayload.new as any;
-
     console.log('[Realtime] CustomerContext UPDATE → phone:', ctx.phone);
 
     setConversations(prev =>
       prev.map(c => {
-        // Match by Customer.id === CustomerContext.id, or by phone
         if (c.id !== ctx.id && c.customerPhone !== ctx.phone) return c;
         return {
           ...c,
@@ -279,24 +316,22 @@ export function useRealtimeConversations(
     );
   }, [contextPayload]);
 
-  // ─── Tab visibility: refetch only if data is stale (>5 minutes) ─────────────
+  // ─── Tab visibility: refetch page 1 only if data is stale (>5 minutes) ───
 
   useEffect(() => {
     if (!enabled) return;
-
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') {
         const staleSince = Date.now() - lastFetchRef.current;
         if (staleSince > STALE_THRESHOLD_MS) {
-          console.log(`[Realtime] Tab visible after ${Math.round(staleSince / 1000)}s — refetching stale data`);
+          console.log(`[Realtime] Tab visible after ${Math.round(staleSince / 1000)}s — refetching`);
           fetchConversations();
         }
       }
     };
-
     document.addEventListener('visibilitychange', handleVisibility);
     return () => document.removeEventListener('visibilitychange', handleVisibility);
   }, [enabled, fetchConversations]);
 
-  return { conversations, loading, error };
+  return { conversations, loading, loadingMore, hasMore, total, error, loadMore };
 }
