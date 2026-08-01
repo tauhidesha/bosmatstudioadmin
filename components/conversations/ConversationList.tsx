@@ -143,20 +143,45 @@ export default function ConversationList({
   searchQuery = '',
 }: ConversationListProps) {
   const [activeFilter, setActiveFilter] = useState<FilterStatus>('all');
-  const sentinelRef = useRef<HTMLDivElement>(null);
+  // Ref on the ScrollArea wrapper — we query its internal Radix viewport
+  // to attach a scroll listener (IntersectionObserver doesn't work inside
+  // Radix ScrollArea because the viewport clips overflow from the window).
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const loadingMoreRef = useRef(loadingMore);
+  const hasMoreRef = useRef(hasMore);
+  const onLoadMoreRef = useRef(onLoadMore);
 
-  // Intersection Observer — trigger loadMore when sentinel enters viewport
+  // Keep refs in sync so the scroll handler always sees the latest values
+  // without needing to re-attach the listener on every render.
+  useEffect(() => { loadingMoreRef.current = loadingMore; }, [loadingMore]);
+  useEffect(() => { hasMoreRef.current = hasMore; }, [hasMore]);
+  useEffect(() => { onLoadMoreRef.current = onLoadMore; }, [onLoadMore]);
+
+  // Attach scroll listener to the Radix ScrollArea viewport element.
+  // Fires loadMore when the user scrolls within 300px of the bottom.
   useEffect(() => {
-    if (!onLoadMore || !hasMore) return;
-    const el = sentinelRef.current;
-    if (!el) return;
-    const observer = new IntersectionObserver(
-      (entries) => { if (entries[0].isIntersecting) onLoadMore(); },
-      { threshold: 0.1 }
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [onLoadMore, hasMore]);
+    const wrapper = scrollAreaRef.current;
+    if (!wrapper) return;
+
+    // Radix renders its viewport as a div with this data attribute
+    const viewport = wrapper.querySelector(
+      '[data-slot="scroll-area-viewport"]'
+    ) as HTMLElement | null;
+    if (!viewport) return;
+
+    const handleScroll = () => {
+      if (!hasMoreRef.current || loadingMoreRef.current) return;
+      const { scrollTop, scrollHeight, clientHeight } = viewport;
+      if (scrollHeight - scrollTop - clientHeight < 300) {
+        onLoadMoreRef.current?.();
+      }
+    };
+
+    viewport.addEventListener('scroll', handleScroll, { passive: true });
+    return () => viewport.removeEventListener('scroll', handleScroll);
+  // Only re-attach if the wrapper element changes (mount/unmount)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const filteredConversations = useMemo(() => {
     return conversations.filter((conv) => {
@@ -216,9 +241,9 @@ export default function ConversationList({
         </div>
       </div>
 
-      {/* LIST ITEM AREA (Area ini yang bisa di-scroll berkat flex-1 min-h-0) */}
+      {/* LIST ITEM AREA — flex-1 min-h-0 memastikan ScrollArea bisa mengisi sisa tinggi */}
       <div className="flex-1 min-h-0 w-full relative md:bg-surface-container-low max-w-[100vw] md:max-w-none overflow-hidden flex flex-col">
-        <ScrollArea className="flex-1 w-full max-w-[100vw] md:max-w-none">
+        <ScrollArea ref={scrollAreaRef} className="flex-1 w-full max-w-[100vw] md:max-w-none">
           {/* pb-4 cukup, tidak perlu pb-32 lagi karena footer sudah di luar */}
           <div className="grid grid-cols-1 w-full max-w-[100vw] md:max-w-none px-4 md:px-0 gap-0 overflow-hidden pb-4">
             {loading ? (
@@ -241,9 +266,9 @@ export default function ConversationList({
                       <MobileConversationItem conversation={conversation} isActive={selectedId === conversation.id} onClick={() => onSelect(conversation)} />
                     </div>
                   ))}
-                  {/* Infinite scroll sentinel */}
+                  {/* Load more — shown when more pages exist */}
                   {hasMore && (
-                    <div ref={sentinelRef} className="w-full py-4 flex justify-center">
+                    <div className="w-full py-4 flex justify-center">
                       {loadingMore ? (
                         <div className="flex items-center gap-2 text-zinc-500">
                           <div className="w-4 h-4 border border-zinc-600 border-t-[#FFFF00] rounded-full animate-spin" />
@@ -252,9 +277,9 @@ export default function ConversationList({
                       ) : (
                         <button
                           onClick={onLoadMore}
-                          className="text-[10px] font-technical text-zinc-500 hover:text-zinc-300 uppercase tracking-widest transition-colors"
+                          className="px-4 py-2 text-[10px] font-technical text-zinc-400 hover:text-white border border-white/10 hover:border-white/30 uppercase tracking-widest transition-colors rounded-sm"
                         >
-                          Muat lebih banyak
+                          Muat lebih banyak ↓
                         </button>
                       )}
                     </div>
