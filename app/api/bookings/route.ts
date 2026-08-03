@@ -535,45 +535,38 @@ export async function PUT(req: NextRequest) {
     // Transaction logic
     const totalAdditionalPaymentNeeded = targetAmountPaid - prevAmountPaid;
     
-    if (dpDiff > 0) {
-        await prisma.transaction.create({
-            data: {
-                customerId: booking.customerId,
-                bookingId: id,
-                amount: dpDiff,
-                type: 'income',
-                status: 'SUCCESS',
-                description: `Down Payment - ${existingBooking.serviceType}`,
-                paymentMethod: data.paymentMethod || existingBooking.paymentMethod || 'transfer',
-            }
+    if (totalAdditionalPaymentNeeded > 0) {
+        const existingTx = await prisma.transaction.findUnique({
+            where: { bookingId: id }
         });
-        
-        await prisma.customer.update({
-            where: { id: booking.customerId },
-            data: { totalSpending: { increment: dpDiff } }
-        });
-    }
 
-    const regularPaymentNeeded = totalAdditionalPaymentNeeded - Math.max(0, dpDiff);
-    if (regularPaymentNeeded > 0) {
-        await prisma.transaction.create({
-            data: {
-                customerId: booking.customerId,
-                bookingId: id,
-                amount: regularPaymentNeeded,
-                type: 'income',
-                status: 'SUCCESS',
-                description: `Pembayaran Service: ${existingBooking.serviceType}`,
-                paymentMethod: data.paymentMethod || existingBooking.paymentMethod || 'transfer',
-            }
-        });
+        if (existingTx) {
+            await prisma.transaction.update({
+                where: { id: existingTx.id },
+                data: {
+                    amount: { increment: totalAdditionalPaymentNeeded },
+                    description: `Update Pembayaran: ${existingBooking.serviceType}`,
+                    paymentMethod: data.paymentMethod || existingBooking.paymentMethod || existingTx.paymentMethod || 'transfer',
+                }
+            });
+        } else {
+            await prisma.transaction.create({
+                data: {
+                    customerId: booking.customerId,
+                    bookingId: id,
+                    amount: totalAdditionalPaymentNeeded,
+                    type: 'income',
+                    status: 'SUCCESS',
+                    description: `Pembayaran: ${existingBooking.serviceType}`,
+                    paymentMethod: data.paymentMethod || existingBooking.paymentMethod || 'transfer',
+                }
+            });
+        }
         
         // Update customer totalSpending
         await prisma.customer.update({
             where: { id: booking.customerId },
-            data: { 
-                totalSpending: { increment: regularPaymentNeeded }
-            }
+            data: { totalSpending: { increment: totalAdditionalPaymentNeeded } }
         });
     }
 

@@ -23,6 +23,7 @@ async function getInitialData(): Promise<InitialData> {
   try {
     const [customers, total] = await Promise.all([
       prisma.customer.findMany({
+        where: { OR: [{ messages: { some: {} } }, { bookings: { some: {} } }] },
         take: PAGE_SIZE,
         skip: 0,
         orderBy: { updatedAt: 'desc' },

@@ -689,6 +689,7 @@ export default function ManualBookingForm({
         downPayment: nominalDP,
         amountPaid: amountPaid,
         status: bookingStatus,
+        paymentMethod,
         homeService,
         realPhone,
         notes: `Layanan: ${cart.map((i: CartItem) => {

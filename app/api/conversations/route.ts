@@ -18,6 +18,12 @@ export async function GET(req: NextRequest) {
     // when Customer.lastMessageAt is stale.
     const [customers, total] = await Promise.all([
       prisma.customer.findMany({
+        where: {
+          OR: [
+            { messages: { some: {} } },
+            { bookings: { some: {} } },
+          ],
+        },
         take: limit,
         skip,
         orderBy: { updatedAt: 'desc' },
